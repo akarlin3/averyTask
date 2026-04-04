@@ -2,44 +2,33 @@
 
 ## Project Overview
 
-**// TODO** (`com.todounified`) is a native Android todo list manager built with Kotlin and Jetpack Compose. It combines standard task management with an AI-powered JSX import feature that uses the Anthropic Claude API to extract tasks from React components.
+**AveryTask** (`com.averykarlin.averytask`) is a native Android todo list app built with Kotlin and Jetpack Compose. The project is in early development with the initial scaffold in place.
 
 ## Tech Stack
 
-- **Language**: Kotlin (JVM target 17)
-- **UI**: Jetpack Compose with Material 3
-- **Database**: Room 2.6.1 (SQLite ORM)
-- **Networking**: OkHttp 4.12.0 + Gson 2.10.1
-- **AI**: Anthropic Claude API (claude-sonnet-4-20250514)
-- **Build**: Gradle 8.5 with Kotlin DSL + KSP
-- **Min SDK**: 26 (Android 8.0) / **Target SDK**: 34 (Android 14)
+- **Language**: Kotlin 2.2.10 (JVM target 17)
+- **UI**: Jetpack Compose with Material 3 (BOM 2024.12.01)
+- **Build**: Gradle 8.13 with Kotlin DSL
+- **Compose Compiler**: Kotlin Compiler Plugin (via `org.jetbrains.kotlin.plugin.compose`)
+- **Min SDK**: 26 (Android 8.0) / **Target SDK**: 35 (Android 15)
 
 ## Project Structure
 
 ```
-app/src/main/java/com/todounified/
-├── TodoApp.kt                  # Application class (Room DB init)
-├── MainActivity.kt             # Single activity entry point
-├── ai/
-│   └── JsxParserService.kt    # Claude API integration for JSX parsing
-├── data/
-│   ├── Entities.kt             # Room entities: TaskList, Task, ImportedTab + type converters
-│   ├── TodoDao.kt              # Room DAO (queries for lists, tasks, imported tabs)
-│   └── TodoDatabase.kt         # Room database definition
-├── viewmodel/
-│   └── TodoViewModel.kt        # Single ViewModel with UiState StateFlow
-└── ui/
-    ├── components/Components.kt # Reusable Compose components (task rows, dialogs, etc.)
-    ├── screens/MainScreen.kt    # Main screen composable
-    └── theme/Theme.kt           # Color scheme and typography
+app/src/main/java/com/averykarlin/averytask/
+├── MainActivity.kt              # Single-activity entry point (Compose)
+└── ui/theme/
+    ├── Color.kt                 # Material 3 color tokens (light + dark)
+    ├── Theme.kt                 # Dynamic color theme with light/dark support
+    └── Type.kt                  # Typography definitions
 ```
 
 ## Architecture
 
-- **MVVM**: Single `TodoViewModel` manages all app state via an immutable `UiState` data class exposed as `StateFlow`
-- **Room Database**: 3 entities (`task_lists`, `tasks`, `imported_tabs`) with cascade deletes on list removal
-- **Coroutines**: All DB and network operations run in `viewModelScope` coroutine launches
-- **Compose**: Purely functional UI observing ViewModel state; no XML layouts
+- **Single Activity**: `MainActivity` is the sole entry point, using `setContent` with Compose
+- **Compose-only UI**: No XML layouts; the entire UI is built with Jetpack Compose
+- **Material 3 theming**: Supports dynamic colors on Android 12+ with static light/dark fallback
+- **Edge-to-edge**: Uses `enableEdgeToEdge()` for modern system bar handling
 
 ## Build Commands
 
@@ -47,34 +36,26 @@ app/src/main/java/com/todounified/
 # Debug build
 ./gradlew assembleDebug
 
-# Release build (uses ProGuard/R8 minification)
+# Release build
 ./gradlew assembleRelease
 
 # Clean
 ./gradlew clean
 ```
 
-There is no CI/CD pipeline or automated test suite configured.
+There is no CI/CD pipeline or automated test suite configured yet.
 
 ## Key Conventions
 
-- **State management**: All UI state flows through `TodoViewModel.UiState`. Update state with `_uiState.update { it.copy(...) }`.
-- **Database access**: Use `TodoDao` methods from coroutines in the ViewModel. Room handles threading via `room-ktx` suspend functions.
-- **Type converters**: `Priority` enum and `List<String>` tags use Room `@TypeConverter` in `Entities.kt`.
-- **API key**: Stored in-memory only (not persisted to disk). User enters via Settings dialog.
-- **No test infrastructure**: No unit or instrumentation tests exist yet.
-
-## Database Schema
-
-| Table | Key Columns |
-|-------|------------|
-| `task_lists` | id, name, emoji, sortOrder |
-| `tasks` | id, listId (FK), title, done, priority, dueDate, tags, createdAt |
-| `imported_tabs` | id, fileName, jsxCode, extractedTasksJson, htmlPreview |
+- **Theme**: Use `AveryTaskTheme` as the root composable wrapper. It handles light/dark and dynamic colors.
+- **No XML layouts**: All UI must be Jetpack Compose.
+- **JVM target**: 17 — do not change without updating both `compileOptions` and `kotlinOptions` in `app/build.gradle.kts`.
 
 ## Important Files
 
-- `app/build.gradle.kts` - All dependencies and build configuration
-- `app/proguard-rules.pro` - R8 keep rules (preserves Gson + data classes)
-- `app/src/main/AndroidManifest.xml` - INTERNET permission, FileProvider config
-- `settings.gradle.kts` - Repository sources and project includes
+- `build.gradle.kts` — Root build file with plugin versions (AGP, Kotlin, Compose compiler)
+- `app/build.gradle.kts` — App module dependencies and build configuration
+- `settings.gradle.kts` — Repository sources and project includes
+- `gradle.properties` — Gradle JVM args, AndroidX flags
+- `app/src/main/AndroidManifest.xml` — Activity declaration, theme reference
+- `app/proguard-rules.pro` — R8/ProGuard rules (empty, minification disabled)
