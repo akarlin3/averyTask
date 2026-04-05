@@ -5,7 +5,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FolderCopy
@@ -29,7 +28,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -54,8 +52,12 @@ import com.averykarlin.averytask.ui.screens.tags.TagManagementScreen
 import com.averykarlin.averytask.ui.screens.monthview.MonthViewScreen
 import com.averykarlin.averytask.ui.screens.timeline.TimelineScreen
 import com.averykarlin.averytask.ui.screens.weekview.WeekViewScreen
-import com.averykarlin.averytask.ui.webview.ReactTabViewModel
-import com.averykarlin.averytask.ui.webview.ReactTabWebView
+import com.averykarlin.averytask.ui.screens.today.TodayScreen
+import com.averykarlin.averytask.ui.screens.tasklist.TaskListScreen
+import com.averykarlin.averytask.ui.screens.projects.ProjectListScreen
+import com.averykarlin.averytask.ui.screens.habits.HabitListScreen
+import com.averykarlin.averytask.ui.screens.leisure.LeisureScreen
+import com.averykarlin.averytask.ui.screens.settings.SettingsScreen
 
 sealed class AveryTaskRoute(val route: String) {
     data object Today : AveryTaskRoute("today")
@@ -93,8 +95,7 @@ data class BottomNavItem(
     val route: String,
     val label: String,
     val selectedIcon: ImageVector,
-    val unselectedIcon: ImageVector,
-    val reactTab: String // Hash route name for the React app
+    val unselectedIcon: ImageVector
 )
 
 private val bottomNavItems = listOf(
@@ -108,7 +109,6 @@ private val bottomNavItems = listOf(
 )
 
 private val mainRoutes = bottomNavItems.map { it.route }.toSet()
-private val reactTabMap = bottomNavItems.associate { it.route to it.reactTab }
 
 private const val NAV_ANIM_DURATION = 300
 
@@ -120,7 +120,6 @@ fun AveryTaskNavGraph(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val showBottomBar = currentRoute in mainRoutes
-    val scope = rememberCoroutineScope()
 
     Scaffold(
         modifier = modifier,
@@ -160,52 +159,65 @@ fun AveryTaskNavGraph(
             startDestination = AveryTaskRoute.Today.route,
             modifier = Modifier.padding(innerPadding)
         ) {
-            // Main tab screens — React WebView tabs
-            mainRoutes.forEach { route ->
-                composable(
-                    route = route,
-                    enterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
-                    exitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) },
-                    popEnterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
-                    popExitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) }
-                ) {
-                    val viewModel: ReactTabViewModel = hiltViewModel()
-                    val tabName = reactTabMap[route] ?: "today"
+            // Main tab screens — native Compose
+            composable(
+                route = AveryTaskRoute.Today.route,
+                enterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                exitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popExitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) }
+            ) {
+                TodayScreen(navController)
+            }
 
-                    ReactTabWebView(
-                        tabName = tabName,
-                        taskRepository = viewModel.taskRepository,
-                        projectRepository = viewModel.projectRepository,
-                        habitRepository = viewModel.habitRepository,
-                        tagRepository = viewModel.tagRepository,
-                        themePreferences = viewModel.themePreferences,
-                        onNavigate = { targetRoute ->
-                            // Handle navigation from React to native screens
-                            when {
-                                targetRoute.startsWith("add_edit_task") -> navController.navigate(targetRoute)
-                                targetRoute.startsWith("add_edit_project") -> navController.navigate(targetRoute)
-                                targetRoute.startsWith("add_edit_habit") -> navController.navigate(targetRoute)
-                                targetRoute.startsWith("habit_analytics") -> navController.navigate(targetRoute)
-                                targetRoute == "tag_management" -> navController.navigate(AveryTaskRoute.TagManagement.route)
-                                targetRoute == "archive" -> navController.navigate(AveryTaskRoute.Archive.route)
-                                targetRoute == "search" -> navController.navigate(AveryTaskRoute.Search.route)
-                                targetRoute == "auth" -> navController.navigate(AveryTaskRoute.Auth.route)
-                                targetRoute == "week_view" -> navController.navigate(AveryTaskRoute.WeekView.route)
-                                targetRoute == "month_view" -> navController.navigate(AveryTaskRoute.MonthView.route)
-                                targetRoute == "timeline" -> navController.navigate(AveryTaskRoute.Timeline.route)
-                                // Settings actions handled natively
-                                targetRoute == "export_json" || targetRoute == "export_csv" ||
-                                targetRoute == "import_json" || targetRoute == "sync_now" ||
-                                targetRoute == "sign_out" -> {
-                                    // These would be handled by native code via the settings screen
-                                    // For now they trigger navigation to settings
-                                }
-                            }
-                        },
-                        scope = scope,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
+            composable(
+                route = AveryTaskRoute.TaskList.route,
+                enterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                exitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popExitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) }
+            ) {
+                TaskListScreen(navController)
+            }
+
+            composable(
+                route = AveryTaskRoute.ProjectList.route,
+                enterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                exitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popExitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) }
+            ) {
+                ProjectListScreen(navController)
+            }
+
+            composable(
+                route = AveryTaskRoute.HabitList.route,
+                enterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                exitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popExitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) }
+            ) {
+                HabitListScreen(navController)
+            }
+
+            composable(
+                route = AveryTaskRoute.Leisure.route,
+                enterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                exitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popExitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) }
+            ) {
+                LeisureScreen(navController)
+            }
+
+            composable(
+                route = AveryTaskRoute.Settings.route,
+                enterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                exitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popExitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) }
+            ) {
+                SettingsScreen(navController)
             }
 
             // Detail screens — remain native Compose, slide transitions
