@@ -1,5 +1,7 @@
 package com.averykarlin.averytask.ui.screens.projects
 
+import android.util.Log
+import androidx.compose.material3.SnackbarHostState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averykarlin.averytask.data.local.dao.ProjectWithCount
@@ -17,12 +19,19 @@ class ProjectListViewModel @Inject constructor(
     private val projectRepository: ProjectRepository
 ) : ViewModel() {
 
+    val snackbarHostState = SnackbarHostState()
+
     val projects: StateFlow<List<ProjectWithCount>> = projectRepository.getProjectWithTaskCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun onDeleteProject(project: ProjectEntity) {
         viewModelScope.launch {
-            projectRepository.deleteProject(project)
+            try {
+                projectRepository.deleteProject(project)
+            } catch (e: Exception) {
+                Log.e("ProjectListVM", "Failed to delete project", e)
+                snackbarHostState.showSnackbar("Something went wrong")
+            }
         }
     }
 }

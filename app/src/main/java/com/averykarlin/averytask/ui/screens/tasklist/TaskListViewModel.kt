@@ -1,5 +1,9 @@
 package com.averykarlin.averytask.ui.screens.tasklist
 
+import android.util.Log
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averykarlin.averytask.data.local.entity.ProjectEntity
@@ -38,6 +42,8 @@ class TaskListViewModel @Inject constructor(
     private val taskRepository: TaskRepository,
     private val projectRepository: ProjectRepository
 ) : ViewModel() {
+
+    val snackbarHostState = SnackbarHostState()
 
     private val rootTasks: StateFlow<List<TaskEntity>> = taskRepository.getIncompleteRootTasks()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -102,39 +108,103 @@ class TaskListViewModel @Inject constructor(
 
     fun onAddTask(title: String, dueDate: Long? = null, priority: Int = 0, projectId: Long? = null) {
         viewModelScope.launch {
-            taskRepository.addTask(title = title, dueDate = dueDate, priority = priority, projectId = projectId)
+            try {
+                taskRepository.addTask(title = title, dueDate = dueDate, priority = priority, projectId = projectId)
+            } catch (e: Exception) {
+                Log.e("TaskListVM", "Failed to add task", e)
+                snackbarHostState.showSnackbar("Something went wrong")
+            }
         }
     }
 
     fun onAddSubtask(title: String, parentTaskId: Long) {
         viewModelScope.launch {
-            taskRepository.addSubtask(title = title, parentTaskId = parentTaskId)
+            try {
+                taskRepository.addSubtask(title = title, parentTaskId = parentTaskId)
+            } catch (e: Exception) {
+                Log.e("TaskListVM", "Failed to add subtask", e)
+                snackbarHostState.showSnackbar("Something went wrong")
+            }
         }
     }
 
     fun onToggleComplete(taskId: Long, isCurrentlyCompleted: Boolean) {
         viewModelScope.launch {
-            if (isCurrentlyCompleted) {
-                taskRepository.uncompleteTask(taskId)
-            } else {
-                taskRepository.completeTask(taskId)
+            try {
+                if (isCurrentlyCompleted) {
+                    taskRepository.uncompleteTask(taskId)
+                } else {
+                    taskRepository.completeTask(taskId)
+                }
+            } catch (e: Exception) {
+                Log.e("TaskListVM", "Failed to toggle complete", e)
+                snackbarHostState.showSnackbar("Something went wrong")
             }
         }
     }
 
     fun onToggleSubtaskComplete(subtaskId: Long, isCompleted: Boolean) {
         viewModelScope.launch {
-            if (isCompleted) {
-                taskRepository.uncompleteTask(subtaskId)
-            } else {
-                taskRepository.completeTask(subtaskId)
+            try {
+                if (isCompleted) {
+                    taskRepository.uncompleteTask(subtaskId)
+                } else {
+                    taskRepository.completeTask(subtaskId)
+                }
+            } catch (e: Exception) {
+                Log.e("TaskListVM", "Failed to toggle subtask", e)
+                snackbarHostState.showSnackbar("Something went wrong")
             }
         }
     }
 
     fun onDeleteTask(taskId: Long) {
         viewModelScope.launch {
-            taskRepository.deleteTask(taskId)
+            try {
+                taskRepository.deleteTask(taskId)
+            } catch (e: Exception) {
+                Log.e("TaskListVM", "Failed to delete task", e)
+                snackbarHostState.showSnackbar("Something went wrong")
+            }
+        }
+    }
+
+    fun onCompleteTaskWithUndo(taskId: Long) {
+        viewModelScope.launch {
+            try {
+                taskRepository.completeTask(taskId)
+                val result = snackbarHostState.showSnackbar(
+                    message = "Task completed",
+                    actionLabel = "UNDO",
+                    duration = SnackbarDuration.Short
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    taskRepository.uncompleteTask(taskId)
+                }
+            } catch (e: Exception) {
+                Log.e("TaskListVM", "Failed to complete task", e)
+                snackbarHostState.showSnackbar("Something went wrong")
+            }
+        }
+    }
+
+    fun onDeleteTaskWithUndo(taskId: Long) {
+        viewModelScope.launch {
+            try {
+                val savedTask = taskRepository.getTaskByIdOnce(taskId) ?: return@launch
+                taskRepository.deleteTask(taskId)
+                val result = snackbarHostState.showSnackbar(
+                    message = "Task deleted",
+                    actionLabel = "UNDO",
+                    duration = SnackbarDuration.Short
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    taskRepository.insertTask(savedTask)
+                }
+            } catch (e: Exception) {
+                Log.e("TaskListVM", "Failed to delete task", e)
+                snackbarHostState.showSnackbar("Something went wrong")
+            }
         }
     }
 

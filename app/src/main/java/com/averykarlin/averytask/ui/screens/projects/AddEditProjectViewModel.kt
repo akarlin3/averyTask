@@ -1,5 +1,6 @@
 package com.averykarlin.averytask.ui.screens.projects
 
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -9,6 +10,9 @@ import androidx.lifecycle.viewModelScope
 import com.averykarlin.averytask.data.local.entity.ProjectEntity
 import com.averykarlin.averytask.data.repository.ProjectRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -18,6 +22,9 @@ class AddEditProjectViewModel @Inject constructor(
     private val projectRepository: ProjectRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
+
+    private val _errorMessages = MutableSharedFlow<String>()
+    val errorMessages: SharedFlow<String> = _errorMessages.asSharedFlow()
 
     private val projectId: Long? = savedStateHandle.get<Long>("projectId")?.takeIf { it != -1L }
     val isEditMode: Boolean = projectId != null
@@ -60,26 +67,37 @@ class AddEditProjectViewModel @Inject constructor(
             return false
         }
 
-        val existing = existingProject
-        if (existing != null) {
-            projectRepository.updateProject(
-                existing.copy(
+        return try {
+            val existing = existingProject
+            if (existing != null) {
+                projectRepository.updateProject(
+                    existing.copy(
+                        name = name.trim(),
+                        color = color,
+                        icon = icon
+                    )
+                )
+            } else {
+                projectRepository.addProject(
                     name = name.trim(),
                     color = color,
                     icon = icon
                 )
-            )
-        } else {
-            projectRepository.addProject(
-                name = name.trim(),
-                color = color,
-                icon = icon
-            )
+            }
+            true
+        } catch (e: Exception) {
+            Log.e("AddEditProjectVM", "Failed to save project", e)
+            _errorMessages.emit("Something went wrong")
+            false
         }
-        return true
     }
 
     suspend fun deleteProject() {
-        existingProject?.let { projectRepository.deleteProject(it) }
+        try {
+            existingProject?.let { projectRepository.deleteProject(it) }
+        } catch (e: Exception) {
+            Log.e("AddEditProjectVM", "Failed to delete project", e)
+            _errorMessages.emit("Something went wrong")
+        }
     }
 }
