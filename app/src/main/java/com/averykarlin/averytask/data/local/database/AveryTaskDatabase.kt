@@ -6,6 +6,8 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.averykarlin.averytask.data.local.dao.AttachmentDao
 import com.averykarlin.averytask.data.local.dao.CalendarSyncDao
+import com.averykarlin.averytask.data.local.dao.HabitCompletionDao
+import com.averykarlin.averytask.data.local.dao.HabitDao
 import com.averykarlin.averytask.data.local.dao.ProjectDao
 import com.averykarlin.averytask.data.local.dao.SyncMetadataDao
 import com.averykarlin.averytask.data.local.dao.TagDao
@@ -13,6 +15,8 @@ import com.averykarlin.averytask.data.local.dao.TaskDao
 import com.averykarlin.averytask.data.local.dao.UsageLogDao
 import com.averykarlin.averytask.data.local.entity.AttachmentEntity
 import com.averykarlin.averytask.data.local.entity.CalendarSyncEntity
+import com.averykarlin.averytask.data.local.entity.HabitCompletionEntity
+import com.averykarlin.averytask.data.local.entity.HabitEntity
 import com.averykarlin.averytask.data.local.entity.ProjectEntity
 import com.averykarlin.averytask.data.local.entity.SyncMetadataEntity
 import com.averykarlin.averytask.data.local.entity.TagEntity
@@ -21,8 +25,8 @@ import com.averykarlin.averytask.data.local.entity.TaskTagCrossRef
 import com.averykarlin.averytask.data.local.entity.UsageLogEntity
 
 @Database(
-    entities = [TaskEntity::class, ProjectEntity::class, TagEntity::class, TaskTagCrossRef::class, AttachmentEntity::class, UsageLogEntity::class, SyncMetadataEntity::class, CalendarSyncEntity::class],
-    version = 6,
+    entities = [TaskEntity::class, ProjectEntity::class, TagEntity::class, TaskTagCrossRef::class, AttachmentEntity::class, UsageLogEntity::class, SyncMetadataEntity::class, CalendarSyncEntity::class, HabitEntity::class, HabitCompletionEntity::class],
+    version = 7,
     exportSchema = false
 )
 abstract class AveryTaskDatabase : RoomDatabase() {
@@ -33,6 +37,8 @@ abstract class AveryTaskDatabase : RoomDatabase() {
     abstract fun usageLogDao(): UsageLogDao
     abstract fun syncMetadataDao(): SyncMetadataDao
     abstract fun calendarSyncDao(): CalendarSyncDao
+    abstract fun habitDao(): HabitDao
+    abstract fun habitCompletionDao(): HabitCompletionDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -126,6 +132,42 @@ abstract class AveryTaskDatabase : RoomDatabase() {
                         FOREIGN KEY(`task_id`) REFERENCES `tasks`(`id`) ON DELETE CASCADE
                     )"""
                 )
+            }
+        }
+
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `habits` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `description` TEXT,
+                        `target_frequency` INTEGER NOT NULL DEFAULT 1,
+                        `frequency_period` TEXT NOT NULL DEFAULT 'daily',
+                        `active_days` TEXT,
+                        `color` TEXT NOT NULL DEFAULT '#4A90D9',
+                        `icon` TEXT NOT NULL DEFAULT '⭐',
+                        `reminder_time` INTEGER,
+                        `sort_order` INTEGER NOT NULL DEFAULT 0,
+                        `is_archived` INTEGER NOT NULL DEFAULT 0,
+                        `create_daily_task` INTEGER NOT NULL DEFAULT 0,
+                        `category` TEXT,
+                        `created_at` INTEGER NOT NULL,
+                        `updated_at` INTEGER NOT NULL
+                    )"""
+                )
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `habit_completions` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `habit_id` INTEGER NOT NULL,
+                        `completed_date` INTEGER NOT NULL,
+                        `completed_at` INTEGER NOT NULL,
+                        `notes` TEXT,
+                        FOREIGN KEY(`habit_id`) REFERENCES `habits`(`id`) ON DELETE CASCADE
+                    )"""
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_habit_completions_habit_id` ON `habit_completions` (`habit_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_habit_completions_completed_date` ON `habit_completions` (`completed_date`)")
             }
         }
     }

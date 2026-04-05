@@ -14,8 +14,8 @@ android {
         applicationId = "com.averykarlin.averytask"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "0.4.0"
+        versionCode = 5
+        versionName = "0.5.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
@@ -96,6 +96,10 @@ dependencies {
 
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.2.1")
+
+    // Glance Widgets
+    implementation("androidx.glance:glance-appwidget:1.1.1")
+    implementation("androidx.glance:glance-material3:1.1.1")
 
     // Firebase
     implementation(platform("com.google.firebase:firebase-bom:33.7.0"))

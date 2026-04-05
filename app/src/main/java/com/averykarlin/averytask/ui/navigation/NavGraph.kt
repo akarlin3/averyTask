@@ -10,11 +10,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.FolderCopy
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.FolderCopy
 import androidx.compose.material.icons.automirrored.outlined.FormatListBulleted
+import androidx.compose.material.icons.outlined.FitnessCenter
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Today
 import androidx.compose.material3.Badge
@@ -41,6 +43,9 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.averykarlin.averytask.ui.screens.addedittask.AddEditTaskScreen
 import com.averykarlin.averytask.ui.screens.archive.ArchiveScreen
+import com.averykarlin.averytask.ui.screens.habits.AddEditHabitScreen
+import com.averykarlin.averytask.ui.screens.habits.HabitAnalyticsScreen
+import com.averykarlin.averytask.ui.screens.habits.HabitListScreen
 import com.averykarlin.averytask.ui.screens.projects.AddEditProjectScreen
 import com.averykarlin.averytask.ui.screens.projects.ProjectListScreen
 import com.averykarlin.averytask.ui.screens.search.SearchScreen
@@ -71,6 +76,14 @@ sealed class AveryTaskRoute(val route: String) {
     data object WeekView : AveryTaskRoute("week_view")
     data object MonthView : AveryTaskRoute("month_view")
     data object Timeline : AveryTaskRoute("timeline")
+    data object HabitList : AveryTaskRoute("habit_list")
+    data object AddEditHabit : AveryTaskRoute("add_edit_habit?habitId={habitId}") {
+        fun createRoute(habitId: Long? = null): String =
+            if (habitId != null) "add_edit_habit?habitId=$habitId" else "add_edit_habit"
+    }
+    data object HabitAnalytics : AveryTaskRoute("habit_analytics?habitId={habitId}") {
+        fun createRoute(habitId: Long): String = "habit_analytics?habitId=$habitId"
+    }
 }
 
 data class BottomNavItem(
@@ -84,6 +97,7 @@ private val bottomNavItems = listOf(
     BottomNavItem(AveryTaskRoute.Today.route, "Today", Icons.Filled.Today, Icons.Outlined.Today),
     BottomNavItem(AveryTaskRoute.TaskList.route, "Tasks", Icons.AutoMirrored.Filled.FormatListBulleted, Icons.AutoMirrored.Outlined.FormatListBulleted),
     BottomNavItem(AveryTaskRoute.ProjectList.route, "Projects", Icons.Filled.FolderCopy, Icons.Outlined.FolderCopy),
+    BottomNavItem(AveryTaskRoute.HabitList.route, "Habits", Icons.Filled.FitnessCenter, Icons.Outlined.FitnessCenter),
     BottomNavItem(AveryTaskRoute.Settings.route, "Settings", Icons.Filled.Settings, Icons.Outlined.Settings),
 )
 
@@ -167,6 +181,16 @@ fun AveryTaskNavGraph(
                 popExitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) }
             ) {
                 ProjectListScreen(navController)
+            }
+
+            composable(
+                route = AveryTaskRoute.HabitList.route,
+                enterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                exitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popExitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) }
+            ) {
+                HabitListScreen(navController)
             }
 
             composable(
@@ -366,6 +390,62 @@ fun AveryTaskNavGraph(
                 }
             ) {
                 ArchiveScreen(navController)
+            }
+
+            composable(
+                route = AveryTaskRoute.AddEditHabit.route,
+                arguments = listOf(
+                    navArgument("habitId") {
+                        type = NavType.LongType
+                        defaultValue = -1L
+                    }
+                ),
+                enterTransition = {
+                    slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                exitTransition = {
+                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                }
+            ) {
+                AddEditHabitScreen(navController)
+            }
+
+            composable(
+                route = AveryTaskRoute.HabitAnalytics.route,
+                arguments = listOf(
+                    navArgument("habitId") {
+                        type = NavType.LongType
+                        defaultValue = -1L
+                    }
+                ),
+                enterTransition = {
+                    slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                exitTransition = {
+                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                }
+            ) {
+                HabitAnalyticsScreen(navController)
             }
         }
     }

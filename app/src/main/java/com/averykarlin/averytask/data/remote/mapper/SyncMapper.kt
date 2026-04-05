@@ -1,5 +1,7 @@
 package com.averykarlin.averytask.data.remote.mapper
 
+import com.averykarlin.averytask.data.local.entity.HabitCompletionEntity
+import com.averykarlin.averytask.data.local.entity.HabitEntity
 import com.averykarlin.averytask.data.local.entity.ProjectEntity
 import com.averykarlin.averytask.data.local.entity.TagEntity
 import com.averykarlin.averytask.data.local.entity.TaskEntity
@@ -82,4 +84,57 @@ object SyncMapper {
         color = data["color"] as? String ?: "#6B7280",
         createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
     )
+
+    fun habitToMap(habit: HabitEntity): Map<String, Any?> = mapOf(
+        "localId" to habit.id,
+        "name" to habit.name,
+        "description" to habit.description,
+        "targetFrequency" to habit.targetFrequency,
+        "frequencyPeriod" to habit.frequencyPeriod,
+        "activeDays" to habit.activeDays,
+        "color" to habit.color,
+        "icon" to habit.icon,
+        "reminderTime" to habit.reminderTime,
+        "sortOrder" to habit.sortOrder,
+        "isArchived" to habit.isArchived,
+        "createDailyTask" to habit.createDailyTask,
+        "category" to habit.category,
+        "createdAt" to habit.createdAt,
+        "updatedAt" to habit.updatedAt
+    )
+
+    fun mapToHabit(data: Map<String, Any?>, localId: Long = 0): HabitEntity = HabitEntity(
+        id = localId,
+        name = data["name"] as? String ?: "",
+        description = data["description"] as? String,
+        targetFrequency = (data["targetFrequency"] as? Number)?.toInt() ?: 1,
+        frequencyPeriod = data["frequencyPeriod"] as? String ?: "daily",
+        activeDays = data["activeDays"] as? String,
+        color = data["color"] as? String ?: "#4A90D9",
+        icon = data["icon"] as? String ?: "\u2B50",
+        reminderTime = (data["reminderTime"] as? Number)?.toLong(),
+        sortOrder = (data["sortOrder"] as? Number)?.toInt() ?: 0,
+        isArchived = data["isArchived"] as? Boolean ?: false,
+        createDailyTask = data["createDailyTask"] as? Boolean ?: false,
+        category = data["category"] as? String,
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+        updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+    )
+
+    fun habitCompletionToMap(completion: HabitCompletionEntity, habitCloudId: String): Map<String, Any?> = mapOf(
+        "localId" to completion.id,
+        "habitCloudId" to habitCloudId,
+        "completedDate" to completion.completedDate,
+        "completedAt" to completion.completedAt,
+        "notes" to completion.notes
+    )
+
+    fun mapToHabitCompletion(data: Map<String, Any?>, localId: Long = 0, habitLocalId: Long = 0): HabitCompletionEntity =
+        HabitCompletionEntity(
+            id = localId,
+            habitId = habitLocalId,
+            completedDate = (data["completedDate"] as? Number)?.toLong() ?: 0,
+            completedAt = (data["completedAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+            notes = data["notes"] as? String
+        )
 }

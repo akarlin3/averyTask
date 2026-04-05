@@ -63,8 +63,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averykarlin.averytask.data.local.entity.TagEntity
 import com.averykarlin.averytask.data.local.entity.TaskEntity
+import com.averykarlin.averytask.data.repository.HabitWithStatus
 import com.averykarlin.averytask.ui.components.EmptyState
 import com.averykarlin.averytask.ui.components.QuickAddBar
+import com.averykarlin.averytask.ui.components.StreakBadge
 import com.averykarlin.averytask.ui.navigation.AveryTaskRoute
 import com.averykarlin.averytask.ui.theme.PriorityColors
 import java.text.SimpleDateFormat
@@ -84,14 +86,16 @@ fun TodayScreen(
     val todayTasks by viewModel.todayTasks.collectAsStateWithLifecycle()
     val plannedTasks by viewModel.plannedTasks.collectAsStateWithLifecycle()
     val completedToday by viewModel.completedToday.collectAsStateWithLifecycle()
-    val totalCount by viewModel.totalTodayCount.collectAsStateWithLifecycle()
-    val completedCount by viewModel.completedTodayCount.collectAsStateWithLifecycle()
-    val progress by viewModel.progressPercent.collectAsStateWithLifecycle()
     val taskTagsMap by viewModel.taskTagsMap.collectAsStateWithLifecycle()
     val showPlanSheet by viewModel.showPlanSheet.collectAsStateWithLifecycle()
     val tasksNotInToday by viewModel.tasksNotInToday.collectAsStateWithLifecycle()
+    val todayHabits by viewModel.todayHabits.collectAsStateWithLifecycle()
+    val combinedTotal by viewModel.combinedTotal.collectAsStateWithLifecycle()
+    val combinedCompleted by viewModel.combinedCompleted.collectAsStateWithLifecycle()
+    val combinedProgress by viewModel.combinedProgress.collectAsStateWithLifecycle()
 
     var overdueExpanded by remember { mutableStateOf(true) }
+    var habitsExpanded by remember { mutableStateOf(true) }
     var completedExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -113,7 +117,7 @@ fun TodayScreen(
         ) {
             QuickAddBar()
 
-            val allEmpty = overdueTasks.isEmpty() && todayTasks.isEmpty() && plannedTasks.isEmpty() && completedToday.isEmpty()
+            val allEmpty = overdueTasks.isEmpty() && todayTasks.isEmpty() && plannedTasks.isEmpty() && completedToday.isEmpty() && todayHabits.isEmpty()
 
             if (allEmpty) {
                 EmptyState(
@@ -129,13 +133,45 @@ fun TodayScreen(
                         .padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    // Progress card
+                    // Progress card (combined tasks + habits)
                     item(key = "progress") {
+                        val taskRemaining = overdueTasks.size + todayTasks.size + plannedTasks.size
+                        val habitRemaining = todayHabits.count { !it.isCompletedToday }
                         ProgressCard(
-                            completed = completedCount,
-                            total = totalCount + completedCount,
-                            progress = progress
+                            completed = combinedCompleted,
+                            total = combinedTotal + combinedCompleted,
+                            progress = combinedProgress,
+                            subtitle = "${taskRemaining} task${if (taskRemaining != 1) "s" else ""} \u00B7 ${habitRemaining} habit${if (habitRemaining != 1) "s" else ""} remaining"
                         )
+                    }
+
+                    // Habits section
+                    if (todayHabits.isNotEmpty()) {
+                        val habitsDoneCount = todayHabits.count { it.isCompletedToday }
+                        item(key = "header_habits") {
+                            SectionHeader(
+                                title = "Habits",
+                                count = todayHabits.size,
+                                color = MaterialTheme.colorScheme.tertiary,
+                                expanded = habitsExpanded,
+                                onToggle = { habitsExpanded = !habitsExpanded }
+                            )
+                        }
+                        if (habitsExpanded) {
+                            items(todayHabits, key = { "habit_${it.habit.id}" }) { hws ->
+                                CompactHabitItem(
+                                    habitWithStatus = hws,
+                                    onToggle = {
+                                        viewModel.onToggleHabitCompletion(hws.habit.id, hws.isCompletedToday)
+                                    },
+                                    onClick = {
+                                        navController.navigate(
+                                            AveryTaskRoute.HabitAnalytics.createRoute(hws.habit.id)
+                                        )
+                                    }
+                                )
+                            }
+                        }
                     }
 
                     // Overdue section
@@ -231,8 +267,8 @@ fun TodayScreen(
                     item(key = "summary") {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "You completed $completedCount task${if (completedCount != 1) "s" else ""} today" +
-                                    if (overdueTasks.isNotEmpty()) " · ${overdueTasks.size} overdue" else "",
+                            text = "You completed $combinedCompleted item${if (combinedCompleted != 1) "s" else ""} today" +
+                                    if (overdueTasks.isNotEmpty()) " \u00B7 ${overdueTasks.size} overdue" else "",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.fillMaxWidth()
@@ -255,7 +291,7 @@ fun TodayScreen(
 }
 
 @Composable
-private fun ProgressCard(completed: Int, total: Int, progress: Float) {
+private fun ProgressCard(completed: Int, total: Int, progress: Float, subtitle: String? = null) {
     val animatedProgress by animateFloatAsState(
         targetValue = progress,
         animationSpec = tween(600),
@@ -310,6 +346,60 @@ private fun ProgressCard(completed: Int, total: Int, progress: Float) {
                 text = "Today's Progress",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (subtitle != null) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompactHabitItem(
+    habitWithStatus: HabitWithStatus,
+    onToggle: () -> Unit,
+    onClick: () -> Unit
+) {
+    val habit = habitWithStatus.habit
+    val habitColor = try {
+        Color(android.graphics.Color.parseColor(habit.color))
+    } catch (_: Exception) { Color(0xFF4A90D9) }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = habit.icon, style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = habit.name,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (habitWithStatus.currentStreak > 0) {
+                StreakBadge(streak = habitWithStatus.currentStreak)
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+            Checkbox(
+                checked = habitWithStatus.isCompletedToday,
+                onCheckedChange = { onToggle() }
             )
         }
     }

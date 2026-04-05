@@ -106,6 +106,15 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE is_completed = 1 AND completed_at >= :startOfToday AND archived_at IS NULL AND parent_task_id IS NULL ORDER BY completed_at DESC")
     fun getCompletedToday(startOfToday: Long): Flow<List<TaskEntity>>
 
+    @Query("SELECT * FROM tasks WHERE is_completed = 0 AND due_date < :startOfToday AND archived_at IS NULL AND parent_task_id IS NULL ORDER BY priority DESC")
+    suspend fun getOverdueRootTasksOnce(startOfToday: Long): List<TaskEntity>
+
+    @Query("SELECT * FROM tasks WHERE is_completed = 0 AND due_date >= :startOfToday AND due_date < :endOfToday AND archived_at IS NULL AND parent_task_id IS NULL ORDER BY priority DESC")
+    suspend fun getTodayTasksOnce(startOfToday: Long, endOfToday: Long): List<TaskEntity>
+
+    @Query("SELECT * FROM tasks WHERE is_completed = 1 AND completed_at >= :startOfToday AND archived_at IS NULL AND parent_task_id IS NULL ORDER BY completed_at DESC")
+    suspend fun getCompletedTodayOnce(startOfToday: Long): List<TaskEntity>
+
     @Query("UPDATE tasks SET planned_date = :plannedDate, updated_at = :now WHERE id = :id")
     suspend fun setPlanDate(id: Long, plannedDate: Long?, now: Long = System.currentTimeMillis())
 

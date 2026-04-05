@@ -9,6 +9,8 @@ import androidx.lifecycle.viewModelScope
 import com.averykarlin.averytask.data.local.dao.TaskDao
 import com.averykarlin.averytask.data.local.entity.TagEntity
 import com.averykarlin.averytask.data.local.entity.TaskEntity
+import com.averykarlin.averytask.data.repository.HabitRepository
+import com.averykarlin.averytask.data.repository.HabitWithStatus
 import com.averykarlin.averytask.data.repository.TagRepository
 import com.averykarlin.averytask.data.repository.TaskRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -30,7 +32,8 @@ import javax.inject.Inject
 class TodayViewModel @Inject constructor(
     private val taskRepository: TaskRepository,
     private val tagRepository: TagRepository,
-    private val taskDao: TaskDao
+    private val taskDao: TaskDao,
+    private val habitRepository: HabitRepository
 ) : ViewModel() {
 
     val snackbarHostState = SnackbarHostState()
@@ -93,6 +96,37 @@ class TodayViewModel @Inject constructor(
             combine(flows) { pairs -> pairs.toMap() }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    // Habits
+    val todayHabits: StateFlow<List<HabitWithStatus>> = habitRepository.getHabitsWithTodayStatus()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val habitCompletedCount: StateFlow<Int> = todayHabits.map { habits ->
+        habits.count { it.isCompletedToday }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    // Combined progress (tasks + habits)
+    val combinedTotal: StateFlow<Int> = combine(totalTodayCount, todayHabits) { taskTotal, habits ->
+        taskTotal + habits.size
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val combinedCompleted: StateFlow<Int> = combine(completedTodayCount, habitCompletedCount) { taskDone, habitDone ->
+        taskDone + habitDone
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val combinedProgress: StateFlow<Float> = combine(combinedTotal, combinedCompleted) { total, completed ->
+        if (total + completed == 0) 0f else completed.toFloat() / (total + completed).toFloat()
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0f)
+
+    fun onToggleHabitCompletion(habitId: Long, isCurrentlyCompleted: Boolean) {
+        viewModelScope.launch {
+            if (isCurrentlyCompleted) {
+                habitRepository.uncompleteHabit(habitId, System.currentTimeMillis())
+            } else {
+                habitRepository.completeHabit(habitId, System.currentTimeMillis())
+            }
+        }
+    }
 
     // Plan for Today
     val tasksNotInToday: StateFlow<List<TaskEntity>> = taskDao.getTasksNotInToday(startOfToday(), endOfToday())

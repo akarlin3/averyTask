@@ -1,6 +1,8 @@
 package com.averykarlin.averytask.data.remote
 
 import android.util.Log
+import com.averykarlin.averytask.data.local.dao.HabitCompletionDao
+import com.averykarlin.averytask.data.local.dao.HabitDao
 import com.averykarlin.averytask.data.local.dao.SyncMetadataDao
 import com.averykarlin.averytask.data.local.dao.TagDao
 import com.averykarlin.averytask.data.local.dao.TaskDao
@@ -21,7 +23,9 @@ class SyncService @Inject constructor(
     private val taskDao: TaskDao,
     private val projectDao: ProjectDao,
     private val tagDao: TagDao,
-    private val syncMetadataDao: SyncMetadataDao
+    private val syncMetadataDao: SyncMetadataDao,
+    private val habitDao: HabitDao,
+    private val habitCompletionDao: HabitCompletionDao
 ) {
     private val firestore = FirebaseFirestore.getInstance()
     private val listeners = mutableListOf<ListenerRegistration>()
@@ -52,6 +56,31 @@ class SyncService @Inject constructor(
                 localId = tag.id, entityType = "tag",
                 cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()
             ))
+        }
+
+        // Upload habits
+        val habits = habitDao.getActiveHabitsOnce()
+        for (habit in habits) {
+            val docRef = userCollection("habits")?.document() ?: continue
+            docRef.set(SyncMapper.habitToMap(habit)).await()
+            syncMetadataDao.upsert(SyncMetadataEntity(
+                localId = habit.id, entityType = "habit",
+                cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()
+            ))
+        }
+
+        // Upload habit completions
+        for (habit in habits) {
+            val completions = habitCompletionDao.getCompletionsForHabitOnce(habit.id)
+            val habitCloudId = syncMetadataDao.getCloudId(habit.id, "habit") ?: continue
+            for (completion in completions) {
+                val docRef = userCollection("habit_completions")?.document() ?: continue
+                docRef.set(SyncMapper.habitCompletionToMap(completion, habitCloudId)).await()
+                syncMetadataDao.upsert(SyncMetadataEntity(
+                    localId = completion.id, entityType = "habit_completion",
+                    cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()
+                ))
+            }
         }
 
         // Upload tasks with tag references
@@ -90,7 +119,8 @@ class SyncService @Inject constructor(
     }
 
     private suspend fun pushCreate(meta: SyncMetadataEntity) {
-        val collection = userCollection(meta.entityType + "s") ?: return
+        val collectionName = if (meta.entityType == "habit_completion") "habit_completions" else meta.entityType + "s"
+        val collection = userCollection(collectionName) ?: return
         val docRef = collection.document()
         val data = when (meta.entityType) {
             "task" -> {
@@ -106,6 +136,15 @@ class SyncService @Inject constructor(
                 val tag = tagDao.getTagByIdOnce(meta.localId) ?: return
                 SyncMapper.tagToMap(tag)
             }
+            "habit" -> {
+                val habit = habitDao.getHabitByIdOnce(meta.localId) ?: return
+                SyncMapper.habitToMap(habit)
+            }
+            "habit_completion" -> {
+                val completion = habitCompletionDao.getCompletionsForHabitOnce(meta.localId).firstOrNull() ?: return
+                val habitCloudId = syncMetadataDao.getCloudId(completion.habitId, "habit") ?: return
+                SyncMapper.habitCompletionToMap(completion, habitCloudId)
+            }
             else -> return
         }
         docRef.set(data).await()
@@ -114,7 +153,8 @@ class SyncService @Inject constructor(
 
     private suspend fun pushUpdate(meta: SyncMetadataEntity) {
         if (meta.cloudId.isEmpty()) { pushCreate(meta); return }
-        val docRef = userCollection(meta.entityType + "s")?.document(meta.cloudId) ?: return
+        val collectionName = if (meta.entityType == "habit_completion") "habit_completions" else meta.entityType + "s"
+        val docRef = userCollection(collectionName)?.document(meta.cloudId) ?: return
         val data = when (meta.entityType) {
             "task" -> {
                 val task = taskDao.getTaskByIdOnce(meta.localId) ?: return
@@ -129,6 +169,10 @@ class SyncService @Inject constructor(
                 val tag = tagDao.getTagByIdOnce(meta.localId) ?: return
                 SyncMapper.tagToMap(tag)
             }
+            "habit" -> {
+                val habit = habitDao.getHabitByIdOnce(meta.localId) ?: return
+                SyncMapper.habitToMap(habit)
+            }
             else -> return
         }
         docRef.set(data).await()
@@ -136,7 +180,8 @@ class SyncService @Inject constructor(
 
     private suspend fun pushDelete(meta: SyncMetadataEntity) {
         if (meta.cloudId.isNotEmpty()) {
-            userCollection(meta.entityType + "s")?.document(meta.cloudId)?.delete()?.await()
+            val collectionName = if (meta.entityType == "habit_completion") "habit_completions" else meta.entityType + "s"
+            userCollection(collectionName)?.document(meta.cloudId)?.delete()?.await()
         }
         syncMetadataDao.delete(meta.localId, meta.entityType)
     }
@@ -187,6 +232,32 @@ class SyncService @Inject constructor(
                 syncMetadataDao.clearPendingAction(localId, "task")
             }
         }
+
+        // Pull habits
+        pullCollection("habits") { data, cloudId ->
+            val localId = syncMetadataDao.getLocalId(cloudId, "habit")
+            if (localId == null) {
+                val habit = SyncMapper.mapToHabit(data)
+                val newId = habitDao.insert(habit)
+                syncMetadataDao.upsert(SyncMetadataEntity(localId = newId, entityType = "habit", cloudId = cloudId, lastSyncedAt = System.currentTimeMillis()))
+            } else {
+                val habit = SyncMapper.mapToHabit(data, localId)
+                habitDao.update(habit)
+                syncMetadataDao.clearPendingAction(localId, "habit")
+            }
+        }
+
+        // Pull habit completions
+        pullCollection("habit_completions") { data, cloudId ->
+            val localId = syncMetadataDao.getLocalId(cloudId, "habit_completion")
+            val habitCloudId = data["habitCloudId"] as? String ?: return@pullCollection
+            val habitLocalId = syncMetadataDao.getLocalId(habitCloudId, "habit") ?: return@pullCollection
+            if (localId == null) {
+                val completion = SyncMapper.mapToHabitCompletion(data, habitLocalId = habitLocalId)
+                val newId = habitCompletionDao.insert(completion)
+                syncMetadataDao.upsert(SyncMetadataEntity(localId = newId, entityType = "habit_completion", cloudId = cloudId, lastSyncedAt = System.currentTimeMillis()))
+            }
+        }
     }
 
     private suspend fun pullCollection(name: String, handler: suspend (Map<String, Any?>, String) -> Unit) {
@@ -204,7 +275,7 @@ class SyncService @Inject constructor(
 
     fun startRealtimeListeners() {
         stopRealtimeListeners()
-        listOf("tasks", "projects", "tags").forEach { collection ->
+        listOf("tasks", "projects", "tags", "habits", "habit_completions").forEach { collection ->
             val reg = userCollection(collection)?.addSnapshotListener { snapshot, error ->
                 if (error != null || snapshot == null) return@addSnapshotListener
                 // Real-time changes handled via snapshot listener — lightweight re-pull on change
