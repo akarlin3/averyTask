@@ -5,12 +5,14 @@ local.properties
 
 # IDE
 .idea/
+!.idea/codeStyles/
 *.iml
 
 # Android
 *.apk
 *.aab
 *.ap_
+captures/
 
-# Zip archive
-todo-unified-android.zip
+# macOS
+.DS_Store
