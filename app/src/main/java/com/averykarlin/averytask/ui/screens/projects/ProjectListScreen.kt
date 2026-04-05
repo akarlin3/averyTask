@@ -54,6 +54,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averykarlin.averytask.data.local.dao.ProjectWithCount
 import com.averykarlin.averytask.data.local.entity.ProjectEntity
+import com.averykarlin.averytask.ui.components.EmptyState
 import com.averykarlin.averytask.ui.navigation.AveryTaskRoute
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -93,33 +94,14 @@ fun ProjectListScreen(
         }
     ) { padding ->
         if (projects.isEmpty()) {
-            Box(
+            EmptyState(
+                icon = Icons.Default.Folder,
+                title = "No projects yet",
+                subtitle = "Tap + to create one",
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = Icons.Default.Folder,
-                        contentDescription = null,
-                        modifier = Modifier.size(72.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "No projects yet",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Tap + to create one",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                    )
-                }
-            }
+                    .padding(padding)
+            )
         } else {
             LazyColumn(
                 modifier = Modifier

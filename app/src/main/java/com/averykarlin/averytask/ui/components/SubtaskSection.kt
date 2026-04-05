@@ -1,6 +1,7 @@
 package com.averykarlin.averytask.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -68,6 +69,7 @@ fun SubtaskSection(
         modifier = Modifier
             .fillMaxWidth()
             .padding(start = 16.dp)
+            .animateContentSize()
     ) {
         if (subtasks.isNotEmpty()) {
             Row(
