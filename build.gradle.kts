@@ -6,3 +6,8 @@ plugins {
     id("com.google.dagger.hilt.android") version "2.59.2" apply false
     id("com.google.gms.google-services") version "4.4.2" apply false
 }
+
+// Redirect build output outside OneDrive to prevent file-lock IOExceptions on Windows
+allprojects {
+    layout.buildDirectory = file("C:/tmp/gradle-build/${project.name}")
+}
