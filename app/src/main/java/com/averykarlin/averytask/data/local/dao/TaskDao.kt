@@ -5,8 +5,10 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import com.averykarlin.averytask.data.local.entity.TaskEntity
+import com.averykarlin.averytask.data.local.entity.TaskWithTags
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -59,4 +61,32 @@ interface TaskDao {
 
     @Query("UPDATE tasks SET is_completed = 0, completed_at = NULL, updated_at = :now WHERE id = :id")
     suspend fun markIncomplete(id: Long, now: Long = System.currentTimeMillis())
+
+    @Transaction
+    @Query("SELECT * FROM tasks")
+    fun getTasksWithTags(): Flow<List<TaskWithTags>>
+
+    @Query("SELECT * FROM tasks WHERE title LIKE '%' || :query || '%' OR description LIKE '%' || :query || '%' ORDER BY updated_at DESC")
+    fun searchTasks(query: String): Flow<List<TaskEntity>>
+
+    @Query("SELECT * FROM tasks WHERE archived_at IS NOT NULL ORDER BY archived_at DESC")
+    fun getArchivedTasks(): Flow<List<TaskEntity>>
+
+    @Query("UPDATE tasks SET archived_at = :archivedAt, updated_at = :archivedAt WHERE id = :id")
+    suspend fun archiveTask(id: Long, archivedAt: Long)
+
+    @Query("UPDATE tasks SET archived_at = NULL, updated_at = :updatedAt WHERE id = :id")
+    suspend fun unarchiveTask(id: Long, updatedAt: Long)
+
+    @Query("DELETE FROM tasks WHERE id = :id")
+    suspend fun permanentlyDelete(id: Long)
+
+    @Query("UPDATE tasks SET archived_at = :now WHERE is_completed = 1 AND completed_at < :cutoffDate AND archived_at IS NULL")
+    suspend fun archiveCompletedBefore(cutoffDate: Long, now: Long)
+
+    @Query("SELECT COUNT(*) FROM tasks WHERE archived_at IS NOT NULL")
+    fun getArchivedCount(): Flow<Int>
+
+    @Query("SELECT * FROM tasks WHERE archived_at IS NOT NULL AND (title LIKE '%' || :query || '%' OR description LIKE '%' || :query || '%')")
+    fun searchArchivedTasks(query: String): Flow<List<TaskEntity>>
 }
