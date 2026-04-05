@@ -114,6 +114,32 @@ class TaskRepository @Inject constructor(
         taskDao.deleteById(id)
     }
 
+    fun searchTasks(query: String): Flow<List<TaskEntity>> = taskDao.searchTasks(query)
+
+    fun getArchivedTasks(): Flow<List<TaskEntity>> = taskDao.getArchivedTasks()
+
+    suspend fun archiveTask(id: Long) {
+        taskDao.archiveTask(id, System.currentTimeMillis())
+    }
+
+    suspend fun unarchiveTask(id: Long) {
+        taskDao.unarchiveTask(id, System.currentTimeMillis())
+    }
+
+    suspend fun permanentlyDeleteTask(id: Long) {
+        taskDao.permanentlyDelete(id)
+    }
+
+    fun searchArchivedTasks(query: String): Flow<List<TaskEntity>> =
+        taskDao.searchArchivedTasks(query)
+
+    suspend fun autoArchiveOldCompleted(daysOld: Int) {
+        val cutoff = System.currentTimeMillis() - (daysOld.toLong() * 24 * 60 * 60 * 1000)
+        taskDao.archiveCompletedBefore(cutoff, System.currentTimeMillis())
+    }
+
+    fun getArchivedCount(): Flow<Int> = taskDao.getArchivedCount()
+
     fun getTasksGroupedByDate(): Flow<Map<String, List<TaskEntity>>> =
         taskDao.getIncompleteRootTasks().map { tasks -> groupByDate(tasks) }
 

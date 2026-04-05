@@ -18,6 +18,8 @@ class ProjectRepository @Inject constructor(
     fun getProjectWithTaskCount(): Flow<List<ProjectWithCount>> =
         projectDao.getProjectWithTaskCount()
 
+    fun searchProjects(query: String): Flow<List<ProjectEntity>> = projectDao.searchProjects(query)
+
     suspend fun addProject(name: String, color: String = "#4A90D9", icon: String = "\uD83D\uDCC1"): Long {
         val now = System.currentTimeMillis()
         val project = ProjectEntity(

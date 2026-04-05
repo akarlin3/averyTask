@@ -41,6 +41,9 @@ interface ProjectDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(project: ProjectEntity): Long
 
+    @Query("SELECT * FROM projects WHERE name LIKE '%' || :query || '%'")
+    fun searchProjects(query: String): Flow<List<ProjectEntity>>
+
     @Update
     suspend fun update(project: ProjectEntity)
 

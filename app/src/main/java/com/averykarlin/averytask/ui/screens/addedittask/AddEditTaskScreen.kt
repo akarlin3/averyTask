@@ -1,5 +1,11 @@
 package com.averykarlin.averytask.ui.screens.addedittask
 
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,13 +29,21 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.AddLink
+import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsNone
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -43,6 +57,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -62,9 +77,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.averykarlin.averytask.data.local.entity.AttachmentEntity
 import com.averykarlin.averytask.ui.components.RecurrenceSelector
+import com.averykarlin.averytask.ui.components.TagSelector
 import com.averykarlin.averytask.ui.theme.PriorityColors
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -82,11 +101,22 @@ fun AddEditTaskScreen(
     viewModel: AddEditTaskViewModel = hiltViewModel()
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val projects by viewModel.projects.collectAsStateWithLifecycle()
+    val allTags by viewModel.allTags.collectAsStateWithLifecycle()
+    val attachments by viewModel.attachments.collectAsStateWithLifecycle()
 
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     var showReminderDialog by remember { mutableStateOf(false) }
+    var notesExpanded by remember { mutableStateOf(viewModel.notes.isNotBlank()) }
+    var showAddLinkDialog by remember { mutableStateOf(false) }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        uri?.let { viewModel.onAddImageAttachment(context, it) }
+    }
 
     Scaffold(
         topBar = {
@@ -305,6 +335,77 @@ fun AddEditTaskScreen(
                 onSelect = viewModel::onProjectIdChange
             )
 
+            // Tags
+            SectionLabel("Tags")
+            TagSelector(
+                availableTags = allTags,
+                selectedTagIds = viewModel.selectedTagIds,
+                onSelectionChanged = viewModel::onSelectedTagIdsChange
+            )
+
+            // Notes
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        notesExpanded = !notesExpanded
+                    }
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                SectionLabel("Notes")
+                Spacer(modifier = Modifier.weight(1f))
+                Icon(
+                    imageVector = if (notesExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = if (notesExpanded) "Collapse" else "Expand",
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            AnimatedVisibility(visible = notesExpanded) {
+                OutlinedTextField(
+                    value = viewModel.notes,
+                    onValueChange = viewModel::onNotesChange,
+                    label = { Text("Notes") },
+                    minLines = 4,
+                    maxLines = 8,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            // Attachments (only visible in edit mode)
+            if (viewModel.isEditMode) {
+                SectionLabel("Attachments")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            imagePickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        }
+                    ) {
+                        Icon(Icons.Default.AddPhotoAlternate, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Add Image")
+                    }
+                    OutlinedButton(onClick = { showAddLinkDialog = true }) {
+                        Icon(Icons.Default.AddLink, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Add Link")
+                    }
+                }
+                if (attachments.isNotEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        attachments.forEach { attachment ->
+                            AttachmentRow(
+                                attachment = attachment,
+                                onDelete = { viewModel.onDeleteAttachment(context, attachment) }
+                            )
+                        }
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
 
             // Save
@@ -361,6 +462,37 @@ fun AddEditTaskScreen(
         )
     }
 
+    // Add link dialog
+    if (showAddLinkDialog) {
+        var linkUrl by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showAddLinkDialog = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (linkUrl.isNotBlank()) {
+                            viewModel.onAddLinkAttachment(linkUrl.trim())
+                            showAddLinkDialog = false
+                        }
+                    }
+                ) { Text("Add") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddLinkDialog = false }) { Text("Cancel") }
+            },
+            title = { Text("Add Link") },
+            text = {
+                OutlinedTextField(
+                    value = linkUrl,
+                    onValueChange = { linkUrl = it },
+                    label = { Text("URL") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        )
+    }
+
     // Time picker dialog
     if (showTimePicker) {
         val cal = Calendar.getInstance().apply {
@@ -384,6 +516,53 @@ fun AddEditTaskScreen(
             }
         ) {
             TimePicker(state = state)
+        }
+    }
+}
+
+@Composable
+private fun AttachmentRow(
+    attachment: AttachmentEntity,
+    onDelete: () -> Unit
+) {
+    val context = LocalContext.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .clickable {
+                if (attachment.type == "link") {
+                    try {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(attachment.uri))
+                        context.startActivity(intent)
+                    } catch (_: Exception) {}
+                }
+            }
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = if (attachment.type == "image") Icons.Default.Image else Icons.Default.Link,
+            contentDescription = null,
+            modifier = Modifier.size(20.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = attachment.fileName ?: attachment.uri,
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        IconButton(onClick = onDelete, modifier = Modifier.size(24.dp)) {
+            Icon(
+                Icons.Default.Close,
+                contentDescription = "Remove",
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

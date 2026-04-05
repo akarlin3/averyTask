@@ -1,17 +1,21 @@
 package com.averykarlin.averytask.ui.screens.tasklist
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -25,14 +29,28 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddTask
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.FolderCopy
+import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.automirrored.filled.Label
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.SortByAlpha
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -45,18 +63,23 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -73,11 +96,15 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averykarlin.averytask.data.local.entity.ProjectEntity
+import com.averykarlin.averytask.data.local.entity.TagEntity
 import com.averykarlin.averytask.data.local.entity.TaskEntity
+import com.averykarlin.averytask.domain.model.TaskFilter
 import com.averykarlin.averytask.ui.components.EmptyState
+import com.averykarlin.averytask.ui.components.FilterPanel
 import com.averykarlin.averytask.ui.components.SubtaskSection
 import com.averykarlin.averytask.ui.navigation.AveryTaskRoute
 import com.averykarlin.averytask.ui.theme.PriorityColors
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -86,7 +113,7 @@ import java.util.Locale
 private val OverdueRed = Color(0xFFD93025)
 private val TodayOrange = Color(0xFFE8872A)
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun TaskListScreen(
     navController: NavController,
@@ -97,111 +124,289 @@ fun TaskListScreen(
     val projects by viewModel.projects.collectAsStateWithLifecycle()
     val selectedProjectId by viewModel.selectedProjectId.collectAsStateWithLifecycle()
     val subtasksMap by viewModel.subtasksMap.collectAsStateWithLifecycle()
+    val taskTagsMap by viewModel.taskTagsMap.collectAsStateWithLifecycle()
+    val attachmentCountMap by viewModel.attachmentCountMap.collectAsStateWithLifecycle()
     val currentSort by viewModel.currentSort.collectAsStateWithLifecycle()
     val viewMode by viewModel.viewMode.collectAsStateWithLifecycle()
     val overdueCount by viewModel.overdueCount.collectAsStateWithLifecycle()
+    val currentFilter by viewModel.currentFilter.collectAsStateWithLifecycle()
+    val allTags by viewModel.allTags.collectAsStateWithLifecycle()
+    val isMultiSelectMode by viewModel.isMultiSelectMode.collectAsStateWithLifecycle()
+    val selectedTaskIds by viewModel.selectedTaskIds.collectAsStateWithLifecycle()
     var expandedTaskIds by remember { mutableStateOf(setOf<Long>()) }
     var focusSubtaskForId by remember { mutableStateOf<Long?>(null) }
     var showSortMenu by remember { mutableStateOf(false) }
+    var showFilterSheet by remember { mutableStateOf(false) }
+    var showPriorityDialog by remember { mutableStateOf(false) }
+    val filterSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+
+    BackHandler(enabled = isMultiSelectMode) {
+        viewModel.onExitMultiSelect()
+    }
+
+    if (showFilterSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showFilterSheet = false },
+            sheetState = filterSheetState
+        ) {
+            FilterPanel(
+                currentFilter = currentFilter,
+                allTags = allTags,
+                allProjects = projects,
+                onFilterChanged = { filter ->
+                    viewModel.onUpdateFilter(filter)
+                    scope.launch {
+                        filterSheetState.hide()
+                        showFilterSheet = false
+                    }
+                },
+                onClearAll = {
+                    viewModel.onClearFilters()
+                    scope.launch {
+                        filterSheetState.hide()
+                        showFilterSheet = false
+                    }
+                }
+            )
+        }
+    }
+
+    // Priority picker dialog for multi-select
+    if (showPriorityDialog) {
+        var selectedPriority by remember { mutableStateOf(0) }
+        AlertDialog(
+            onDismissRequest = { showPriorityDialog = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.onBulkSetPriority(selectedPriority)
+                    showPriorityDialog = false
+                }) { Text("Set") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPriorityDialog = false }) { Text("Cancel") }
+            },
+            title = { Text("Set Priority") },
+            text = {
+                Column {
+                    listOf(0 to "None", 1 to "Low", 2 to "Medium", 3 to "High", 4 to "Urgent").forEach { (value, label) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { selectedPriority = value }
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = selectedPriority == value,
+                                onClick = { selectedPriority = value }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(label, style = MaterialTheme.typography.bodyLarge)
+                        }
+                    }
+                }
+            }
+        )
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = viewModel.snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+            if (isMultiSelectMode) {
+                var showMultiSelectMenu by remember { mutableStateOf(false) }
+                TopAppBar(
+                    title = {
                         Text(
-                            text = "AveryTask",
+                            text = "${selectedTaskIds.size} selected",
                             fontWeight = FontWeight.Bold
                         )
-                        if (overdueCount > 0) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(OverdueRed)
-                                    .padding(horizontal = 6.dp, vertical = 2.dp),
-                                contentAlignment = Alignment.Center
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = { viewModel.onExitMultiSelect() }) {
+                            Icon(Icons.Default.Close, contentDescription = "Exit multi-select")
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { viewModel.onSelectAll() }) {
+                            Icon(Icons.Default.SelectAll, contentDescription = "Select all")
+                        }
+                        IconButton(onClick = { viewModel.onBulkComplete() }) {
+                            Icon(Icons.Default.Check, contentDescription = "Complete selected")
+                        }
+                        IconButton(onClick = { viewModel.onBulkDelete() }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Delete selected")
+                        }
+                        Box {
+                            IconButton(onClick = { showMultiSelectMenu = true }) {
+                                Icon(Icons.Default.MoreVert, contentDescription = "More")
+                            }
+                            DropdownMenu(
+                                expanded = showMultiSelectMenu,
+                                onDismissRequest = { showMultiSelectMenu = false }
                             ) {
-                                Text(
-                                    text = "$overdueCount",
-                                    color = Color.White,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 11.sp
+                                DropdownMenuItem(
+                                    text = { Text("Set Priority") },
+                                    onClick = {
+                                        showMultiSelectMenu = false
+                                        showPriorityDialog = true
+                                    }
                                 )
                             }
                         }
-                    }
-                },
-                actions = {
-                    IconButton(onClick = {
-                        viewModel.onChangeViewMode(
-                            if (viewMode == ViewMode.UPCOMING) ViewMode.LIST else ViewMode.UPCOMING
-                        )
-                    }) {
-                        Icon(
-                            imageVector = if (viewMode == ViewMode.UPCOMING)
-                                Icons.Default.FormatListBulleted
-                            else
-                                Icons.Default.Schedule,
-                            contentDescription = if (viewMode == ViewMode.UPCOMING) "List view" else "Upcoming view"
-                        )
-                    }
-                    IconButton(onClick = { navController.navigate(AveryTaskRoute.ProjectList.route) }) {
-                        Icon(
-                            imageVector = Icons.Default.FolderCopy,
-                            contentDescription = "Projects"
-                        )
-                    }
-                    Box {
-                        IconButton(onClick = { showSortMenu = true }) {
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                )
+            } else {
+                TopAppBar(
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "AveryTask",
+                                fontWeight = FontWeight.Bold
+                            )
+                            if (overdueCount > 0) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(OverdueRed)
+                                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "$overdueCount",
+                                        color = Color.White,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { navController.navigate(AveryTaskRoute.Search.route) }) {
                             Icon(
-                                imageVector = Icons.Default.SortByAlpha,
-                                contentDescription = "Sort"
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Search"
                             )
                         }
-                        DropdownMenu(
-                            expanded = showSortMenu,
-                            onDismissRequest = { showSortMenu = false }
-                        ) {
-                            SortOption.entries.forEach { option ->
-                                DropdownMenuItem(
-                                    text = { Text(option.label) },
-                                    onClick = {
-                                        viewModel.onChangeSort(option)
-                                        showSortMenu = false
-                                    },
-                                    trailingIcon = if (currentSort == option) {
-                                        {
-                                            Icon(
-                                                Icons.Default.Check,
-                                                contentDescription = "Selected",
-                                                modifier = Modifier.size(18.dp)
-                                            )
+                        IconButton(onClick = { showFilterSheet = true }) {
+                            val filterCount = currentFilter.activeFilterCount()
+                            if (filterCount > 0) {
+                                BadgedBox(
+                                    badge = {
+                                        Badge(
+                                            containerColor = MaterialTheme.colorScheme.error
+                                        ) {
+                                            Text("$filterCount")
                                         }
-                                    } else null
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.FilterList,
+                                        contentDescription = "Filters"
+                                    )
+                                }
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.FilterList,
+                                    contentDescription = "Filters"
                                 )
                             }
                         }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
+                        IconButton(onClick = {
+                            viewModel.onChangeViewMode(
+                                if (viewMode == ViewMode.UPCOMING) ViewMode.LIST else ViewMode.UPCOMING
+                            )
+                        }) {
+                            Icon(
+                                imageVector = if (viewMode == ViewMode.UPCOMING)
+                                    Icons.Default.FormatListBulleted
+                                else
+                                    Icons.Default.Schedule,
+                                contentDescription = if (viewMode == ViewMode.UPCOMING) "List view" else "Upcoming view"
+                            )
+                        }
+                        IconButton(onClick = { navController.navigate(AveryTaskRoute.ProjectList.route) }) {
+                            Icon(
+                                imageVector = Icons.Default.FolderCopy,
+                                contentDescription = "Projects"
+                            )
+                        }
+                        IconButton(onClick = { navController.navigate(AveryTaskRoute.TagManagement.route) }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Label,
+                                contentDescription = "Tags"
+                            )
+                        }
+                        IconButton(onClick = { navController.navigate(AveryTaskRoute.Archive.route) }) {
+                            Icon(
+                                imageVector = Icons.Default.Inventory2,
+                                contentDescription = "Archive"
+                            )
+                        }
+                        IconButton(onClick = { navController.navigate(AveryTaskRoute.Settings.route) }) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Settings"
+                            )
+                        }
+                        Box {
+                            IconButton(onClick = { showSortMenu = true }) {
+                                Icon(
+                                    imageVector = Icons.Default.SortByAlpha,
+                                    contentDescription = "Sort"
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showSortMenu,
+                                onDismissRequest = { showSortMenu = false }
+                            ) {
+                                SortOption.entries.forEach { option ->
+                                    DropdownMenuItem(
+                                        text = { Text(option.label) },
+                                        onClick = {
+                                            viewModel.onChangeSort(option)
+                                            showSortMenu = false
+                                        },
+                                        trailingIcon = if (currentSort == option) {
+                                            {
+                                                Icon(
+                                                    Icons.Default.Check,
+                                                    contentDescription = "Selected",
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                        } else null
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        titleContentColor = MaterialTheme.colorScheme.onSurface
+                    )
                 )
-            )
+            }
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { navController.navigate(AveryTaskRoute.AddEditTask.createRoute()) },
-                containerColor = MaterialTheme.colorScheme.primary
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Add Task",
-                    tint = MaterialTheme.colorScheme.onPrimary
-                )
+            if (!isMultiSelectMode) {
+                FloatingActionButton(
+                    onClick = { navController.navigate(AveryTaskRoute.AddEditTask.createRoute()) },
+                    containerColor = MaterialTheme.colorScheme.primary
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Add Task",
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
             }
         }
     ) { padding ->
@@ -218,13 +423,30 @@ fun TaskListScreen(
                 )
             }
 
+            // Active filter pills
+            if (currentFilter.isActive()) {
+                ActiveFilterPills(
+                    filter = currentFilter,
+                    allTags = allTags,
+                    projects = projects,
+                    onUpdateFilter = viewModel::onUpdateFilter
+                )
+            }
+
             val allTasks = if (viewMode == ViewMode.UPCOMING)
                 groupedTasks.values.flatten()
             else
                 filteredTasks
 
             if (allTasks.isEmpty()) {
-                if (selectedProjectId != null) {
+                if (currentFilter.isActive()) {
+                    EmptyState(
+                        icon = Icons.Default.FilterList,
+                        title = "No tasks match your filters",
+                        subtitle = "Try adjusting or clearing your filters",
+                        modifier = Modifier.weight(1f)
+                    )
+                } else if (selectedProjectId != null) {
                     EmptyState(
                         icon = Icons.Default.Search,
                         title = "No tasks match your filters",
@@ -258,10 +480,14 @@ fun TaskListScreen(
                                     task = task,
                                     projects = projects,
                                     subtasksMap = subtasksMap,
+                                    taskTagsMap = taskTagsMap,
+                                    attachmentCountMap = attachmentCountMap,
                                     expandedTaskIds = expandedTaskIds,
                                     focusSubtaskForId = focusSubtaskForId,
                                     navController = navController,
                                     viewModel = viewModel,
+                                    isMultiSelectMode = isMultiSelectMode,
+                                    selectedTaskIds = selectedTaskIds,
                                     onExpandChange = { expandedTaskIds = it },
                                     onFocusChange = { focusSubtaskForId = it }
                                 )
@@ -273,10 +499,14 @@ fun TaskListScreen(
                                 task = task,
                                 projects = projects,
                                 subtasksMap = subtasksMap,
+                                taskTagsMap = taskTagsMap,
+                                attachmentCountMap = attachmentCountMap,
                                 expandedTaskIds = expandedTaskIds,
                                 focusSubtaskForId = focusSubtaskForId,
                                 navController = navController,
                                 viewModel = viewModel,
+                                isMultiSelectMode = isMultiSelectMode,
+                                selectedTaskIds = selectedTaskIds,
                                 onExpandChange = { expandedTaskIds = it },
                                 onFocusChange = { focusSubtaskForId = it }
                             )
@@ -290,83 +520,108 @@ fun TaskListScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 private fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks(
     task: TaskEntity,
     projects: List<ProjectEntity>,
     subtasksMap: Map<Long, List<TaskEntity>>,
+    taskTagsMap: Map<Long, List<TagEntity>>,
+    attachmentCountMap: Map<Long, Int>,
     expandedTaskIds: Set<Long>,
     focusSubtaskForId: Long?,
     navController: NavController,
     viewModel: TaskListViewModel,
+    isMultiSelectMode: Boolean,
+    selectedTaskIds: Set<Long>,
     onExpandChange: (Set<Long>) -> Unit,
     onFocusChange: (Long?) -> Unit
 ) {
     val subtasks = subtasksMap[task.id].orEmpty()
+    val tags = taskTagsMap[task.id].orEmpty()
+    val attachmentCount = attachmentCountMap[task.id] ?: 0
     item(key = task.id) {
         val project = projects.find { it.id == task.projectId }
-        val dismissState = rememberSwipeToDismissBoxState(
-            confirmValueChange = { value ->
-                when (value) {
-                    SwipeToDismissBoxValue.StartToEnd -> {
-                        viewModel.onCompleteTaskWithUndo(task.id)
-                        true
-                    }
-                    SwipeToDismissBoxValue.EndToStart -> {
-                        viewModel.onDeleteTaskWithUndo(task.id)
-                        true
-                    }
-                    SwipeToDismissBoxValue.Settled -> false
-                }
-            }
-        )
 
-        SwipeToDismissBox(
-            state = dismissState,
-            backgroundContent = {
-                val direction = dismissState.dismissDirection
-                val backgroundColor = when (direction) {
-                    SwipeToDismissBoxValue.StartToEnd -> Color(0xFF4CAF50)
-                    SwipeToDismissBoxValue.EndToStart -> Color(0xFFE53935)
-                    else -> Color.Transparent
-                }
-                val icon = when (direction) {
-                    SwipeToDismissBoxValue.StartToEnd -> Icons.Default.Check
-                    SwipeToDismissBoxValue.EndToStart -> Icons.Default.Delete
-                    else -> Icons.Default.Check
-                }
-                val alignment = when (direction) {
-                    SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
-                    else -> Alignment.CenterEnd
-                }
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(backgroundColor)
-                        .padding(horizontal = 20.dp),
-                    contentAlignment = alignment
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = Color.White
-                    )
-                }
-            }
-        ) {
+        if (isMultiSelectMode) {
             TaskItem(
                 task = task,
                 project = project,
                 subtasks = subtasks,
-                onToggleComplete = { viewModel.onToggleComplete(task.id, task.isCompleted) },
-                onClick = { navController.navigate(AveryTaskRoute.AddEditTask.createRoute(task.id)) },
-                onAddSubtaskClick = {
-                    onExpandChange(expandedTaskIds + task.id)
-                    onFocusChange(task.id)
+                tags = tags,
+                attachmentCount = attachmentCount,
+                isSelected = task.id in selectedTaskIds,
+                isMultiSelectMode = true,
+                onToggleComplete = { viewModel.onToggleTaskSelection(task.id) },
+                onClick = { viewModel.onToggleTaskSelection(task.id) },
+                onAddSubtaskClick = {}
+            )
+        } else {
+            val dismissState = rememberSwipeToDismissBoxState(
+                confirmValueChange = { value ->
+                    when (value) {
+                        SwipeToDismissBoxValue.StartToEnd -> {
+                            viewModel.onCompleteTaskWithUndo(task.id)
+                            true
+                        }
+                        SwipeToDismissBoxValue.EndToStart -> {
+                            viewModel.onDeleteTaskWithUndo(task.id)
+                            true
+                        }
+                        SwipeToDismissBoxValue.Settled -> false
+                    }
                 }
             )
+
+            SwipeToDismissBox(
+                state = dismissState,
+                backgroundContent = {
+                    val direction = dismissState.dismissDirection
+                    val backgroundColor = when (direction) {
+                        SwipeToDismissBoxValue.StartToEnd -> Color(0xFF4CAF50)
+                        SwipeToDismissBoxValue.EndToStart -> Color(0xFFE53935)
+                        else -> Color.Transparent
+                    }
+                    val icon = when (direction) {
+                        SwipeToDismissBoxValue.StartToEnd -> Icons.Default.Check
+                        SwipeToDismissBoxValue.EndToStart -> Icons.Default.Delete
+                        else -> Icons.Default.Check
+                    }
+                    val alignment = when (direction) {
+                        SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
+                        else -> Alignment.CenterEnd
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(backgroundColor)
+                            .padding(horizontal = 20.dp),
+                        contentAlignment = alignment
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = Color.White
+                        )
+                    }
+                }
+            ) {
+                TaskItem(
+                    task = task,
+                    project = project,
+                    subtasks = subtasks,
+                    tags = tags,
+                    attachmentCount = attachmentCount,
+                    onToggleComplete = { viewModel.onToggleComplete(task.id, task.isCompleted) },
+                    onClick = { navController.navigate(AveryTaskRoute.AddEditTask.createRoute(task.id)) },
+                    onLongClick = { viewModel.onEnterMultiSelect(task.id) },
+                    onAddSubtaskClick = {
+                        onExpandChange(expandedTaskIds + task.id)
+                        onFocusChange(task.id)
+                    }
+                )
+            }
         }
     }
     if (subtasks.isNotEmpty() || expandedTaskIds.contains(task.id)) {
@@ -474,13 +729,19 @@ private fun ProjectFilterRow(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TaskItem(
     task: TaskEntity,
     project: ProjectEntity?,
     subtasks: List<TaskEntity>,
+    tags: List<TagEntity> = emptyList(),
+    attachmentCount: Int = 0,
+    isSelected: Boolean = false,
+    isMultiSelectMode: Boolean = false,
     onToggleComplete: () -> Unit,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
     onAddSubtaskClick: () -> Unit
 ) {
     val isOverdue = isTaskOverdue(task)
@@ -489,13 +750,17 @@ private fun TaskItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isOverdue)
-                OverdueRed.copy(alpha = 0.06f)
-            else
-                MaterialTheme.colorScheme.surfaceContainerLow
+            containerColor = when {
+                isSelected -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                isOverdue -> OverdueRed.copy(alpha = 0.06f)
+                else -> MaterialTheme.colorScheme.surfaceContainerLow
+            }
         )
     ) {
         Row(
@@ -515,7 +780,7 @@ private fun TaskItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Checkbox(
-                checked = task.isCompleted,
+                checked = if (isMultiSelectMode) isSelected else task.isCompleted,
                 onCheckedChange = { onToggleComplete() }
             )
 
@@ -564,6 +829,24 @@ private fun TaskItem(
                         )
                     }
 
+                    if (!task.notes.isNullOrBlank()) {
+                        Icon(
+                            imageVector = Icons.Default.Description,
+                            contentDescription = "Has notes",
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    if (attachmentCount > 0) {
+                        Icon(
+                            imageVector = Icons.Default.AttachFile,
+                            contentDescription = "Has attachments",
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
                     if (subtasks.isNotEmpty()) {
                         val completed = subtasks.count { it.isCompleted }
                         Text(
@@ -575,6 +858,26 @@ private fun TaskItem(
 
                     if (project != null) {
                         ProjectChip(project)
+                    }
+                }
+
+                if (tags.isNotEmpty()) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(top = 2.dp)
+                    ) {
+                        val visibleTags = tags.take(3)
+                        visibleTags.forEach { tag ->
+                            TagChip(tag)
+                        }
+                        if (tags.size > 3) {
+                            Text(
+                                text = "+${tags.size - 3} more",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
@@ -616,6 +919,39 @@ private fun PriorityDot(priority: Int) {
             .clip(CircleShape)
             .background(PriorityColors.forLevel(priority))
     )
+}
+
+@Composable
+private fun TagChip(tag: TagEntity) {
+    val chipColor = try {
+        Color(android.graphics.Color.parseColor(tag.color))
+    } catch (_: Exception) {
+        Color.Gray
+    }
+
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(4.dp))
+            .background(chipColor.copy(alpha = 0.15f))
+            .padding(horizontal = 5.dp, vertical = 1.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .clip(CircleShape)
+                .background(chipColor)
+        )
+        Spacer(modifier = Modifier.width(3.dp))
+        Text(
+            text = tag.name,
+            style = MaterialTheme.typography.labelSmall,
+            color = chipColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            fontSize = 10.sp
+        )
+    }
 }
 
 @Composable
@@ -671,5 +1007,110 @@ private fun formatDueDate(epochMillis: Long): DueDateLabel {
         epochMillis < startOfDayAfter -> DueDateLabel("Tomorrow", normal)
         else -> DueDateLabel(dateFmt.format(Date(epochMillis)), normal)
     }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ActiveFilterPills(
+    filter: TaskFilter,
+    allTags: List<TagEntity>,
+    projects: List<ProjectEntity>,
+    onUpdateFilter: (TaskFilter) -> Unit
+) {
+    FlowRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        if (filter.selectedTagIds.isNotEmpty()) {
+            val tagNames = allTags.filter { it.id in filter.selectedTagIds }.joinToString(", ") { it.name }
+            val modeLabel = if (filter.tagFilterMode == com.averykarlin.averytask.domain.model.TagFilterMode.ALL) "ALL" else "ANY"
+            RemovableFilterChip(
+                label = "Tags ($modeLabel): $tagNames",
+                onRemove = { onUpdateFilter(filter.copy(selectedTagIds = emptyList())) }
+            )
+        }
+
+        if (filter.selectedPriorities.isNotEmpty()) {
+            val labels = filter.selectedPriorities.sorted().joinToString(", ") { p ->
+                when (p) { 0 -> "None"; 1 -> "Low"; 2 -> "Med"; 3 -> "High"; 4 -> "Urgent"; else -> "$p" }
+            }
+            RemovableFilterChip(
+                label = "Priority: $labels",
+                onRemove = { onUpdateFilter(filter.copy(selectedPriorities = emptyList())) }
+            )
+        }
+
+        if (filter.selectedProjectIds.isNotEmpty()) {
+            val projNames = projects.filter { it.id in filter.selectedProjectIds }.joinToString(", ") { it.name }
+            RemovableFilterChip(
+                label = "Project: $projNames",
+                onRemove = { onUpdateFilter(filter.copy(selectedProjectIds = emptyList())) }
+            )
+        }
+
+        if (filter.dateRange != null) {
+            val rangeLabel = when {
+                filter.dateRange.start == null && filter.dateRange.end == null -> "No Date"
+                else -> "Date range"
+            }
+            RemovableFilterChip(
+                label = rangeLabel,
+                onRemove = { onUpdateFilter(filter.copy(dateRange = null)) }
+            )
+        }
+
+        if (filter.showCompleted) {
+            RemovableFilterChip(
+                label = "Completed",
+                onRemove = { onUpdateFilter(filter.copy(showCompleted = false)) }
+            )
+        }
+
+        if (filter.showArchived) {
+            RemovableFilterChip(
+                label = "Archived",
+                onRemove = { onUpdateFilter(filter.copy(showArchived = false)) }
+            )
+        }
+
+        if (filter.searchQuery.isNotBlank()) {
+            RemovableFilterChip(
+                label = "\"${filter.searchQuery}\"",
+                onRemove = { onUpdateFilter(filter.copy(searchQuery = "")) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun RemovableFilterChip(
+    label: String,
+    onRemove: () -> Unit
+) {
+    AssistChip(
+        onClick = onRemove,
+        label = {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        },
+        trailingIcon = {
+            Icon(
+                Icons.Default.Close,
+                contentDescription = "Remove filter",
+                modifier = Modifier.size(14.dp)
+            )
+        },
+        colors = AssistChipDefaults.assistChipColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+            labelColor = MaterialTheme.colorScheme.onSecondaryContainer
+        )
+    )
 }
 
