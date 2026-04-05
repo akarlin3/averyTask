@@ -6,6 +6,7 @@ import com.averykarlin.averytask.data.local.dao.AttachmentDao
 import com.averykarlin.averytask.data.local.dao.CalendarSyncDao
 import com.averykarlin.averytask.data.local.dao.HabitCompletionDao
 import com.averykarlin.averytask.data.local.dao.HabitDao
+import com.averykarlin.averytask.data.local.dao.LeisureDao
 import com.averykarlin.averytask.data.local.dao.ProjectDao
 import com.averykarlin.averytask.data.local.dao.SyncMetadataDao
 import com.averykarlin.averytask.data.local.dao.TagDao
@@ -31,7 +32,7 @@ object DatabaseModule {
             AveryTaskDatabase::class.java,
             "averytask.db"
         )
-            .addMigrations(AveryTaskDatabase.MIGRATION_1_2, AveryTaskDatabase.MIGRATION_2_3, AveryTaskDatabase.MIGRATION_3_4, AveryTaskDatabase.MIGRATION_4_5, AveryTaskDatabase.MIGRATION_5_6, AveryTaskDatabase.MIGRATION_6_7)
+            .addMigrations(AveryTaskDatabase.MIGRATION_1_2, AveryTaskDatabase.MIGRATION_2_3, AveryTaskDatabase.MIGRATION_3_4, AveryTaskDatabase.MIGRATION_4_5, AveryTaskDatabase.MIGRATION_5_6, AveryTaskDatabase.MIGRATION_6_7, AveryTaskDatabase.MIGRATION_7_8)
             .build()
 
     @Provides
@@ -60,4 +61,7 @@ object DatabaseModule {
 
     @Provides
     fun provideHabitCompletionDao(database: AveryTaskDatabase): HabitCompletionDao = database.habitCompletionDao()
+
+    @Provides
+    fun provideLeisureDao(database: AveryTaskDatabase): LeisureDao = database.leisureDao()
 }

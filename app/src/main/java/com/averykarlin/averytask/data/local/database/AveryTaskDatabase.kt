@@ -8,6 +8,7 @@ import com.averykarlin.averytask.data.local.dao.AttachmentDao
 import com.averykarlin.averytask.data.local.dao.CalendarSyncDao
 import com.averykarlin.averytask.data.local.dao.HabitCompletionDao
 import com.averykarlin.averytask.data.local.dao.HabitDao
+import com.averykarlin.averytask.data.local.dao.LeisureDao
 import com.averykarlin.averytask.data.local.dao.ProjectDao
 import com.averykarlin.averytask.data.local.dao.SyncMetadataDao
 import com.averykarlin.averytask.data.local.dao.TagDao
@@ -17,6 +18,7 @@ import com.averykarlin.averytask.data.local.entity.AttachmentEntity
 import com.averykarlin.averytask.data.local.entity.CalendarSyncEntity
 import com.averykarlin.averytask.data.local.entity.HabitCompletionEntity
 import com.averykarlin.averytask.data.local.entity.HabitEntity
+import com.averykarlin.averytask.data.local.entity.LeisureLogEntity
 import com.averykarlin.averytask.data.local.entity.ProjectEntity
 import com.averykarlin.averytask.data.local.entity.SyncMetadataEntity
 import com.averykarlin.averytask.data.local.entity.TagEntity
@@ -25,8 +27,8 @@ import com.averykarlin.averytask.data.local.entity.TaskTagCrossRef
 import com.averykarlin.averytask.data.local.entity.UsageLogEntity
 
 @Database(
-    entities = [TaskEntity::class, ProjectEntity::class, TagEntity::class, TaskTagCrossRef::class, AttachmentEntity::class, UsageLogEntity::class, SyncMetadataEntity::class, CalendarSyncEntity::class, HabitEntity::class, HabitCompletionEntity::class],
-    version = 7,
+    entities = [TaskEntity::class, ProjectEntity::class, TagEntity::class, TaskTagCrossRef::class, AttachmentEntity::class, UsageLogEntity::class, SyncMetadataEntity::class, CalendarSyncEntity::class, HabitEntity::class, HabitCompletionEntity::class, LeisureLogEntity::class],
+    version = 8,
     exportSchema = false
 )
 abstract class AveryTaskDatabase : RoomDatabase() {
@@ -39,6 +41,7 @@ abstract class AveryTaskDatabase : RoomDatabase() {
     abstract fun calendarSyncDao(): CalendarSyncDao
     abstract fun habitDao(): HabitDao
     abstract fun habitCompletionDao(): HabitCompletionDao
+    abstract fun leisureDao(): LeisureDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -168,6 +171,24 @@ abstract class AveryTaskDatabase : RoomDatabase() {
                 )
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_habit_completions_habit_id` ON `habit_completions` (`habit_id`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_habit_completions_completed_date` ON `habit_completions` (`completed_date`)")
+            }
+        }
+
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `leisure_logs` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `date` INTEGER NOT NULL,
+                        `music_pick` TEXT,
+                        `music_done` INTEGER NOT NULL DEFAULT 0,
+                        `flex_pick` TEXT,
+                        `flex_done` INTEGER NOT NULL DEFAULT 0,
+                        `started_at` INTEGER,
+                        `created_at` INTEGER NOT NULL
+                    )"""
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_leisure_logs_date` ON `leisure_logs` (`date`)")
             }
         }
     }
