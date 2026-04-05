@@ -191,4 +191,79 @@ class StreakCalculatorTest {
             java.time.Instant.ofEpochMilli(ts).atZone(ZoneId.systemDefault()).toLocalDate().dayOfWeek
         } == worst })
     }
+
+    // --- Additional Edge Cases ---
+
+    @Test
+    fun test_getCompletionsByDay_returnsAllDaysInRange() {
+        val start = LocalDate.of(2025, 6, 9) // Monday
+        val end = LocalDate.of(2025, 6, 15) // Sunday
+        val completions = listOf(
+            completion(date = LocalDate.of(2025, 6, 10)),
+            completion(date = LocalDate.of(2025, 6, 10)), // double completion
+            completion(date = LocalDate.of(2025, 6, 13))
+        )
+        val byDay = StreakCalculator.getCompletionsByDay(completions, start, end)
+        assertEquals(7, byDay.size)
+        assertEquals(0, byDay[LocalDate.of(2025, 6, 9)])
+        assertEquals(2, byDay[LocalDate.of(2025, 6, 10)])
+        assertEquals(1, byDay[LocalDate.of(2025, 6, 13)])
+        assertEquals(0, byDay[LocalDate.of(2025, 6, 15)])
+    }
+
+    @Test
+    fun test_getBestDay_empty_returnsNull() {
+        val result = StreakCalculator.getBestDay(emptyList())
+        assertEquals(null, result)
+    }
+
+    @Test
+    fun test_getWorstDay_empty_returnsNull() {
+        val result = StreakCalculator.getWorstDay(emptyList())
+        assertEquals(null, result)
+    }
+
+    @Test
+    fun test_completionRate_zeroDays_returnsZero() {
+        val rate = StreakCalculator.calculateCompletionRate(emptyList(), dailyHabit(), 0)
+        assertEquals(0f, rate, 0.001f)
+    }
+
+    @Test
+    fun test_longestStreak_empty_returnsZero() {
+        val longest = StreakCalculator.calculateLongestStreak(emptyList(), dailyHabit())
+        assertEquals(0, longest)
+    }
+
+    @Test
+    fun test_currentStreak_onlyToday() {
+        val today = LocalDate.of(2025, 6, 10)
+        val completions = listOf(completion(date = today))
+        val streak = StreakCalculator.calculateCurrentStreak(completions, dailyHabit(), today)
+        assertEquals(1, streak)
+    }
+
+    @Test
+    fun test_currentStreak_multiTarget_perDay() {
+        val today = LocalDate.of(2025, 6, 10)
+        // Habit requires 2 per day, but only 1 completion per day
+        val completions = listOf(
+            completion(date = today),
+            completion(date = today.minusDays(1))
+        )
+        val streak = StreakCalculator.calculateCurrentStreak(completions, dailyHabit(target = 2), today)
+        assertEquals(0, streak) // not meeting target
+    }
+
+    @Test
+    fun test_currentStreak_multiTarget_met() {
+        val today = LocalDate.of(2025, 6, 10)
+        // Habit requires 2 per day, and we have 2 completions per day
+        val completions = listOf(
+            completion(date = today), completion(date = today),
+            completion(date = today.minusDays(1)), completion(date = today.minusDays(1))
+        )
+        val streak = StreakCalculator.calculateCurrentStreak(completions, dailyHabit(target = 2), today)
+        assertEquals(2, streak)
+    }
 }
