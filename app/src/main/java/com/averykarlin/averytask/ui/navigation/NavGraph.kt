@@ -11,12 +11,14 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.FolderCopy
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.FolderCopy
 import androidx.compose.material.icons.automirrored.outlined.FormatListBulleted
 import androidx.compose.material.icons.outlined.FitnessCenter
+import androidx.compose.material.icons.outlined.SelfImprovement
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Today
 import androidx.compose.material3.Badge
@@ -48,6 +50,7 @@ import com.averykarlin.averytask.ui.screens.archive.ArchiveScreen
 import com.averykarlin.averytask.ui.screens.habits.AddEditHabitScreen
 import com.averykarlin.averytask.ui.screens.habits.HabitAnalyticsScreen
 import com.averykarlin.averytask.ui.screens.habits.HabitListScreen
+import com.averykarlin.averytask.ui.screens.leisure.LeisureScreen
 import com.averykarlin.averytask.ui.screens.projects.AddEditProjectScreen
 import com.averykarlin.averytask.ui.screens.projects.ProjectListScreen
 import com.averykarlin.averytask.ui.screens.search.SearchScreen
@@ -87,6 +90,7 @@ sealed class AveryTaskRoute(val route: String) {
     data object HabitAnalytics : AveryTaskRoute("habit_analytics?habitId={habitId}") {
         fun createRoute(habitId: Long): String = "habit_analytics?habitId=$habitId"
     }
+    data object Leisure : AveryTaskRoute("leisure")
 }
 
 data class BottomNavItem(
@@ -101,6 +105,7 @@ private val bottomNavItems = listOf(
     BottomNavItem(AveryTaskRoute.TaskList.route, "Tasks", Icons.AutoMirrored.Filled.FormatListBulleted, Icons.AutoMirrored.Outlined.FormatListBulleted),
     BottomNavItem(AveryTaskRoute.ProjectList.route, "Projects", Icons.Filled.FolderCopy, Icons.Outlined.FolderCopy),
     BottomNavItem(AveryTaskRoute.HabitList.route, "Habits", Icons.Filled.FitnessCenter, Icons.Outlined.FitnessCenter),
+    BottomNavItem(AveryTaskRoute.Leisure.route, "Leisure", Icons.Filled.SelfImprovement, Icons.Outlined.SelfImprovement),
     BottomNavItem(AveryTaskRoute.Settings.route, "Settings", Icons.Filled.Settings, Icons.Outlined.Settings),
 )
 
@@ -194,6 +199,16 @@ fun AveryTaskNavGraph(
                 popExitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) }
             ) {
                 HabitListScreen(navController)
+            }
+
+            composable(
+                route = AveryTaskRoute.Leisure.route,
+                enterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                exitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popExitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) }
+            ) {
+                LeisureScreen(navController)
             }
 
             composable(
