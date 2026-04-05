@@ -23,8 +23,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
@@ -33,6 +35,8 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -150,17 +154,69 @@ fun AddEditTaskScreen(
 
             // Due date
             SectionLabel("Due Date")
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = { showDatePicker = true }) {
-                    Icon(Icons.Default.CalendarToday, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = viewModel.dueDate?.let { formatDate(it) } ?: "No due date"
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                DateQuickChip("Today", viewModel.dueDate, todayMillis()) {
+                    viewModel.onDueDateChange(todayMillis())
+                }
+                DateQuickChip("Tomorrow", viewModel.dueDate, tomorrowMillis()) {
+                    viewModel.onDueDateChange(tomorrowMillis())
+                }
+                DateQuickChip("+1 Week", viewModel.dueDate, weekFromNowMillis()) {
+                    viewModel.onDueDateChange(weekFromNowMillis())
+                }
+                FilterChip(
+                    selected = false,
+                    onClick = { showDatePicker = true },
+                    label = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Pick Date")
+                        }
+                    }
+                )
+                if (viewModel.dueDate != null) {
+                    FilterChip(
+                        selected = false,
+                        onClick = { viewModel.onDueDateChange(null) },
+                        label = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Clear, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Clear")
+                            }
+                        }
                     )
                 }
-                if (viewModel.dueDate != null) {
-                    IconButton(onClick = { viewModel.onDueDateChange(null) }) {
-                        Icon(Icons.Default.Clear, contentDescription = "Clear date", modifier = Modifier.size(18.dp))
+            }
+            if (viewModel.dueDate != null) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(top = 4.dp)
+                ) {
+                    Icon(
+                        Icons.Default.CalendarToday,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Due: ${formatDateSmart(viewModel.dueDate!!)}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    IconButton(
+                        onClick = { viewModel.onDueDateChange(null) },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Clear date",
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }
@@ -383,9 +439,59 @@ private fun TimePickerDialog(
     )
 }
 
-private fun formatDate(epochMillis: Long): String {
-    val fmt = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
-    return fmt.format(Date(epochMillis))
+private fun todayMillis(): Long = Calendar.getInstance().apply {
+    set(Calendar.HOUR_OF_DAY, 0)
+    set(Calendar.MINUTE, 0)
+    set(Calendar.SECOND, 0)
+    set(Calendar.MILLISECOND, 0)
+}.timeInMillis
+
+private fun tomorrowMillis(): Long = Calendar.getInstance().apply {
+    set(Calendar.HOUR_OF_DAY, 0)
+    set(Calendar.MINUTE, 0)
+    set(Calendar.SECOND, 0)
+    set(Calendar.MILLISECOND, 0)
+    add(Calendar.DAY_OF_YEAR, 1)
+}.timeInMillis
+
+private fun weekFromNowMillis(): Long = Calendar.getInstance().apply {
+    set(Calendar.HOUR_OF_DAY, 0)
+    set(Calendar.MINUTE, 0)
+    set(Calendar.SECOND, 0)
+    set(Calendar.MILLISECOND, 0)
+    add(Calendar.DAY_OF_YEAR, 7)
+}.timeInMillis
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DateQuickChip(label: String, currentDate: Long?, targetDate: Long, onClick: () -> Unit) {
+    FilterChip(
+        selected = currentDate == targetDate,
+        onClick = onClick,
+        label = { Text(label) },
+        colors = FilterChipDefaults.filterChipColors(
+            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+        )
+    )
+}
+
+private fun formatDateSmart(epochMillis: Long): String {
+    val today = todayMillis()
+    val tomorrow = tomorrowMillis()
+    val dayAfter = Calendar.getInstance().apply {
+        timeInMillis = tomorrow
+        add(Calendar.DAY_OF_YEAR, 1)
+    }.timeInMillis
+
+    val dateFmt = SimpleDateFormat("EEE, MMM d", Locale.getDefault())
+    val fullFmt = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
+
+    return when {
+        epochMillis in today until tomorrow -> "Today, ${dateFmt.format(Date(epochMillis))}"
+        epochMillis in tomorrow until dayAfter -> "Tomorrow, ${dateFmt.format(Date(epochMillis))}"
+        else -> fullFmt.format(Date(epochMillis))
+    }
 }
 
 private fun formatTime(epochMillis: Long): String {
