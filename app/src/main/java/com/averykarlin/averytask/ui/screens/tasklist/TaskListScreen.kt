@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,17 +15,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
+import androidx.compose.material.icons.filled.FolderCopy
 import androidx.compose.material.icons.filled.SortByAlpha
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -60,8 +65,9 @@ fun TaskListScreen(
     navController: NavController,
     viewModel: TaskListViewModel = hiltViewModel()
 ) {
-    val tasks by viewModel.tasks.collectAsStateWithLifecycle()
+    val filteredTasks by viewModel.filteredTasks.collectAsStateWithLifecycle()
     val projects by viewModel.projects.collectAsStateWithLifecycle()
+    val selectedProjectId by viewModel.selectedProjectId.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -73,6 +79,12 @@ fun TaskListScreen(
                     )
                 },
                 actions = {
+                    IconButton(onClick = { navController.navigate(AveryTaskRoute.ProjectList.route) }) {
+                        Icon(
+                            imageVector = Icons.Default.FolderCopy,
+                            contentDescription = "Projects"
+                        )
+                    }
                     IconButton(onClick = { /* TODO: sort options */ }) {
                         Icon(
                             imageVector = Icons.Default.SortByAlpha,
@@ -99,28 +111,94 @@ fun TaskListScreen(
             }
         }
     ) { padding ->
-        if (tasks.isEmpty()) {
-            EmptyState(modifier = Modifier.padding(padding))
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                item { Spacer(modifier = Modifier.height(4.dp)) }
-                items(tasks, key = { it.id }) { task ->
-                    val project = projects.find { it.id == task.projectId }
-                    TaskItem(
-                        task = task,
-                        project = project,
-                        onToggleComplete = { viewModel.onToggleComplete(task.id, task.isCompleted) },
-                        onClick = { navController.navigate(AveryTaskRoute.AddEditTask.createRoute(task.id)) }
-                    )
-                }
-                item { Spacer(modifier = Modifier.height(80.dp)) }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            if (projects.isNotEmpty()) {
+                ProjectFilterRow(
+                    projects = projects,
+                    selectedProjectId = selectedProjectId,
+                    onSelectProject = viewModel::onSelectProject
+                )
             }
+
+            if (filteredTasks.isEmpty()) {
+                EmptyState(modifier = Modifier.weight(1f))
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    item { Spacer(modifier = Modifier.height(4.dp)) }
+                    items(filteredTasks, key = { it.id }) { task ->
+                        val project = projects.find { it.id == task.projectId }
+                        TaskItem(
+                            task = task,
+                            project = project,
+                            onToggleComplete = { viewModel.onToggleComplete(task.id, task.isCompleted) },
+                            onClick = { navController.navigate(AveryTaskRoute.AddEditTask.createRoute(task.id)) }
+                        )
+                    }
+                    item { Spacer(modifier = Modifier.height(80.dp)) }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ProjectFilterRow(
+    projects: List<ProjectEntity>,
+    selectedProjectId: Long?,
+    onSelectProject: (Long?) -> Unit
+) {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.padding(vertical = 4.dp)
+    ) {
+        item {
+            FilterChip(
+                selected = selectedProjectId == null,
+                onClick = { onSelectProject(null) },
+                label = { Text("All") },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            )
+        }
+        items(projects, key = { it.id }) { project ->
+            val projectColor = try {
+                Color(android.graphics.Color.parseColor(project.color))
+            } catch (_: Exception) {
+                MaterialTheme.colorScheme.primary
+            }
+            FilterChip(
+                selected = selectedProjectId == project.id,
+                onClick = { onSelectProject(project.id) },
+                label = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(projectColor)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(project.name)
+                    }
+                },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = projectColor.copy(alpha = 0.15f),
+                    selectedLabelColor = projectColor
+                )
+            )
         }
     }
 }
@@ -195,11 +273,11 @@ private fun TaskItem(
 @Composable
 private fun PriorityDot(priority: Int) {
     val color = when (priority) {
-        1 -> Color(0xFF4A90D9) // Low — blue
-        2 -> Color(0xFFF5C542) // Medium — yellow
-        3 -> Color(0xFFE8872A) // High — orange
-        4 -> Color(0xFFD93025) // Urgent — red
-        else -> Color(0xFFAAAAAA) // None — gray
+        1 -> Color(0xFF4A90D9)
+        2 -> Color(0xFFF5C542)
+        3 -> Color(0xFFE8872A)
+        4 -> Color(0xFFD93025)
+        else -> Color(0xFFAAAAAA)
     }
     Box(
         modifier = Modifier
@@ -237,7 +315,6 @@ private data class DueDateLabel(val text: String, val color: Color)
 
 @Composable
 private fun formatDueDate(epochMillis: Long): DueDateLabel {
-    val now = System.currentTimeMillis()
     val cal = Calendar.getInstance()
 
     cal.set(Calendar.HOUR_OF_DAY, 0)

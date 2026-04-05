@@ -7,8 +7,10 @@ import com.averykarlin.averytask.data.local.entity.TaskEntity
 import com.averykarlin.averytask.data.repository.ProjectRepository
 import com.averykarlin.averytask.data.repository.TaskRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -27,6 +29,17 @@ class TaskListViewModel @Inject constructor(
 
     val projects: StateFlow<List<ProjectEntity>> = projectRepository.getAllProjects()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val _selectedProjectId = MutableStateFlow<Long?>(null)
+    val selectedProjectId: StateFlow<Long?> = _selectedProjectId
+
+    val filteredTasks: StateFlow<List<TaskEntity>> = combine(tasks, _selectedProjectId) { taskList, projectId ->
+        if (projectId == null) taskList else taskList.filter { it.projectId == projectId }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun onSelectProject(projectId: Long?) {
+        _selectedProjectId.value = projectId
+    }
 
     fun onAddTask(title: String, dueDate: Long? = null, priority: Int = 0, projectId: Long? = null) {
         viewModelScope.launch {

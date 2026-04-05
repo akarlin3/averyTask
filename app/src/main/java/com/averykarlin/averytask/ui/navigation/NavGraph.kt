@@ -9,6 +9,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.averykarlin.averytask.ui.screens.addedittask.AddEditTaskScreen
+import com.averykarlin.averytask.ui.screens.projects.AddEditProjectScreen
+import com.averykarlin.averytask.ui.screens.projects.ProjectListScreen
 import com.averykarlin.averytask.ui.screens.tasklist.TaskListScreen
 
 sealed class AveryTaskRoute(val route: String) {
@@ -51,7 +53,7 @@ fun AveryTaskNavGraph(
         }
 
         composable(AveryTaskRoute.ProjectList.route) {
-            ProjectListPlaceholder(navController)
+            ProjectListScreen(navController)
         }
 
         composable(
@@ -62,20 +64,8 @@ fun AveryTaskNavGraph(
                     defaultValue = -1L
                 }
             )
-        ) { backStackEntry ->
-            val projectId = backStackEntry.arguments?.getLong("projectId")?.takeIf { it != -1L }
-            AddEditProjectPlaceholder(navController, projectId)
+        ) {
+            AddEditProjectScreen(navController)
         }
     }
-}
-
-// Placeholder composables — will be replaced with real screens
-@Composable
-private fun ProjectListPlaceholder(navController: NavHostController) {
-    androidx.compose.material3.Text("Project List")
-}
-
-@Composable
-private fun AddEditProjectPlaceholder(navController: NavHostController, projectId: Long?) {
-    androidx.compose.material3.Text(if (projectId != null) "Edit Project $projectId" else "Add Project")
 }
