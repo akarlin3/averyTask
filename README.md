@@ -6,7 +6,21 @@
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.2.10-purple.svg)](https://kotlinlang.org)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4.svg)](https://developer.android.com/jetpack/compose)
 
-A native Android todo list app built with Kotlin and Jetpack Compose. Currently in early development — the project scaffold is in place with a single-activity Compose architecture ready to build on.
+A native Android todo list app built with Kotlin and Jetpack Compose. Supports task management with projects, subtasks, recurring schedules, and reminders.
+
+## Features
+
+- **Task management** — create, edit, delete, and complete tasks with titles, descriptions, due dates, times, and priority levels
+- **Projects** — organize tasks into color-coded projects with custom emoji icons
+- **Subtasks** — add subtasks inline with completion tracking and parent-child cascade delete
+- **Recurring tasks** — daily, weekly (multi-day), monthly, and yearly recurrence with configurable intervals and end conditions; completing a recurring task auto-creates the next occurrence
+- **Reminders** — schedule notifications at due time or 15 min / 30 min / 1 hour / 1 day before; persists across device reboots
+- **Upcoming view** — tasks grouped by Overdue, Today, Tomorrow, This Week, Later, No Date
+- **Sorting** — by due date, priority, date created, or alphabetical
+- **Project filtering** — horizontal chip row to filter by project
+- **Overdue detection** — red-tinted cards, left border accent, and badge count in the top bar
+- **Swipe gestures** — swipe right to complete, swipe left to delete, with undo snackbars
+- **Quick date picker** — Today / Tomorrow / +1 Week chips plus full Material 3 date picker
 
 ## Tech Stack
 
@@ -14,8 +28,10 @@ A native Android todo list app built with Kotlin and Jetpack Compose. Currently 
 |-------|-----------|---------|
 | Language | Kotlin | 2.2.10 |
 | UI | Jetpack Compose + Material 3 | BOM 2024.12.01 |
+| DI | Hilt (Dagger) | 2.59.2 |
+| Database | Room | 2.8.4 |
+| Navigation | Jetpack Navigation Compose | 2.9.7 |
 | Build | Gradle (Kotlin DSL) | 8.13 |
-| Compose Compiler | Kotlin Compiler Plugin | 2.2.10 |
 
 **Target:** Android 8.0+ (API 26) through Android 15 (API 35)
 
@@ -40,39 +56,34 @@ cd averyTask
 ./gradlew installDebug
 ```
 
-## Project Structure
-
-```
-app/src/main/java/com/averykarlin/averytask/
-├── MainActivity.kt              # Single-activity entry point (Compose)
-└── ui/theme/
-    ├── Color.kt                 # Material 3 color tokens
-    ├── Theme.kt                 # Light/dark theme with dynamic color support
-    └── Type.kt                  # Typography definitions
-```
-
-## Architecture
-
-The app uses a single-activity architecture with Jetpack Compose for the entire UI layer. The theme supports Material 3 dynamic colors on Android 12+ and falls back to a static light/dark scheme on older devices.
-
 ## Build Commands
 
 ```bash
 # Debug build
 ./gradlew assembleDebug
 
-# Release build
+# Release build (R8 minification + resource shrinking)
 ./gradlew assembleRelease
 
 # Run unit tests
-./gradlew test
+./gradlew testDebugUnitTest
 
 # Run instrumentation tests
-./gradlew connectedAndroidTest
+./gradlew connectedDebugAndroidTest
 
 # Clean
 ./gradlew clean
 ```
+
+## Architecture
+
+The app follows MVVM with a single-activity Compose architecture:
+
+- **UI layer**: Jetpack Compose screens with Material 3, connected to ViewModels via `hiltViewModel()`
+- **ViewModel layer**: Exposes `StateFlow` from repositories, handles user actions in `viewModelScope`
+- **Data layer**: Room database with DAOs returning `Flow`, repositories as the single source of truth
+- **DI**: Hilt provides database, DAOs, and repositories as singletons
+- **Notifications**: `AlarmManager` + `BroadcastReceiver` for scheduled reminders, surviving reboots via `BOOT_COMPLETED`
 
 ## Contributing
 
