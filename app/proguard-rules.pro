@@ -9,6 +9,7 @@
 -keep class com.averykarlin.averytask.data.local.entity.** { *; }
 -keep interface com.averykarlin.averytask.data.local.dao.** { *; }
 -keep class com.averykarlin.averytask.data.local.dao.ProjectWithCount { *; }
+-keep class com.averykarlin.averytask.data.local.dao.EntityFrequency { *; }
 
 # ── Room relation / cross-ref classes ──
 -keep class com.averykarlin.averytask.data.local.entity.TaskTagCrossRef { *; }

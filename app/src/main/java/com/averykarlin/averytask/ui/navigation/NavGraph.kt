@@ -1,17 +1,42 @@
 package com.averykarlin.averytask.ui.navigation
 
-import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.FolderCopy
+import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Today
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.FolderCopy
+import androidx.compose.material.icons.automirrored.outlined.FormatListBulleted
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Today
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.averykarlin.averytask.ui.screens.addedittask.AddEditTaskScreen
@@ -22,8 +47,12 @@ import com.averykarlin.averytask.ui.screens.search.SearchScreen
 import com.averykarlin.averytask.ui.screens.settings.SettingsScreen
 import com.averykarlin.averytask.ui.screens.tags.TagManagementScreen
 import com.averykarlin.averytask.ui.screens.tasklist.TaskListScreen
+import com.averykarlin.averytask.ui.screens.monthview.MonthViewScreen
+import com.averykarlin.averytask.ui.screens.today.TodayScreen
+import com.averykarlin.averytask.ui.screens.weekview.WeekViewScreen
 
 sealed class AveryTaskRoute(val route: String) {
+    data object Today : AveryTaskRoute("today")
     data object TaskList : AveryTaskRoute("task_list")
     data object AddEditTask : AveryTaskRoute("add_edit_task?taskId={taskId}") {
         fun createRoute(taskId: Long? = null): String =
@@ -38,7 +67,25 @@ sealed class AveryTaskRoute(val route: String) {
     data object TagManagement : AveryTaskRoute("tag_management")
     data object Search : AveryTaskRoute("search")
     data object Archive : AveryTaskRoute("archive")
+    data object WeekView : AveryTaskRoute("week_view")
+    data object MonthView : AveryTaskRoute("month_view")
 }
+
+data class BottomNavItem(
+    val route: String,
+    val label: String,
+    val selectedIcon: ImageVector,
+    val unselectedIcon: ImageVector
+)
+
+private val bottomNavItems = listOf(
+    BottomNavItem(AveryTaskRoute.Today.route, "Today", Icons.Filled.Today, Icons.Outlined.Today),
+    BottomNavItem(AveryTaskRoute.TaskList.route, "Tasks", Icons.AutoMirrored.Filled.FormatListBulleted, Icons.AutoMirrored.Outlined.FormatListBulleted),
+    BottomNavItem(AveryTaskRoute.ProjectList.route, "Projects", Icons.Filled.FolderCopy, Icons.Outlined.FolderCopy),
+    BottomNavItem(AveryTaskRoute.Settings.route, "Settings", Icons.Filled.Settings, Icons.Outlined.Settings),
+)
+
+private val mainRoutes = bottomNavItems.map { it.route }.toSet()
 
 private const val NAV_ANIM_DURATION = 300
 
@@ -47,261 +94,255 @@ fun AveryTaskNavGraph(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController()
 ) {
-    NavHost(
-        navController = navController,
-        startDestination = AveryTaskRoute.TaskList.route,
-        modifier = modifier
-    ) {
-        composable(
-            route = AveryTaskRoute.TaskList.route,
-            enterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { it },
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                ) + fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
-            },
-            exitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { -it },
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                ) + fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
-            },
-            popEnterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { -it },
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                ) + fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
-            },
-            popExitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { it },
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                ) + fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
-            }
-        ) {
-            TaskListScreen(navController)
-        }
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+    val showBottomBar = currentRoute in mainRoutes
 
-        composable(
-            route = AveryTaskRoute.AddEditTask.route,
-            arguments = listOf(
-                navArgument("taskId") {
-                    type = NavType.LongType
-                    defaultValue = -1L
+    Scaffold(
+        modifier = modifier,
+        bottomBar = {
+            if (showBottomBar) {
+                NavigationBar {
+                    bottomNavItems.forEach { item ->
+                        val selected = navBackStackEntry?.destination?.hierarchy
+                            ?.any { it.route == item.route } == true
+
+                        NavigationBarItem(
+                            selected = selected,
+                            onClick = {
+                                navController.navigate(item.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            },
+                            icon = {
+                                Icon(
+                                    imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
+                                    contentDescription = item.label
+                                )
+                            },
+                            label = { Text(item.label) }
+                        )
+                    }
                 }
-            ),
-            enterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { it },
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                ) + fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
-            },
-            exitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { -it },
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                ) + fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
-            },
-            popEnterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { -it },
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                ) + fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
-            },
-            popExitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { it },
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                ) + fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
             }
-        ) {
-            AddEditTaskScreen(navController)
         }
-
-        composable(
-            route = AveryTaskRoute.ProjectList.route,
-            enterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { it },
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                ) + fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
-            },
-            exitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { -it },
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                ) + fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
-            },
-            popEnterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { -it },
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                ) + fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
-            },
-            popExitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { it },
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                ) + fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+    ) { innerPadding ->
+        NavHost(
+            navController = navController,
+            startDestination = AveryTaskRoute.Today.route,
+            modifier = Modifier.padding(innerPadding)
+        ) {
+            // Main tab screens — fade transitions
+            composable(
+                route = AveryTaskRoute.Today.route,
+                enterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                exitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popExitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) }
+            ) {
+                TodayScreen(navController)
             }
-        ) {
-            ProjectListScreen(navController)
-        }
 
-        composable(
-            route = AveryTaskRoute.AddEditProject.route,
-            arguments = listOf(
-                navArgument("projectId") {
-                    type = NavType.LongType
-                    defaultValue = -1L
+            composable(
+                route = AveryTaskRoute.TaskList.route,
+                enterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                exitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popExitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) }
+            ) {
+                TaskListScreen(navController)
+            }
+
+            composable(
+                route = AveryTaskRoute.ProjectList.route,
+                enterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                exitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popExitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) }
+            ) {
+                ProjectListScreen(navController)
+            }
+
+            composable(
+                route = AveryTaskRoute.Settings.route,
+                enterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                exitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
+                popExitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) }
+            ) {
+                SettingsScreen(navController)
+            }
+
+            // Detail screens — slide transitions
+            composable(
+                route = AveryTaskRoute.AddEditTask.route,
+                arguments = listOf(
+                    navArgument("taskId") {
+                        type = NavType.LongType
+                        defaultValue = -1L
+                    }
+                ),
+                enterTransition = {
+                    slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                exitTransition = {
+                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
                 }
-            ),
-            enterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { it },
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                ) + fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
-            },
-            exitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { -it },
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                ) + fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
-            },
-            popEnterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { -it },
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                ) + fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
-            },
-            popExitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { it },
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                ) + fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+            ) {
+                AddEditTaskScreen(navController)
             }
-        ) {
-            AddEditProjectScreen(navController)
-        }
 
-        composable(
-            route = AveryTaskRoute.Settings.route,
-            enterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { it },
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                ) + fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
-            },
-            exitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { -it },
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                ) + fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
-            },
-            popEnterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { -it },
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                ) + fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
-            },
-            popExitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { it },
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                ) + fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+            composable(
+                route = AveryTaskRoute.AddEditProject.route,
+                arguments = listOf(
+                    navArgument("projectId") {
+                        type = NavType.LongType
+                        defaultValue = -1L
+                    }
+                ),
+                enterTransition = {
+                    slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                exitTransition = {
+                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                }
+            ) {
+                AddEditProjectScreen(navController)
             }
-        ) {
-            SettingsScreen(navController)
-        }
 
-        composable(
-            route = AveryTaskRoute.TagManagement.route,
-            enterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { it },
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                ) + fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
-            },
-            exitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { -it },
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                ) + fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
-            },
-            popEnterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { -it },
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                ) + fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
-            },
-            popExitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { it },
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                ) + fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+            composable(
+                route = AveryTaskRoute.TagManagement.route,
+                enterTransition = {
+                    slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                exitTransition = {
+                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                }
+            ) {
+                TagManagementScreen(navController)
             }
-        ) {
-            TagManagementScreen(navController)
-        }
 
-        composable(
-            route = AveryTaskRoute.Search.route,
-            enterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { it },
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                ) + fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
-            },
-            exitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { -it },
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                ) + fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
-            },
-            popEnterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { -it },
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                ) + fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
-            },
-            popExitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { it },
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                ) + fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+            composable(
+                route = AveryTaskRoute.Search.route,
+                enterTransition = {
+                    slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                exitTransition = {
+                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                }
+            ) {
+                SearchScreen(navController)
             }
-        ) {
-            SearchScreen(navController)
-        }
 
-        composable(
-            route = AveryTaskRoute.Archive.route,
-            enterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { it },
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                ) + fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
-            },
-            exitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { -it },
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                ) + fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
-            },
-            popEnterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { -it },
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                ) + fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
-            },
-            popExitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { it },
-                    animationSpec = tween(NAV_ANIM_DURATION)
-                ) + fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+            composable(
+                route = AveryTaskRoute.WeekView.route,
+                enterTransition = {
+                    slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                exitTransition = {
+                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                }
+            ) {
+                WeekViewScreen(navController)
             }
-        ) {
-            ArchiveScreen(navController)
+
+            composable(
+                route = AveryTaskRoute.MonthView.route,
+                enterTransition = {
+                    slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                exitTransition = {
+                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                }
+            ) {
+                MonthViewScreen(navController)
+            }
+
+            composable(
+                route = AveryTaskRoute.Archive.route,
+                enterTransition = {
+                    slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                exitTransition = {
+                    slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeIn(animationSpec = tween(NAV_ANIM_DURATION))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(NAV_ANIM_DURATION)) +
+                            fadeOut(animationSpec = tween(NAV_ANIM_DURATION))
+                }
+            ) {
+                ArchiveScreen(navController)
+            }
         }
     }
 }

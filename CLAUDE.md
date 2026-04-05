@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**AveryTask** (`com.averykarlin.averytask`) is a native Android todo list app built with Kotlin and Jetpack Compose. v0.1.0 MVP is complete with full task management, projects, subtasks, recurrence, reminders, and notifications.
+**AveryTask** (`com.averykarlin.averytask`) is a native Android todo list app built with Kotlin and Jetpack Compose. v0.3.0 includes full task management, projects, subtasks, tags, recurrence, reminders, notifications, NLP quick-add, Today focus screen, week/month views, urgency scoring, and smart suggestions.
 
 ## Tech Stack
 
@@ -26,23 +26,41 @@ app/src/main/java/com/averykarlin/averytask/
 │   │   ├── converter/
 │   │   │   └── RecurrenceConverter.kt  # Gson JSON ↔ RecurrenceRule
 │   │   ├── dao/
-│   │   │   ├── TaskDao.kt             # Room DAO with Flow queries
-│   │   │   └── ProjectDao.kt          # Room DAO with task count join
+│   │   │   ├── TaskDao.kt             # Room DAO with Flow queries (today, overdue, planned)
+│   │   │   ├── ProjectDao.kt          # Room DAO with task count join
+│   │   │   ├── TagDao.kt              # Tag CRUD + task-tag relations
+│   │   │   ├── AttachmentDao.kt       # Attachment CRUD
+│   │   │   └── UsageLogDao.kt         # Usage analytics for smart suggestions
 │   │   ├── database/
-│   │   │   └── AveryTaskDatabase.kt   # Room DB (v1, Task + Project entities)
+│   │   │   └── AveryTaskDatabase.kt   # Room DB (v5, migrations 1→5)
 │   │   └── entity/
-│   │       ├── TaskEntity.kt          # Tasks table with FKs, indices
-│   │       └── ProjectEntity.kt       # Projects table
+│   │       ├── TaskEntity.kt          # Tasks table with plannedDate, FKs, indices
+│   │       ├── ProjectEntity.kt       # Projects table
+│   │       ├── TagEntity.kt           # Tags table
+│   │       ├── TaskTagCrossRef.kt     # Task-tag junction table
+│   │       ├── TaskWithTags.kt        # Room relation
+│   │       ├── AttachmentEntity.kt    # File attachments
+│   │       └── UsageLogEntity.kt      # Usage logs for suggestion engine
+│   ├── preferences/
+│   │   ├── ThemePreferences.kt        # Theme mode + accent color DataStore
+│   │   └── ArchivePreferences.kt      # Auto-archive settings
 │   └── repository/
 │       ├── TaskRepository.kt          # Task CRUD, recurrence completion, date grouping
-│       └── ProjectRepository.kt       # Project CRUD
+│       ├── ProjectRepository.kt       # Project CRUD
+│       ├── TagRepository.kt           # Tag CRUD + task assignment
+│       └── AttachmentRepository.kt    # Attachment CRUD
 ├── di/
 │   └── DatabaseModule.kt              # Hilt module: Room DB, DAOs
 ├── domain/
 │   ├── model/
-│   │   └── RecurrenceRule.kt          # RecurrenceRule data class + RecurrenceType enum
+│   │   ├── RecurrenceRule.kt          # RecurrenceRule data class + RecurrenceType enum
+│   │   └── TaskFilter.kt             # Filter model for task list
 │   └── usecase/
-│       └── RecurrenceEngine.kt        # Next-date calculation for all recurrence types
+│       ├── RecurrenceEngine.kt        # Next-date calculation for all recurrence types
+│       ├── NaturalLanguageParser.kt   # NLP parser: extracts dates, tags, priority from text
+│       ├── ParsedTaskResolver.kt      # Resolves parsed NLP data against existing entities
+│       ├── UrgencyScorer.kt           # Urgency scoring (0-1) based on due date, priority, age
+│       └── SuggestionEngine.kt        # Smart tag/project suggestions based on usage patterns
 ├── notifications/
 │   ├── NotificationHelper.kt          # Channel creation, notification builder
 │   ├── ReminderScheduler.kt           # AlarmManager scheduling
@@ -53,24 +71,50 @@ app/src/main/java/com/averykarlin/averytask/
     ├── components/
     │   ├── SubtaskSection.kt          # Expandable subtask list with inline add
     │   ├── RecurrenceSelector.kt      # Recurrence config dialog
-    │   └── EmptyState.kt             # Reusable empty state composable
+    │   ├── EmptyState.kt             # Reusable empty state composable
+    │   ├── FilterPanel.kt            # Advanced filter bottom sheet
+    │   ├── HighlightedText.kt        # Search result highlighting
+    │   ├── TagSelector.kt            # Tag selection component
+    │   ├── QuickAddBar.kt            # NLP-powered quick task creation bar
+    │   └── QuickAddViewModel.kt      # Quick-add logic: parse → resolve → create
     ├── navigation/
-    │   └── NavGraph.kt               # NavHost with 4 routes, slide transitions
+    │   └── NavGraph.kt               # NavHost with bottom nav (Today, Tasks, Projects, Settings)
     ├── screens/
+    │   ├── today/
+    │   │   ├── TodayScreen.kt        # Today focus: progress ring, overdue, planned, completed
+    │   │   └── TodayViewModel.kt     # Today state, plan-for-today, rollover
     │   ├── tasklist/
-    │   │   ├── TaskListScreen.kt      # Main screen: grouped/list views, swipe, filter
-    │   │   └── TaskListViewModel.kt   # Sort, filter, group, subtask map, undo
+    │   │   ├── TaskListScreen.kt      # Main screen: grouped/list views, swipe, filter, multi-select
+    │   │   └── TaskListViewModel.kt   # Sort (incl. urgency), filter, group, subtask map, undo
     │   ├── addedittask/
     │   │   ├── AddEditTaskScreen.kt   # Task form with date/time/priority/recurrence/reminder
     │   │   └── AddEditTaskViewModel.kt
-    │   └── projects/
-    │       ├── ProjectListScreen.kt
-    │       ├── ProjectListViewModel.kt
-    │       ├── AddEditProjectScreen.kt
-    │       └── AddEditProjectViewModel.kt
+    │   ├── projects/
+    │   │   ├── ProjectListScreen.kt
+    │   │   ├── ProjectListViewModel.kt
+    │   │   ├── AddEditProjectScreen.kt
+    │   │   └── AddEditProjectViewModel.kt
+    │   ├── weekview/
+    │   │   ├── WeekViewScreen.kt      # 7-day column view with task cards
+    │   │   └── WeekViewModel.kt       # Week navigation, task grouping by day
+    │   ├── monthview/
+    │   │   ├── MonthViewScreen.kt     # Calendar grid with density dots, day detail
+    │   │   └── MonthViewModel.kt      # Month navigation, day info aggregation
+    │   ├── search/
+    │   │   ├── SearchScreen.kt
+    │   │   └── SearchViewModel.kt
+    │   ├── archive/
+    │   │   ├── ArchiveScreen.kt
+    │   │   └── ArchiveViewModel.kt
+    │   ├── settings/
+    │   │   ├── SettingsScreen.kt
+    │   │   └── SettingsViewModel.kt
+    │   └── tags/
+    │       ├── TagManagementScreen.kt
+    │       └── TagManagementViewModel.kt
     └── theme/
         ├── Color.kt                   # Material 3 color tokens
-        ├── Theme.kt                   # Dynamic color theme
+        ├── Theme.kt                   # Dynamic color theme (dark mode forced)
         ├── Type.kt                    # Typography scale
         └── PriorityColors.kt         # Centralized priority color definitions
 ```
@@ -85,6 +129,11 @@ app/src/main/java/com/averykarlin/averytask/
 - **Reactive data**: Room returns `Flow<T>`, ViewModels expose `StateFlow<T>` via `stateIn()`
 - **Recurrence**: On task completion, `RecurrenceEngine` calculates next due date; a new task is inserted automatically
 - **Reminders**: `AlarmManager` schedules `BroadcastReceiver` triggers; notifications have "Complete" action
+- **NLP Quick-Add**: `NaturalLanguageParser` extracts dates, tags (#), projects (@), priority (!), recurrence from text
+- **Bottom Navigation**: 4 tabs (Today, Tasks, Projects, Settings); detail screens hide nav bar
+- **Today Focus**: Progress ring, overdue/today/planned sections, plan-for-today sheet
+- **Urgency Scoring**: `UrgencyScorer` computes 0–1 score from due date, priority, age, subtask progress
+- **Smart Suggestions**: `SuggestionEngine` suggests tags/projects based on usage log keyword matching
 
 ## Build Commands
 
@@ -122,5 +171,5 @@ app/src/main/java/com/averykarlin/averytask/
 - `app/build.gradle.kts` — App module dependencies, build config, ProGuard/R8 settings
 - `app/proguard-rules.pro` — Keep rules for Room, Gson, domain models
 - `app/src/main/AndroidManifest.xml` — Activity, receivers, permissions
-- `app/src/test/` — RecurrenceEngine unit tests (18 tests)
+- `app/src/test/` — RecurrenceEngine (18), NaturalLanguageParser (32), UrgencyScorer (10) unit tests
 - `app/src/androidTest/` — DAO + recurrence integration tests

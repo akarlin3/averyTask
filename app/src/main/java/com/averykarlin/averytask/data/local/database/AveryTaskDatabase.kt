@@ -8,15 +8,17 @@ import com.averykarlin.averytask.data.local.dao.AttachmentDao
 import com.averykarlin.averytask.data.local.dao.ProjectDao
 import com.averykarlin.averytask.data.local.dao.TagDao
 import com.averykarlin.averytask.data.local.dao.TaskDao
+import com.averykarlin.averytask.data.local.dao.UsageLogDao
 import com.averykarlin.averytask.data.local.entity.AttachmentEntity
 import com.averykarlin.averytask.data.local.entity.ProjectEntity
 import com.averykarlin.averytask.data.local.entity.TagEntity
 import com.averykarlin.averytask.data.local.entity.TaskEntity
 import com.averykarlin.averytask.data.local.entity.TaskTagCrossRef
+import com.averykarlin.averytask.data.local.entity.UsageLogEntity
 
 @Database(
-    entities = [TaskEntity::class, ProjectEntity::class, TagEntity::class, TaskTagCrossRef::class, AttachmentEntity::class],
-    version = 3,
+    entities = [TaskEntity::class, ProjectEntity::class, TagEntity::class, TaskTagCrossRef::class, AttachmentEntity::class, UsageLogEntity::class],
+    version = 5,
     exportSchema = false
 )
 abstract class AveryTaskDatabase : RoomDatabase() {
@@ -24,6 +26,7 @@ abstract class AveryTaskDatabase : RoomDatabase() {
     abstract fun projectDao(): ProjectDao
     abstract fun tagDao(): TagDao
     abstract fun attachmentDao(): AttachmentDao
+    abstract fun usageLogDao(): UsageLogDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -66,6 +69,28 @@ abstract class AveryTaskDatabase : RoomDatabase() {
                     )"""
                 )
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_attachments_taskId` ON `attachments` (`taskId`)")
+            }
+        }
+
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE tasks ADD COLUMN planned_date INTEGER")
+            }
+        }
+
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `usage_logs` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `event_type` TEXT NOT NULL,
+                        `entity_id` INTEGER,
+                        `entity_name` TEXT,
+                        `task_title` TEXT NOT NULL,
+                        `title_keywords` TEXT NOT NULL,
+                        `timestamp` INTEGER NOT NULL
+                    )"""
+                )
             }
         }
     }

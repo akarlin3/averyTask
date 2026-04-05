@@ -74,5 +74,8 @@ data class TaskEntity(
     val archivedAt: Long? = null,
 
     @ColumnInfo(name = "notes")
-    val notes: String? = null
+    val notes: String? = null,
+
+    @ColumnInfo(name = "planned_date")
+    val plannedDate: Long? = null
 )
