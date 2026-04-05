@@ -48,6 +48,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.averykarlin.averytask.data.local.entity.TaskEntity
+import com.averykarlin.averytask.ui.theme.PriorityColors
 
 @Composable
 fun SubtaskSection(
@@ -157,18 +158,11 @@ private fun SubtaskRow(
 
 @Composable
 private fun PriorityDot(priority: Int) {
-    val color = when (priority) {
-        1 -> Color(0xFF4A90D9)
-        2 -> Color(0xFFF5C542)
-        3 -> Color(0xFFE8872A)
-        4 -> Color(0xFFD93025)
-        else -> Color(0xFFAAAAAA)
-    }
     Box(
         modifier = Modifier
             .size(8.dp)
             .clip(CircleShape)
-            .background(color)
+            .background(PriorityColors.forLevel(priority))
     )
 }
 

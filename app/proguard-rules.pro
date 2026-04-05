@@ -10,8 +10,21 @@
 -keep interface com.averykarlin.averytask.data.local.dao.** { *; }
 -keep class com.averykarlin.averytask.data.local.dao.ProjectWithCount { *; }
 
+# ── Room relation / cross-ref classes ──
+-keep class com.averykarlin.averytask.data.local.entity.TaskTagCrossRef { *; }
+-keep class com.averykarlin.averytask.data.local.entity.TaskWithTags { *; }
+
 # ── Domain models (serialized with Gson) ──
 -keep class com.averykarlin.averytask.domain.model.** { *; }
+
+# ── Room type converters ──
+-keep class com.averykarlin.averytask.data.local.converter.** { *; }
+
+# ── Notification receivers ──
+-keep class com.averykarlin.averytask.notifications.** { *; }
+
+# ── WorkManager workers ──
+-keep class com.averykarlin.averytask.workers.** { *; }
 
 # ── Gson ──
 -keepattributes Signature
