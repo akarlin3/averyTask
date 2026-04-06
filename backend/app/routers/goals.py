@@ -113,6 +113,28 @@ async def delete_goal(
     await db.delete(goal)
 
 
+@router.patch("/reorder", status_code=status.HTTP_200_OK)
+async def reorder_goals(
+    items: list[dict],
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    for item in items:
+        goal_id = item.get("id")
+        sort_order = item.get("sort_order")
+        if goal_id is None or sort_order is None:
+            raise HTTPException(status_code=400, detail="Each item must have 'id' and 'sort_order'")
+        result = await db.execute(
+            select(Goal).where(Goal.id == goal_id, Goal.user_id == current_user.id)
+        )
+        goal = result.scalar_one_or_none()
+        if not goal:
+            raise HTTPException(status_code=404, detail=f"Goal {goal_id} not found")
+        goal.sort_order = sort_order
+    await db.flush()
+    return {"detail": "Goals reordered"}
+
+
 def _goal_response(goal: Goal) -> GoalResponse:
     return GoalResponse(
         id=goal.id,

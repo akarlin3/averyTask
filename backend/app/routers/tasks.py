@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -7,7 +7,8 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.middleware.auth import get_current_user
-from app.models import Project, Task, TaskStatus, User
+from app.models import Project, ProjectStatus, Task, TaskStatus, User
+from app.schemas.nlp import ParseRequest, ParseResponse
 from app.schemas.task import SubtaskCreate, TaskCreate, TaskResponse, TaskUpdate
 
 router = APIRouter(tags=["tasks"])
@@ -182,3 +183,48 @@ async def create_subtask(
     await db.flush()
     await db.refresh(subtask)
     return _task_to_response(subtask, [])
+
+
+@router.post("/tasks/parse", response_model=ParseResponse)
+async def parse_task(
+    data: ParseRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Project.title).where(
+            Project.user_id == current_user.id,
+            Project.status == ProjectStatus.ACTIVE,
+        )
+    )
+    project_names = [row[0] for row in result.all()]
+
+    try:
+        from app.services.nlp_parser import parse_task_input
+        parsed = parse_task_input(data.text, project_names, date.today())
+    except (ValueError, RuntimeError) as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    return ParseResponse(**parsed.model_dump(), needs_confirmation=True)
+
+
+@router.patch("/tasks/reorder", status_code=status.HTTP_200_OK)
+async def reorder_tasks(
+    items: list[dict],
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    for item in items:
+        task_id = item.get("id")
+        sort_order = item.get("sort_order")
+        if task_id is None or sort_order is None:
+            raise HTTPException(status_code=400, detail="Each item must have 'id' and 'sort_order'")
+        result = await db.execute(
+            select(Task).where(Task.id == task_id, Task.user_id == current_user.id)
+        )
+        task = result.scalar_one_or_none()
+        if not task:
+            raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+        task.sort_order = sort_order
+    await db.flush()
+    return {"detail": "Tasks reordered"}
