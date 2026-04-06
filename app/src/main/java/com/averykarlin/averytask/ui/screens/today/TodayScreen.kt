@@ -119,6 +119,12 @@ fun TodayScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .background(Color(0xFF4CAF50))
+            )
             QuickAddBar()
 
             val allEmpty = overdueTasks.isEmpty() && todayTasks.isEmpty() && plannedTasks.isEmpty() && completedToday.isEmpty() && todayHabits.isEmpty()
