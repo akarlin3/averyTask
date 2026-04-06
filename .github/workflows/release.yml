@@ -31,15 +31,6 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Decode keystore
-        run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/release.keystore
-          # Validate the keystore is readable
-          keytool -list -keystore app/release.keystore -storepass "${{ secrets.KEYSTORE_PASSWORD }}" > /dev/null 2>&1 || {
-            echo "::error::Keystore is invalid or corrupted. Please re-encode with: base64 -w 0 your-keystore.jks"
-            exit 1
-          }
-
       - name: Auto-increment versionCode
         run: |
           # Offset by current versionCode so it doesn't go backwards
@@ -50,10 +41,6 @@ jobs:
 
       - name: Build release APK
         run: ./gradlew assembleRelease --no-daemon --build-cache
-        env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Extract version name
         id: version

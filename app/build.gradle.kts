@@ -22,24 +22,12 @@ android {
         vectorDrawables { useSupportLibrary = true }
     }
 
-    signingConfigs {
-        val keystoreFile = file("release.keystore")
-        if (keystoreFile.exists() && System.getenv("KEYSTORE_PASSWORD") != null) {
-            create("release") {
-                storeFile = keystoreFile
-                storePassword = System.getenv("KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("KEY_ALIAS")
-                keyPassword = System.getenv("KEY_PASSWORD")
-            }
-        }
-    }
-
     buildTypes {
         debug {
             buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8000\"")
         }
         release {
-            signingConfig = signingConfigs.findByName("release")
+            signingConfig = signingConfigs.getByName("debug")
             buildConfigField("String", "API_BASE_URL", "\"https://averytask-api.up.railway.app\"")
             isMinifyEnabled = true
             isShrinkResources = true
