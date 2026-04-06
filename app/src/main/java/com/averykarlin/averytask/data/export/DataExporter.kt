@@ -52,7 +52,7 @@ class DataExporter @Inject constructor(
         val root = JsonObject()
         root.addProperty("version", 2)
         root.addProperty("exportedAt", System.currentTimeMillis())
-        root.addProperty("appVersion", "0.7.0")
+        root.addProperty("appVersion", "0.7.1")
 
         // === Tasks ===
         val tasks = taskDao.getAllTasksOnce()
