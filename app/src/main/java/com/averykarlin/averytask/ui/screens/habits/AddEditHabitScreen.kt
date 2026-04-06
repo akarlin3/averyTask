@@ -71,7 +71,10 @@ private val presetIcons = listOf(
     "\uD83D\uDCA4", "\uD83E\uDD57", "\uD83D\uDC8A", "\uD83E\uDDF9", "\uD83D\uDCF1", "\uD83C\uDFAF", "\uD83E\uDDE0", "\u2764\uFE0F"
 )
 
-private val categoryOptions = listOf("Health", "Productivity", "Personal", "Fitness", "Learning")
+private val categoryOptions = listOf(
+    "Health", "Productivity", "Personal", "Fitness", "Learning",
+    "Self-Care", "Housework", "Hygiene", "Nutrition", "Mindfulness", "Social"
+)
 private val dayLabels = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 private val dayValues = listOf(2, 3, 4, 5, 6, 7, 1) // Calendar.MONDAY=2 ... SUNDAY=1
 
