@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**AveryTask** (`com.averykarlin.averytask`) is a native Android todo list app built with Kotlin and Jetpack Compose. v0.6.0 includes full task management, projects, subtasks, tags, recurrence, reminders, notifications, NLP quick-add, Today focus screen, week/month/timeline views, urgency scoring, smart suggestions, Firebase cloud sync, Google Sign-In, JSON/CSV data export/import, habit tracking with streaks/analytics, and home screen widgets.
+**AveryTask** (`com.averykarlin.averytask`) is a native Android todo list app built with Kotlin and Jetpack Compose. v0.7.0 includes full task management, projects, subtasks, tags, recurrence, reminders, notifications, NLP quick-add, Today focus screen, week/month/timeline views, urgency scoring, smart suggestions, Firebase cloud sync, Google Sign-In, JSON/CSV data export/import, habit tracking with streaks/analytics, home screen widgets, app self-update, and a FastAPI web backend.
 
 ## Tech Stack
 
@@ -225,5 +225,5 @@ app/src/main/java/com/averykarlin/averytask/
 - `app/proguard-rules.pro` — Keep rules for Room, Gson, domain models
 - `app/src/main/AndroidManifest.xml` — Activity, receivers, permissions
 - `app/google-services.json` — Firebase config (placeholder — replace with actual)
-- `app/src/test/` — RecurrenceEngine (18), NaturalLanguageParser (32), UrgencyScorer (10), StreakCalculator (10) unit tests
+- `app/src/test/` — 154 unit tests: NaturalLanguageParser (38), StreakCalculator (21), RecurrenceEngine (18), TaskFilter (13), SyncMapper (13), AppUpdater (11), UrgencyScorer (10), SuggestionEngine (8), RecurrenceConverter (8), HabitRepositoryHelpers (7), DataExporter (7)
 - `app/src/androidTest/` — DAO + recurrence integration tests
