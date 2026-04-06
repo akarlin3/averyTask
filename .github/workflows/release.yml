@@ -40,10 +40,17 @@ jobs:
           cache-read-only: false
 
       - name: Decode keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/release.keystore
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::KEYSTORE_BASE64 secret is not set. Encode your keystore with: base64 -w 0 your-keystore.jks"
+            exit 1
+          fi
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > app/release.keystore
           # Validate the keystore is readable
-          keytool -list -keystore app/release.keystore -storepass "${{ secrets.KEYSTORE_PASSWORD }}" > /dev/null 2>&1 || {
+          keytool -list -keystore app/release.keystore -storepass "$KEYSTORE_PASSWORD" > /dev/null 2>&1 || {
             echo "::error::Keystore is invalid or corrupted. Please re-encode with: base64 -w 0 your-keystore.jks"
             exit 1
           }
