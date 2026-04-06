@@ -85,7 +85,8 @@ class SelfCareRepository @Inject constructor(
         tier: String,
         note: String,
         phase: String,
-        reminderDelayMillis: Long? = null
+        reminderDelayMillis: Long? = null,
+        timeOfDay: String = "morning"
     ) {
         val nextOrder = selfCareDao.getMaxSortOrder(routineType) + 1
         val stepId = "custom_${UUID.randomUUID().toString().take(8)}"
@@ -99,7 +100,8 @@ class SelfCareRepository @Inject constructor(
                 note = note,
                 phase = phase,
                 sortOrder = nextOrder,
-                reminderDelayMillis = reminderDelayMillis
+                reminderDelayMillis = reminderDelayMillis,
+                timeOfDay = timeOfDay
             )
         )
     }

@@ -15,5 +15,6 @@ data class SelfCareStepEntity(
     val note: String = "",
     val phase: String,
     @ColumnInfo(name = "sort_order") val sortOrder: Int = 0,
-    @ColumnInfo(name = "reminder_delay_millis") val reminderDelayMillis: Long? = null
+    @ColumnInfo(name = "reminder_delay_millis") val reminderDelayMillis: Long? = null,
+    @ColumnInfo(name = "time_of_day") val timeOfDay: String = "morning"
 )

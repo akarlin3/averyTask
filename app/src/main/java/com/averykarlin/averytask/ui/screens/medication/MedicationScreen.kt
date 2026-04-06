@@ -361,51 +361,121 @@ fun MedicationScreen(
                 }
             }
 
-            // Medication list — show all meds as reference, grouped by tier
+            // Medication list — grouped by time of day
             val displaySteps = allSteps
             if (displaySteps.isNotEmpty()) {
-                item {
-                    Text(
-                        text = "MEDICATIONS",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        letterSpacing = MaterialTheme.typography.labelSmall.letterSpacing * 1.5f,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
+                val timeGroups = SelfCareRoutines.timesOfDay.mapNotNull { tod ->
+                    val stepsInTime = displaySteps.filter { step ->
+                        tod.id in SelfCareRoutines.parseTimeOfDay(step.timeOfDay)
+                    }
+                    if (stepsInTime.isNotEmpty()) tod to stepsInTime else null
                 }
-                items(displaySteps, key = { "med_${it.stepId}_${it.id}" }) { step ->
-                    val done = step.stepId in completedSteps
-                    val stepTier = tiers.find { it.id == step.tier } ?: tiers.last()
-                    val stepColor = Color(stepTier.color)
-                    val stepIndex = allSteps.indexOf(step)
+                // Meds with no recognized time-of-day (legacy data)
+                val allGroupedStepIds = timeGroups.flatMap { (_, steps) -> steps.map { it.id } }.toSet()
+                val ungrouped = displaySteps.filter { it.id !in allGroupedStepIds }
 
-                    if (editMode) {
-                        EditableMedItem(
-                            step = step,
-                            tierLabel = step.tier.first().uppercaseChar().toString(),
-                            tierColor = stepColor,
-                            isFirst = stepIndex == 0,
-                            isLast = stepIndex == allSteps.lastIndex,
-                            onMoveUp = { viewModel.moveStep(step, -1) },
-                            onMoveDown = { viewModel.moveStep(step, 1) },
-                            onEdit = { editingStep = step },
-                            onDelete = { deletingStep = step }
+                timeGroups.forEach { (tod, stepsInGroup) ->
+                    item(key = "header_${tod.id}") {
+                        val todColor = Color(tod.color)
+                        Row(
+                            modifier = Modifier.padding(top = 12.dp, bottom = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = tod.icon,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = tod.label.uppercase(),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = todColor,
+                                letterSpacing = MaterialTheme.typography.labelSmall.letterSpacing * 1.5f
+                            )
+                        }
+                    }
+                    items(stepsInGroup, key = { "med_${tod.id}_${it.stepId}_${it.id}" }) { step ->
+                        val done = step.stepId in completedSteps
+                        val stepTier = tiers.find { it.id == step.tier } ?: tiers.last()
+                        val stepColor = Color(stepTier.color)
+                        val stepIndex = allSteps.indexOf(step)
+
+                        if (editMode) {
+                            EditableMedItem(
+                                step = step,
+                                tierLabel = step.tier.first().uppercaseChar().toString(),
+                                tierColor = stepColor,
+                                isFirst = stepIndex == 0,
+                                isLast = stepIndex == allSteps.lastIndex,
+                                onMoveUp = { viewModel.moveStep(step, -1) },
+                                onMoveDown = { viewModel.moveStep(step, 1) },
+                                onEdit = { editingStep = step },
+                                onDelete = { deletingStep = step }
+                            )
+                        } else {
+                            val stepLog = logsByStepId[step.stepId]
+                            MedItem(
+                                label = step.label,
+                                duration = step.duration,
+                                note = step.note,
+                                tierLabel = step.tier.first().uppercaseChar().toString(),
+                                tierColor = stepColor,
+                                isDone = done,
+                                logEntry = stepLog,
+                                onClick = if (done) {
+                                    { viewModel.toggleStep(step.stepId) }
+                                } else null
+                            )
+                        }
+                    }
+                }
+
+                // Show ungrouped meds (legacy without valid time_of_day)
+                if (ungrouped.isNotEmpty()) {
+                    item(key = "header_other") {
+                        Text(
+                            text = "OTHER",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            letterSpacing = MaterialTheme.typography.labelSmall.letterSpacing * 1.5f,
+                            modifier = Modifier.padding(top = 12.dp, bottom = 6.dp)
                         )
-                    } else {
-                        val stepLog = logsByStepId[step.stepId]
-                        MedItem(
-                            label = step.label,
-                            duration = step.duration,
-                            note = step.note,
-                            tierLabel = step.tier.first().uppercaseChar().toString(),
-                            tierColor = stepColor,
-                            isDone = done,
-                            logEntry = stepLog,
-                            onClick = if (done) {
-                                { viewModel.toggleStep(step.stepId) }
-                            } else null
-                        )
+                    }
+                    items(ungrouped, key = { "med_other_${it.stepId}_${it.id}" }) { step ->
+                        val done = step.stepId in completedSteps
+                        val stepTier = tiers.find { it.id == step.tier } ?: tiers.last()
+                        val stepColor = Color(stepTier.color)
+                        val stepIndex = allSteps.indexOf(step)
+
+                        if (editMode) {
+                            EditableMedItem(
+                                step = step,
+                                tierLabel = step.tier.first().uppercaseChar().toString(),
+                                tierColor = stepColor,
+                                isFirst = stepIndex == 0,
+                                isLast = stepIndex == allSteps.lastIndex,
+                                onMoveUp = { viewModel.moveStep(step, -1) },
+                                onMoveDown = { viewModel.moveStep(step, 1) },
+                                onEdit = { editingStep = step },
+                                onDelete = { deletingStep = step }
+                            )
+                        } else {
+                            val stepLog = logsByStepId[step.stepId]
+                            MedItem(
+                                label = step.label,
+                                duration = step.duration,
+                                note = step.note,
+                                tierLabel = step.tier.first().uppercaseChar().toString(),
+                                tierColor = stepColor,
+                                isDone = done,
+                                logEntry = stepLog,
+                                onClick = if (done) {
+                                    { viewModel.toggleStep(step.stepId) }
+                                } else null
+                            )
+                        }
                     }
                 }
             }
@@ -456,8 +526,8 @@ fun MedicationScreen(
         MedDialog(
             title = "Add Medication",
             onDismiss = { showAddDialog = false },
-            onConfirm = { label, duration, tier, note ->
-                viewModel.addStep(label, duration, tier, note)
+            onConfirm = { label, duration, tier, note, timeOfDay ->
+                viewModel.addStep(label, duration, tier, note, timeOfDay)
                 showAddDialog = false
             }
         )
@@ -471,10 +541,11 @@ fun MedicationScreen(
             initialDuration = step.duration,
             initialTier = step.tier,
             initialNote = step.note,
+            initialTimeOfDay = step.timeOfDay,
             onDismiss = { editingStep = null },
-            onConfirm = { label, duration, tier, note ->
+            onConfirm = { label, duration, tier, note, timeOfDay ->
                 viewModel.updateStep(
-                    step.copy(label = label, duration = duration, tier = tier, note = note)
+                    step.copy(label = label, duration = duration, tier = tier, note = note, timeOfDay = timeOfDay)
                 )
                 editingStep = null
             }
@@ -633,13 +704,17 @@ private fun MedDialog(
     initialDuration: String = "",
     initialTier: String = "essential",
     initialNote: String = "",
+    initialTimeOfDay: String = "morning",
     onDismiss: () -> Unit,
-    onConfirm: (label: String, duration: String, tier: String, note: String) -> Unit
+    onConfirm: (label: String, duration: String, tier: String, note: String, timeOfDay: String) -> Unit
 ) {
     var label by remember { mutableStateOf(initialLabel) }
     var duration by remember { mutableStateOf(initialDuration) }
     var tier by remember { mutableStateOf(initialTier) }
     var note by remember { mutableStateOf(initialNote) }
+    var selectedTimes by remember {
+        mutableStateOf(SelfCareRoutines.parseTimeOfDay(initialTimeOfDay))
+    }
 
     val tiers = SelfCareRoutines.medicationTiers
     var tierExpanded by remember { mutableStateOf(false) }
@@ -659,8 +734,8 @@ private fun MedDialog(
                 OutlinedTextField(
                     value = duration,
                     onValueChange = { duration = it },
-                    label = { Text("Dosage / timing") },
-                    placeholder = { Text("e.g. 20mg, morning") },
+                    label = { Text("Dosage") },
+                    placeholder = { Text("e.g. 20mg") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -673,7 +748,7 @@ private fun MedDialog(
                         value = tiers.find { it.id == tier }?.label ?: tier,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Session") },
+                        label = { Text("Category") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = tierExpanded) },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -694,6 +769,57 @@ private fun MedDialog(
                         }
                     }
                 }
+                // Time of day multi-select
+                Text(
+                    text = "Time of day",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    SelfCareRoutines.timesOfDay.forEach { tod ->
+                        val selected = tod.id in selectedTimes
+                        val chipColor = Color(tod.color)
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(
+                                    if (selected) chipColor.copy(alpha = 0.15f)
+                                    else MaterialTheme.colorScheme.surfaceContainerLow
+                                )
+                                .border(
+                                    width = if (selected) 1.5.dp else 1.dp,
+                                    color = if (selected) chipColor else MaterialTheme.colorScheme.outlineVariant,
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .clickable {
+                                    selectedTimes = if (selected) {
+                                        selectedTimes - tod.id
+                                    } else {
+                                        selectedTimes + tod.id
+                                    }
+                                }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = tod.icon,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                Text(
+                                    text = tod.label.take(4),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (selected) chipColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        }
+                    }
+                }
                 OutlinedTextField(
                     value = note,
                     onValueChange = { note = it },
@@ -707,7 +833,9 @@ private fun MedDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    onConfirm(label.trim(), duration.trim(), tier, note.trim())
+                    val timeOfDay = SelfCareRoutines.serializeTimeOfDay(selectedTimes)
+                        .ifEmpty { "morning" }
+                    onConfirm(label.trim(), duration.trim(), tier, note.trim(), timeOfDay)
                 },
                 enabled = label.isNotBlank()
             ) {

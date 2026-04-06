@@ -116,4 +116,26 @@ object SelfCareRoutines {
     val medicationTierOrder = listOf("essential", "prescription", "complete")
 
     val isMedicationType: (String) -> Boolean = { it == "medication" }
+
+    data class TimeOfDayInfo(
+        val id: String,
+        val label: String,
+        val icon: String,
+        val color: Long
+    )
+
+    val timesOfDay = listOf(
+        TimeOfDayInfo("morning", "Morning", "\uD83C\uDF05", 0xFFF59E0B),
+        TimeOfDayInfo("afternoon", "Afternoon", "\u2600\uFE0F", 0xFFF97316),
+        TimeOfDayInfo("evening", "Evening", "\uD83C\uDF06", 0xFF8B5CF6),
+        TimeOfDayInfo("night", "Night", "\uD83C\uDF19", 0xFF3B82F6),
+    )
+
+    val timeOfDayOrder = listOf("morning", "afternoon", "evening", "night")
+
+    fun parseTimeOfDay(timeOfDay: String): Set<String> =
+        timeOfDay.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+
+    fun serializeTimeOfDay(times: Set<String>): String =
+        timeOfDayOrder.filter { it in times }.joinToString(",")
 }

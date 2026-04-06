@@ -74,9 +74,9 @@ class MedicationViewModel @Inject constructor(
         }
     }
 
-    fun addStep(label: String, duration: String, tier: String, note: String) {
+    fun addStep(label: String, duration: String, tier: String, note: String, timeOfDay: String) {
         viewModelScope.launch {
-            repository.addStep("medication", label, duration, tier, note, "Medications")
+            repository.addStep("medication", label, duration, tier, note, "Medications", timeOfDay = timeOfDay)
         }
     }
 
