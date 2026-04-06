@@ -71,7 +71,7 @@ private val presetIcons = listOf(
     "\uD83D\uDCA4", "\uD83E\uDD57", "\uD83D\uDC8A", "\uD83E\uDDF9", "\uD83D\uDCF1", "\uD83C\uDFAF", "\uD83E\uDDE0", "\u2764\uFE0F"
 )
 
-private val categoryOptions = listOf(
+private val defaultCategories = listOf(
     "Health", "Productivity", "Personal", "Fitness", "Learning",
     "Self-Care", "Housework", "Hygiene", "Nutrition", "Mindfulness", "Social"
 )
@@ -186,11 +186,15 @@ fun AddEditHabitScreen(
 
             // Category
             SectionLabel("Category")
+            val allCategories = remember(viewModel.customCategories) {
+                (defaultCategories + viewModel.customCategories).distinct()
+            }
+            val showCustomCategoryDialog = remember { mutableStateOf(false) }
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                categoryOptions.forEach { cat ->
+                allCategories.forEach { cat ->
                     FilterChip(
                         selected = viewModel.category == cat,
                         onClick = {
@@ -199,6 +203,44 @@ fun AddEditHabitScreen(
                         label = { Text(cat) }
                     )
                 }
+                FilterChip(
+                    selected = false,
+                    onClick = { showCustomCategoryDialog.value = true },
+                    label = { Text("+ Custom") }
+                )
+            }
+
+            if (showCustomCategoryDialog.value) {
+                val customCategoryName = remember { mutableStateOf("") }
+                AlertDialog(
+                    onDismissRequest = { showCustomCategoryDialog.value = false },
+                    title = { Text("Custom Category") },
+                    text = {
+                        OutlinedTextField(
+                            value = customCategoryName.value,
+                            onValueChange = { customCategoryName.value = it },
+                            label = { Text("Category name") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                val name = customCategoryName.value.trim()
+                                if (name.isNotEmpty()) {
+                                    viewModel.onCategoryChange(name)
+                                    showCustomCategoryDialog.value = false
+                                }
+                            }
+                        ) { Text("Add") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showCustomCategoryDialog.value = false }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
             }
 
             // Frequency

@@ -141,6 +141,8 @@ class HabitRepository @Inject constructor(
     fun getCompletionsInRange(habitId: Long, startDate: Long, endDate: Long): Flow<List<HabitCompletionEntity>> =
         completionDao.getCompletionsInRange(habitId, startDate, endDate)
 
+    suspend fun getAllCategories(): List<String> = habitDao.getAllCategories()
+
     suspend fun updateSortOrders(habits: List<HabitEntity>) {
         habitDao.updateAll(habits)
     }
