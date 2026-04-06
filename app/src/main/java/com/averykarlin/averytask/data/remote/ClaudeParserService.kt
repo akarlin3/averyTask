@@ -1,6 +1,7 @@
 package com.averykarlin.averytask.data.remote
 
 import android.util.Log
+import com.averykarlin.averytask.BuildConfig
 import com.averykarlin.averytask.data.preferences.ApiPreferences
 import com.averykarlin.averytask.domain.usecase.ParsedTodoItem
 import com.averykarlin.averytask.domain.usecase.ParsedTodoList
@@ -38,7 +39,7 @@ class ClaudeParserService @Inject constructor(
             try {
                 callClaude(apiKey, content)
             } catch (e: Exception) {
-                Log.e("ClaudeParser", "API call failed", e)
+                if (BuildConfig.DEBUG) Log.e("ClaudeParser", "API call failed", e)
                 null
             }
         }
@@ -68,7 +69,7 @@ class ClaudeParserService @Inject constructor(
 
         val response = client.newCall(request).execute()
         if (!response.isSuccessful) {
-            Log.e("ClaudeParser", "API returned ${response.code}: ${response.body?.string()?.take(200)}")
+            if (BuildConfig.DEBUG) Log.e("ClaudeParser", "API returned ${response.code}")
             return null
         }
 

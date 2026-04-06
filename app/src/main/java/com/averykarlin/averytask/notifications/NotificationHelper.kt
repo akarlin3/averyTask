@@ -62,6 +62,7 @@ object NotificationHelper {
             .setContentTitle(taskTitle)
             .setContentText(taskDescription ?: "Task reminder")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setAutoCancel(true)
             .setContentIntent(tapPending)
             .addAction(
@@ -138,6 +139,7 @@ object NotificationHelper {
             .setContentText(contentText)
             .setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setAutoCancel(true)
             .setContentIntent(tapPending)
             .addAction(
@@ -176,6 +178,7 @@ object NotificationHelper {
             .setContentTitle("$medName \u2014 Reminder")
             .setContentText(contentText)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setAutoCancel(true)
             .setContentIntent(tapPending)
             .build()
