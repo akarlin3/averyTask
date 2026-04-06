@@ -1,44 +1,52 @@
 package com.averykarlin.averytask.data.preferences
 
 import android.content.Context
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
+import android.content.SharedPreferences
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKeys
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.MutableStateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
-
-private val Context.apiDataStore: DataStore<Preferences> by preferencesDataStore(name = "api_prefs")
 
 @Singleton
 class ApiPreferences @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     companion object {
-        private val CLAUDE_API_KEY = stringPreferencesKey("claude_api_key")
+        private const val PREFS_NAME = "encrypted_api_prefs"
+        private const val KEY_CLAUDE_API_KEY = "claude_api_key"
     }
 
-    fun getClaudeApiKey(): Flow<String> = context.apiDataStore.data.map { prefs ->
-        prefs[CLAUDE_API_KEY] ?: ""
-    }
+    private val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
+
+    private val encryptedPrefs: SharedPreferences = EncryptedSharedPreferences.create(
+        PREFS_NAME,
+        masterKeyAlias,
+        context,
+        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+    )
+
+    private val _claudeApiKeyFlow = MutableStateFlow(
+        encryptedPrefs.getString(KEY_CLAUDE_API_KEY, "") ?: ""
+    )
+
+    fun getClaudeApiKey(): Flow<String> = _claudeApiKeyFlow
 
     suspend fun setClaudeApiKey(key: String) {
-        context.apiDataStore.edit { prefs ->
-            prefs[CLAUDE_API_KEY] = key
-        }
+        encryptedPrefs.edit().putString(KEY_CLAUDE_API_KEY, key).apply()
+        _claudeApiKeyFlow.value = key
     }
 
     suspend fun clearClaudeApiKey() {
-        context.apiDataStore.edit { prefs ->
-            prefs.remove(CLAUDE_API_KEY)
-        }
+        encryptedPrefs.edit().remove(KEY_CLAUDE_API_KEY).apply()
+        _claudeApiKeyFlow.value = ""
     }
 
     suspend fun clearAll() {
-        context.apiDataStore.edit { it.clear() }
+        encryptedPrefs.edit().clear().apply()
+        _claudeApiKeyFlow.value = ""
     }
 }

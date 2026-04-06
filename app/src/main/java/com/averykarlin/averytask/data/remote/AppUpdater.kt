@@ -2,9 +2,12 @@ package com.averykarlin.averytask.data.remote
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.util.Log
 import androidx.core.content.FileProvider
+import com.averykarlin.averytask.BuildConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,6 +17,7 @@ import org.json.JSONArray
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.security.MessageDigest
 import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -100,7 +104,7 @@ class AppUpdater @Inject constructor(
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Update check failed", e)
+            if (BuildConfig.DEBUG) Log.e(TAG, "Update check failed", e)
             _errorMessage.value = e.message ?: "Update check failed"
             _status.value = UpdateStatus.ERROR
         }
@@ -144,15 +148,47 @@ class AppUpdater @Inject constructor(
                     throw Exception("Downloaded file is invalid (${targetFile.length()} bytes)")
                 }
 
+                verifyApkSignature(targetFile)
+
                 targetFile
             }
 
             _status.value = UpdateStatus.READY_TO_INSTALL
             installApk(apkFile)
         } catch (e: Exception) {
-            Log.e(TAG, "Download/install failed", e)
+            if (BuildConfig.DEBUG) Log.e(TAG, "Download/install failed", e)
             _errorMessage.value = e.message ?: "Download failed"
             _status.value = UpdateStatus.ERROR
+        }
+    }
+
+    private fun verifyApkSignature(apkFile: File) {
+        val installedSigs = context.packageManager
+            .getPackageInfo(context.packageName, PackageManager.GET_SIGNING_CERTIFICATES)
+            .signingInfo
+            ?.apkContentsSigners
+            ?: throw Exception("Cannot read installed app signatures")
+
+        val apkInfo: PackageInfo = context.packageManager
+            .getPackageArchiveInfo(apkFile.absolutePath, PackageManager.GET_SIGNING_CERTIFICATES)
+            ?: throw Exception("Downloaded APK is not a valid Android package")
+
+        val apkSigs = apkInfo.signingInfo?.apkContentsSigners
+            ?: throw Exception("Downloaded APK has no signing info")
+
+        val installedDigests = installedSigs.map { sig ->
+            MessageDigest.getInstance("SHA-256").digest(sig.toByteArray())
+                .joinToString("") { "%02x".format(it) }
+        }.toSet()
+
+        val apkDigests = apkSigs.map { sig ->
+            MessageDigest.getInstance("SHA-256").digest(sig.toByteArray())
+                .joinToString("") { "%02x".format(it) }
+        }.toSet()
+
+        if (installedDigests.intersect(apkDigests).isEmpty()) {
+            apkFile.delete()
+            throw Exception("APK signature does not match installed app — update rejected")
         }
     }
 

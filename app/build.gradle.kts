@@ -21,6 +21,12 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
+
+        buildConfigField(
+            "String",
+            "WEB_CLIENT_ID",
+            "\"${System.getenv("WEB_CLIENT_ID") ?: "403186103462-j09m2o9781jgnpb2eqotn65jdcg7qgqj.apps.googleusercontent.com"}\""
+        )
     }
 
     signingConfigs {
@@ -134,6 +140,9 @@ dependencies {
 
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+    // Encrypted storage
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
     // Reorderable (drag-to-reorder for LazyColumn)
     implementation("sh.calvin.reorderable:reorderable:2.4.3")

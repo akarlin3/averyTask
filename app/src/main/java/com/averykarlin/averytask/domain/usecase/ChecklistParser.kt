@@ -1,6 +1,7 @@
 package com.averykarlin.averytask.domain.usecase
 
 import android.util.Log
+import com.averykarlin.averytask.BuildConfig
 import com.averykarlin.averytask.data.preferences.ApiPreferences
 import com.google.gson.Gson
 import com.google.gson.JsonParser
@@ -133,7 +134,7 @@ class ChecklistParser @Inject constructor(
             try {
                 callClaude(apiKey, content)
             } catch (e: Exception) {
-                Log.e("ChecklistParser", "Claude API call failed", e)
+                if (BuildConfig.DEBUG) Log.e("ChecklistParser", "Claude API call failed", e)
                 null
             }
         }
@@ -226,7 +227,7 @@ Rules:
 
         val response = client.newCall(request).execute()
         if (!response.isSuccessful) {
-            Log.e("ChecklistParser", "Claude API returned ${response.code}: ${response.body?.string()?.take(200)}")
+            if (BuildConfig.DEBUG) Log.e("ChecklistParser", "Claude API returned ${response.code}")
             return null
         }
 
