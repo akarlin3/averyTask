@@ -1,0 +1,73 @@
+from datetime import date, datetime
+from typing import Optional
+
+from pydantic import BaseModel
+
+
+class HabitCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    icon: Optional[str] = None
+    color: Optional[str] = None
+    category: Optional[str] = None
+    frequency: str = "daily"
+    target_count: int = 1
+    active_days_json: Optional[str] = None
+
+
+class HabitUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    icon: Optional[str] = None
+    color: Optional[str] = None
+    category: Optional[str] = None
+    frequency: Optional[str] = None
+    target_count: Optional[int] = None
+    active_days_json: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class HabitResponse(BaseModel):
+    id: int
+    user_id: int
+    name: str
+    description: Optional[str] = None
+    icon: Optional[str] = None
+    color: Optional[str] = None
+    category: Optional[str] = None
+    frequency: str
+    target_count: int
+    active_days_json: Optional[str] = None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class HabitCompletionCreate(BaseModel):
+    date: date
+    count: int = 1
+
+
+class HabitCompletionResponse(BaseModel):
+    id: int
+    habit_id: int
+    date: date
+    count: int
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class HabitWithCompletions(HabitResponse):
+    completions: list[HabitCompletionResponse] = []
+
+
+class HabitStats(BaseModel):
+    habit_id: int
+    current_streak: int
+    longest_streak: int
+    total_completions: int
+    completion_rate: float
+    completions_this_week: int

@@ -1,15 +1,19 @@
 import enum
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Column,
     Date,
     DateTime,
     Enum,
+    Float,
     ForeignKey,
     Integer,
     String,
     Text,
+    Time,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.orm import DeclarativeBase, relationship
@@ -49,6 +53,11 @@ class TaskPriority(int, enum.Enum):
     LOW = 4
 
 
+class HabitFrequency(str, enum.Enum):
+    DAILY = "daily"
+    WEEKLY = "weekly"
+
+
 # --- Models ---
 
 
@@ -59,9 +68,12 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False, index=True)
     hashed_password = Column(String(255), nullable=False)
     name = Column(String(255), nullable=False)
+    firebase_uid = Column(String(255), unique=True, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
     goals = relationship("Goal", back_populates="user", cascade="all, delete-orphan")
+    tags = relationship("Tag", back_populates="user", cascade="all, delete-orphan")
+    habits = relationship("Habit", back_populates="user", cascade="all, delete-orphan")
 
 
 class Goal(Base):
@@ -101,6 +113,19 @@ class Project(Base):
     tasks = relationship("Task", back_populates="project", cascade="all, delete-orphan")
 
 
+class Tag(Base):
+    __tablename__ = "tags"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    color = Column(String(7), nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+    user = relationship("User", back_populates="tags")
+    task_tags = relationship("TaskTag", back_populates="tag", cascade="all, delete-orphan")
+
+
 class Task(Base):
     __tablename__ = "tasks"
     __table_args__ = (
@@ -113,10 +138,15 @@ class Task(Base):
     parent_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=True, index=True)
     title = Column(String(500), nullable=False)
     description = Column(Text, nullable=True)
+    notes = Column(Text, nullable=True)
     status = Column(Enum(TaskStatus), default=TaskStatus.TODO, nullable=False)
     priority = Column(Integer, default=TaskPriority.MEDIUM)
     due_date = Column(Date, nullable=True)
+    due_time = Column(Time, nullable=True)
+    planned_date = Column(Date, nullable=True)
     completed_at = Column(DateTime, nullable=True)
+    urgency_score = Column(Float, default=0.0)
+    recurrence_json = Column(Text, nullable=True)
     sort_order = Column(Integer, default=0)
     depth = Column(Integer, default=0)
     created_at = Column(DateTime, server_default=func.now())
@@ -126,3 +156,68 @@ class Task(Base):
     user = relationship("User")
     parent = relationship("Task", remote_side=[id], back_populates="subtasks")
     subtasks = relationship("Task", back_populates="parent", cascade="all, delete-orphan")
+    task_tags = relationship("TaskTag", back_populates="task", cascade="all, delete-orphan")
+    attachments = relationship("Attachment", back_populates="task", cascade="all, delete-orphan")
+
+
+class TaskTag(Base):
+    __tablename__ = "task_tags"
+    __table_args__ = (
+        UniqueConstraint("task_id", "tag_id", name="uq_task_tag"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
+    tag_id = Column(Integer, ForeignKey("tags.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    task = relationship("Task", back_populates="task_tags")
+    tag = relationship("Tag", back_populates="task_tags")
+
+
+class Attachment(Base):
+    __tablename__ = "attachments"
+
+    id = Column(Integer, primary_key=True)
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    uri = Column(Text, nullable=False)
+    type = Column(String(50), nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+    task = relationship("Task", back_populates="attachments")
+
+
+class Habit(Base):
+    __tablename__ = "habits"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    icon = Column(String(10), nullable=True)
+    color = Column(String(7), nullable=True)
+    category = Column(String(100), nullable=True)
+    frequency = Column(Enum(HabitFrequency), default=HabitFrequency.DAILY, nullable=False)
+    target_count = Column(Integer, default=1)
+    active_days_json = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User", back_populates="habits")
+    completions = relationship("HabitCompletion", back_populates="habit", cascade="all, delete-orphan")
+
+
+class HabitCompletion(Base):
+    __tablename__ = "habit_completions"
+    __table_args__ = (
+        UniqueConstraint("habit_id", "date", name="uq_habit_date"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    habit_id = Column(Integer, ForeignKey("habits.id", ondelete="CASCADE"), nullable=False, index=True)
+    date = Column(Date, nullable=False)
+    count = Column(Integer, default=1)
+    created_at = Column(DateTime, server_default=func.now())
+
+    habit = relationship("Habit", back_populates="completions")
