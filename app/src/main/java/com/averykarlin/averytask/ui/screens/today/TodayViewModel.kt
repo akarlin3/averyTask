@@ -12,7 +12,6 @@ import com.averykarlin.averytask.data.local.entity.TaskEntity
 import com.averykarlin.averytask.data.preferences.DashboardPreferences
 import com.averykarlin.averytask.data.repository.HabitRepository
 import com.averykarlin.averytask.data.repository.HabitWithStatus
-import com.averykarlin.averytask.data.repository.SelfCareRepository
 import com.averykarlin.averytask.data.repository.TagRepository
 import com.averykarlin.averytask.data.repository.TaskRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -110,16 +109,9 @@ class TodayViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     // Habits
-    private val selfCareNames = setOf(
-        SelfCareRepository.MORNING_HABIT_NAME,
-        SelfCareRepository.BEDTIME_HABIT_NAME,
-        SelfCareRepository.MEDICATION_HABIT_NAME
-    )
-
     val todayHabits: StateFlow<List<HabitWithStatus>> = habitRepository.getHabitsWithTodayStatus()
         .map { habits ->
-            habits.filter { it.habit.name !in selfCareNames }
-                .sortedBy { it.habit.sortOrder }
+            habits.sortedBy { it.habit.sortOrder }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
