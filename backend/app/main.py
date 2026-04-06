@@ -11,12 +11,15 @@ app = FastAPI(
     debug=settings.debug,
 )
 
+_cors_origins = settings.effective_cors_origins
+_has_wildcard = "*" in _cors_origins
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.effective_cors_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_cors_origins,
+    allow_credentials=not _has_wildcard,  # credentials require explicit origins
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 app.include_router(app_update.router, prefix="/api/v1")

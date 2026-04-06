@@ -1,9 +1,16 @@
+import secrets
+
 from pydantic_settings import BaseSettings
+
+
+def _generate_dev_secret() -> str:
+    """Generate a random secret for development. Production must set JWT_SECRET_KEY explicitly."""
+    return secrets.token_urlsafe(64)
 
 
 class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://averytask:averytask@localhost:5432/averytask"
-    JWT_SECRET_KEY: str = "dev-secret-key-change-in-production"
+    JWT_SECRET_KEY: str = ""
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
@@ -25,6 +32,16 @@ class Settings(BaseSettings):
         if self.is_production:
             return [o for o in self.CORS_ORIGINS if o != "*"]
         return self.CORS_ORIGINS
+
+    def get_jwt_secret(self) -> str:
+        if self.JWT_SECRET_KEY:
+            return self.JWT_SECRET_KEY
+        if self.is_production:
+            raise RuntimeError("JWT_SECRET_KEY must be set in production")
+        # Auto-generate for local dev only (tokens won't persist across restarts)
+        if not hasattr(self, "_dev_secret"):
+            object.__setattr__(self, "_dev_secret", _generate_dev_secret())
+        return self._dev_secret  # type: ignore[attr-defined]
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 
