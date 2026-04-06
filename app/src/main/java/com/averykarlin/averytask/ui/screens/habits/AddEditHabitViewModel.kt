@@ -65,8 +65,13 @@ class AddEditHabitViewModel @Inject constructor(
         private set
     var nameError by mutableStateOf(false)
         private set
+    var customCategories by mutableStateOf<List<String>>(emptyList())
+        private set
 
     init {
+        viewModelScope.launch {
+            customCategories = habitRepository.getAllCategories()
+        }
         if (habitId != null) {
             viewModelScope.launch {
                 habitRepository.getHabitByIdOnce(habitId)?.let { habit ->
