@@ -30,7 +30,13 @@ import javax.inject.Singleton
 data class MedStepLog(
     val id: String,
     val note: String = "",
-    val at: Long = System.currentTimeMillis()
+    val at: Long = System.currentTimeMillis(),
+    /**
+     * Time-of-day block this log belongs to (e.g. "morning", "night").
+     * Blank string means legacy log that applies to every time block the
+     * step is scheduled for.
+     */
+    val timeOfDay: String = ""
 )
 
 @Singleton
@@ -206,10 +212,9 @@ class SelfCareRepository @Inject constructor(
             if (routineType == "medication") {
                 // Medication: don't clear logs when switching tier view
                 val logs = parseMedStepLogs(existing.completedSteps)
-                val updatedIds = logs.map { it.id }.toSet()
                 val dbSteps = selfCareDao.getStepsForRoutineOnce(routineType)
                 val visibleSteps = getVisibleStepsFromEntities(dbSteps, tier, routineType)
-                val allDone = visibleSteps.isNotEmpty() && visibleSteps.all { it.stepId in updatedIds }
+                val allDone = allMedsFullyLogged(logs, visibleSteps)
                 selfCareDao.updateLog(existing.copy(selectedTier = tier, isComplete = allDone))
                 syncHabitCompletion(routineType, allDone)
             } else {
@@ -263,10 +268,9 @@ class SelfCareRepository @Inject constructor(
             }
         }
 
-        val updatedIds = logs.map { it.id }.toSet()
         val activeTier = existing.selectedTier
         val activeVisible = getVisibleStepsFromEntities(dbSteps, activeTier, routineType)
-        val allDone = activeVisible.isNotEmpty() && activeVisible.all { it.stepId in updatedIds }
+        val allDone = allMedsFullyLogged(logs, activeVisible)
 
         selfCareDao.updateLog(
             existing.copy(
@@ -298,10 +302,9 @@ class SelfCareRepository @Inject constructor(
         removed.forEach { cancelMedStepReminder(it.id) }
         logs.removeAll { it.id in tierStepIds }
 
-        val updatedIds = logs.map { it.id }.toSet()
         val activeTier = existing.selectedTier
         val activeVisible = getVisibleStepsFromEntities(dbSteps, activeTier, routineType)
-        val allDone = activeVisible.isNotEmpty() && activeVisible.all { it.stepId in updatedIds }
+        val allDone = allMedsFullyLogged(logs, activeVisible)
 
         selfCareDao.updateLog(
             existing.copy(
@@ -312,7 +315,12 @@ class SelfCareRepository @Inject constructor(
         syncHabitCompletion(routineType, allDone)
     }
 
-    suspend fun toggleStep(routineType: String, stepId: String, note: String? = null) {
+    suspend fun toggleStep(
+        routineType: String,
+        stepId: String,
+        note: String? = null,
+        timeOfDay: String = ""
+    ) {
         val today = todayMidnight()
         var existing = selfCareDao.getLogForDateOnce(routineType, today)
         if (existing == null) {
@@ -331,19 +339,51 @@ class SelfCareRepository @Inject constructor(
 
         if (isMedication) {
             val logs = parseMedStepLogs(existing.completedSteps).toMutableList()
-            val wasCompleted = logs.any { it.id == stepId }
-
-            if (wasCompleted) {
-                logs.removeAll { it.id == stepId }
+            val dbSteps = selfCareDao.getStepsForRoutineOnce(routineType)
+            val step = dbSteps.firstOrNull { it.stepId == stepId }
+            val stepTods = step?.let { SelfCareRoutines.parseTimeOfDay(it.timeOfDay) } ?: emptySet()
+            val block = timeOfDay.trim()
+            val wasCompleted = if (block.isEmpty()) {
+                logs.any { it.id == stepId }
             } else {
-                val now = System.currentTimeMillis()
-                logs.add(MedStepLog(id = stepId, note = note?.trim() ?: "", at = now))
+                isMedLoggedAt(logs, stepId, block)
             }
 
-            val updatedIds = logs.map { it.id }.toSet()
-            val dbSteps = selfCareDao.getStepsForRoutineOnce(routineType)
+            if (wasCompleted) {
+                if (block.isEmpty()) {
+                    // Legacy / ungrouped toggle: remove every log for this step.
+                    logs.removeAll { it.id == stepId }
+                } else {
+                    // Expand any legacy (blank timeOfDay) log into explicit
+                    // per-block logs for the step's other time blocks, then
+                    // drop any log that targets the block being unchecked.
+                    val legacyForStep = logs.filter { it.id == stepId && it.timeOfDay.isBlank() }
+                    if (legacyForStep.isNotEmpty()) {
+                        val template = legacyForStep.first()
+                        logs.removeAll { it.id == stepId && it.timeOfDay.isBlank() }
+                        for (tod in stepTods) {
+                            if (tod == block) continue
+                            if (!isMedLoggedAt(logs, stepId, tod)) {
+                                logs.add(template.copy(timeOfDay = tod))
+                            }
+                        }
+                    }
+                    logs.removeAll { it.id == stepId && it.timeOfDay == block }
+                }
+            } else {
+                val now = System.currentTimeMillis()
+                logs.add(
+                    MedStepLog(
+                        id = stepId,
+                        note = note?.trim() ?: "",
+                        at = now,
+                        timeOfDay = block
+                    )
+                )
+            }
+
             val visibleSteps = getVisibleStepsFromEntities(dbSteps, existing.selectedTier, routineType)
-            val allDone = visibleSteps.isNotEmpty() && visibleSteps.all { it.stepId in updatedIds }
+            val allDone = allMedsFullyLogged(logs, visibleSteps)
             completedStepsJson = serializeMedStepLogs(logs)
 
             val updated = existing.copy(
@@ -414,13 +454,45 @@ class SelfCareRepository @Inject constructor(
                     MedStepLog(
                         id = obj.get("id")?.asString ?: return@mapNotNull null,
                         note = obj.get("note")?.asString ?: "",
-                        at = obj.get("at")?.asLong ?: 0L
+                        at = obj.get("at")?.asLong ?: 0L,
+                        timeOfDay = obj.get("timeOfDay")?.asString ?: ""
                     )
                 } else null
             }
         } catch (_: Exception) {
             emptyList()
         }
+    }
+
+    /**
+     * True if there is a log entry for this step in the given time-of-day.
+     * A legacy log (blank timeOfDay) counts as logged for every block the
+     * step is scheduled for.
+     */
+    fun isMedLoggedAt(logs: List<MedStepLog>, stepId: String, timeOfDay: String): Boolean {
+        return logs.any { it.id == stepId && (it.timeOfDay == timeOfDay || it.timeOfDay.isBlank()) }
+    }
+
+    /**
+     * True if every visible medication is logged for every one of its
+     * scheduled time-of-day blocks.
+     */
+    private fun allMedsFullyLogged(
+        logs: List<MedStepLog>,
+        visibleSteps: List<SelfCareStepEntity>
+    ): Boolean {
+        if (visibleSteps.isEmpty()) return false
+        for (step in visibleSteps) {
+            val tods = SelfCareRoutines.parseTimeOfDay(step.timeOfDay)
+            if (tods.isEmpty()) {
+                if (logs.none { it.id == step.stepId }) return false
+            } else {
+                for (tod in tods) {
+                    if (!isMedLoggedAt(logs, step.stepId, tod)) return false
+                }
+            }
+        }
+        return true
     }
 
     fun parseTiersByTime(json: String): Map<String, String> {
@@ -472,13 +544,14 @@ class SelfCareRepository @Inject constructor(
 
         val dbSteps = selfCareDao.getStepsForRoutineOnce(routineType)
 
-        // Compute target logged step ids based on the full tiers-by-time map.
-        val targetLoggedIds = mutableSetOf<String>()
+        // Compute (stepId, timeOfDay) pairs that should be logged based on the
+        // full tiers-by-time map. Each pair represents one medication-in-block.
+        val targetPairs = mutableSetOf<Pair<String, String>>()
         for ((tod, t) in tiersByTime) {
             val visibleForTier = getVisibleStepsFromEntities(dbSteps, t, routineType)
             for (step in visibleForTier) {
                 if (tod in SelfCareRoutines.parseTimeOfDay(step.timeOfDay)) {
-                    targetLoggedIds.add(step.stepId)
+                    targetPairs.add(step.stepId to tod)
                 }
             }
         }
@@ -487,8 +560,9 @@ class SelfCareRepository @Inject constructor(
         val existingLogs = parseMedStepLogs(existing.completedSteps)
         val resultLogs = mutableListOf<MedStepLog>()
 
-        // Keep existing logs that are still targeted, or that belong to meds whose
-        // time-of-days are entirely outside any managed time (manual toggles).
+        // Keep logs that still match target pairs, or that belong to meds
+        // whose time-of-days are entirely outside any managed block (manual
+        // toggles on other blocks should be preserved).
         for (log in existingLogs) {
             val step = dbSteps.firstOrNull { it.stepId == log.id }
             if (step == null) {
@@ -496,25 +570,45 @@ class SelfCareRepository @Inject constructor(
                 continue
             }
             val stepTods = SelfCareRoutines.parseTimeOfDay(step.timeOfDay)
-            if (log.id in targetLoggedIds) {
-                resultLogs.add(log)
-            } else if (stepTods.none { it in managedTods }) {
-                resultLogs.add(log)
+            val logBlock = log.timeOfDay
+            if (logBlock.isBlank()) {
+                // Legacy log: expand into explicit per-block logs so we can
+                // decide each block independently below.
+                val expanded = if (stepTods.isEmpty()) listOf(log) else stepTods.map { tod ->
+                    log.copy(timeOfDay = tod)
+                }
+                for (e in expanded) {
+                    val eBlock = e.timeOfDay
+                    if ((log.id to eBlock) in targetPairs) {
+                        resultLogs.add(e)
+                    } else if (eBlock.isNotBlank() && eBlock !in managedTods) {
+                        resultLogs.add(e)
+                    } else if (stepTods.none { it in managedTods } && eBlock.isBlank()) {
+                        resultLogs.add(e)
+                    }
+                }
+            } else {
+                if ((log.id to logBlock) in targetPairs) {
+                    resultLogs.add(log)
+                } else if (logBlock !in managedTods) {
+                    // Manual toggle on an unmanaged block — leave alone.
+                    resultLogs.add(log)
+                }
             }
         }
 
-        // Add newly-targeted logs that weren't already present.
+        // Add newly-targeted pairs that aren't already present.
         val now = System.currentTimeMillis()
-        val resultIds = resultLogs.map { it.id }.toMutableSet()
-        for (id in targetLoggedIds) {
-            if (id !in resultIds) {
-                resultLogs.add(MedStepLog(id = id, note = "", at = now))
-                resultIds.add(id)
+        val presentPairs = resultLogs.map { it.id to it.timeOfDay }.toMutableSet()
+        for (pair in targetPairs) {
+            if (pair !in presentPairs) {
+                resultLogs.add(MedStepLog(id = pair.first, note = "", at = now, timeOfDay = pair.second))
+                presentPairs.add(pair)
             }
         }
 
         val activeVisible = getVisibleStepsFromEntities(dbSteps, existing.selectedTier, routineType)
-        val allDone = activeVisible.isNotEmpty() && activeVisible.all { it.stepId in resultIds }
+        val allDone = allMedsFullyLogged(resultLogs, activeVisible)
 
         selfCareDao.updateLog(
             existing.copy(
@@ -539,6 +633,7 @@ class SelfCareRepository @Inject constructor(
             obj.addProperty("id", log.id)
             obj.addProperty("note", log.note)
             obj.addProperty("at", log.at)
+            obj.addProperty("timeOfDay", log.timeOfDay)
             array.add(obj)
         }
         return gson.toJson(array)

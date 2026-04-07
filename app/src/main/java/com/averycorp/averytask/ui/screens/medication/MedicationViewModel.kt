@@ -107,9 +107,9 @@ class MedicationViewModel @Inject constructor(
         }
     }
 
-    fun toggleStep(stepId: String, note: String? = null) {
+    fun toggleStep(stepId: String, timeOfDay: String = "", note: String? = null) {
         viewModelScope.launch {
-            repository.toggleStep("medication", stepId, note)
+            repository.toggleStep("medication", stepId, note, timeOfDay)
         }
     }
 
@@ -157,6 +157,20 @@ class MedicationViewModel @Inject constructor(
     fun getMedStepLogs(log: SelfCareLogEntity?): List<MedStepLog> {
         if (log == null) return emptyList()
         return repository.parseMedStepLogs(log.completedSteps)
+    }
+
+    /** True if [stepId] has been logged for the given time-of-day block. */
+    fun isStepDoneAt(logs: List<MedStepLog>, stepId: String, timeOfDay: String): Boolean =
+        repository.isMedLoggedAt(logs, stepId, timeOfDay)
+
+    /**
+     * Returns the log entry for a step in a specific time-of-day block, or
+     * null if not logged. Prefers an exact-block match over legacy blanks.
+     */
+    fun getLogForStepAt(logs: List<MedStepLog>, stepId: String, timeOfDay: String): MedStepLog? {
+        val exact = logs.firstOrNull { it.id == stepId && it.timeOfDay == timeOfDay }
+        if (exact != null) return exact
+        return logs.firstOrNull { it.id == stepId && it.timeOfDay.isBlank() }
     }
 
     fun getSelectedTier(log: SelfCareLogEntity?): String {
