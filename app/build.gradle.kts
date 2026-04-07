@@ -6,6 +6,7 @@ plugins {
     id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
     id("com.google.gms.google-services")
+    id("com.google.firebase.appdistribution")
 }
 
 android {
@@ -48,6 +49,9 @@ android {
             buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8000\"")
             // Speed up debug builds
             isDebuggable = true
+            firebaseAppDistribution {
+                groups = "testers"
+            }
         }
         release {
             buildConfigField("String", "API_BASE_URL", "\"https://averytask-api.up.railway.app\"")
