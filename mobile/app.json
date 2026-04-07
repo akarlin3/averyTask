@@ -18,7 +18,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.averykarlin.averytask"
+      "package": "com.averycorp.averytask"
     },
     "plugins": ["expo-router", "expo-secure-store"],
     "experiments": {
