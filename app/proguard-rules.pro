@@ -37,6 +37,10 @@
 # ── Claude API models (inner classes in ClaudeParserService, deserialized by Gson) ──
 -keep class com.averycorp.averytask.data.remote.ClaudeParserService$* { *; }
 
+# ── gRPC (transitive dependency from Firebase/Firestore) ──
+-dontwarn io.grpc.internal.**
+-dontwarn io.grpc.**
+
 # ── Google Drive API ──
 -keep class com.google.api.services.drive.** { *; }
 -keep class com.google.api.client.** { *; }
