@@ -300,6 +300,7 @@ class DataImporter @Inject constructor(
                         date = obj.get("date")?.asLong ?: return@forEach,
                         selectedTier = obj.get("selectedTier")?.asString ?: "solid",
                         completedSteps = obj.get("completedSteps")?.asString ?: "[]",
+                        tiersByTime = obj.get("tiersByTime")?.takeIf { !it.isJsonNull }?.asString ?: "{}",
                         isComplete = obj.get("isComplete")?.asBoolean ?: false,
                         startedAt = obj.get("startedAt")?.takeIf { !it.isJsonNull }?.asLong,
                         createdAt = obj.get("createdAt")?.asLong ?: System.currentTimeMillis()

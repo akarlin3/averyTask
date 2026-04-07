@@ -153,6 +153,7 @@ class DataExporter @Inject constructor(
                 "date" to it.date,
                 "selectedTier" to it.selectedTier,
                 "completedSteps" to it.completedSteps,
+                "tiersByTime" to it.tiersByTime,
                 "isComplete" to it.isComplete,
                 "startedAt" to it.startedAt,
                 "createdAt" to it.createdAt
