@@ -94,16 +94,29 @@ fun MedicationScreen(
     val scheduleMode by viewModel.scheduleMode.collectAsStateWithLifecycle()
     val specificTimes by viewModel.specificTimes.collectAsStateWithLifecycle()
 
-    val completedSteps = viewModel.getCompletedSteps(todayLog)
     val medStepLogs = viewModel.getMedStepLogs(todayLog)
-    val logsByStepId = medStepLogs.associateBy { it.id }
     val selectedTier = viewModel.getSelectedTier(todayLog)
     val tiers = SelfCareRoutines.medicationTiers
     val tiersByTime = viewModel.getTiersByTime(todayLog)
 
-    val doneCount = allSteps.count { it.stepId in completedSteps }
-    val allDone = allSteps.isNotEmpty() && doneCount == allSteps.size
-    val pct = if (allSteps.isNotEmpty()) doneCount.toFloat() / allSteps.size else 0f
+    // Each (step, time-of-day) pair counts as one dose. A step scheduled in
+    // morning + night contributes two toward the total and is only fully
+    // done when both blocks are logged.
+    val doseTotal = allSteps.sumOf { step ->
+        val tods = SelfCareRoutines.parseTimeOfDay(step.timeOfDay)
+        if (tods.isEmpty()) 1 else tods.size
+    }
+    val doseDone = allSteps.sumOf { step ->
+        val tods = SelfCareRoutines.parseTimeOfDay(step.timeOfDay)
+        if (tods.isEmpty()) {
+            if (medStepLogs.any { it.id == step.stepId }) 1 else 0
+        } else {
+            tods.count { tod -> viewModel.isStepDoneAt(medStepLogs, step.stepId, tod) }
+        }
+    }
+    val doneCount = doseDone
+    val allDone = doseTotal > 0 && doseDone == doseTotal
+    val pct = if (doseTotal > 0) doseDone.toFloat() / doseTotal else 0f
 
     val activeTier = tiers.find { it.id == selectedTier } ?: tiers.last()
     val tierColor = Color(activeTier.color)
@@ -332,7 +345,7 @@ fun MedicationScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = "$doneCount / ${allSteps.size} meds",
+                                text = "$doneCount / $doseTotal meds",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -478,7 +491,7 @@ fun MedicationScreen(
                         }
                     }
                     items(stepsInGroup, key = { "med_${tod.id}_${it.stepId}_${it.id}" }) { step ->
-                        val done = step.stepId in completedSteps
+                        val done = viewModel.isStepDoneAt(medStepLogs, step.stepId, tod.id)
                         val stepTier = tiers.find { it.id == step.tier } ?: tiers.last()
                         val stepColor = Color(stepTier.color)
                         val stepIndex = allSteps.indexOf(step)
@@ -496,7 +509,7 @@ fun MedicationScreen(
                                 onDelete = { deletingStep = step }
                             )
                         } else {
-                            val stepLog = logsByStepId[step.stepId]
+                            val stepLog = viewModel.getLogForStepAt(medStepLogs, step.stepId, tod.id)
                             MedItem(
                                 label = step.label,
                                 duration = step.duration,
@@ -506,7 +519,7 @@ fun MedicationScreen(
                                 isDone = done,
                                 logEntry = stepLog,
                                 onClick = if (done) {
-                                    { viewModel.toggleStep(step.stepId) }
+                                    { viewModel.toggleStep(step.stepId, tod.id) }
                                 } else null
                             )
                         }
@@ -526,7 +539,7 @@ fun MedicationScreen(
                         )
                     }
                     items(ungrouped, key = { "med_other_${it.stepId}_${it.id}" }) { step ->
-                        val done = step.stepId in completedSteps
+                        val done = medStepLogs.any { it.id == step.stepId }
                         val stepTier = tiers.find { it.id == step.tier } ?: tiers.last()
                         val stepColor = Color(stepTier.color)
                         val stepIndex = allSteps.indexOf(step)
@@ -544,7 +557,7 @@ fun MedicationScreen(
                                 onDelete = { deletingStep = step }
                             )
                         } else {
-                            val stepLog = logsByStepId[step.stepId]
+                            val stepLog = medStepLogs.firstOrNull { it.id == step.stepId }
                             MedItem(
                                 label = step.label,
                                 duration = step.duration,
