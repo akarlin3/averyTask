@@ -13,8 +13,6 @@ local.properties
 
 # Android
 *.ap_
-*.apk
-*.aab
 captures/
 
 # React web app
