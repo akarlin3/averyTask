@@ -14,7 +14,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.averycorp.averytask"
+        applicationId = "com.averykarlin.averytask"
         minSdk = 26
         targetSdk = 35
         versionCode = 24
@@ -56,7 +56,6 @@ android {
     }
     buildTypes {
         debug {
-            applicationIdSuffix = ".debug"
             buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8000\"")
             // Speed up debug builds
             isDebuggable = true
