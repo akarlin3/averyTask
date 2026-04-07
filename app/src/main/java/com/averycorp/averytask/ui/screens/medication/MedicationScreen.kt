@@ -154,7 +154,7 @@ fun MedicationScreen(
             // Header
             item {
                 Text(
-                    text = "Daily medications",
+                    text = "Daily Medications",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.ExtraBold
                 )
@@ -182,7 +182,7 @@ fun MedicationScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            text = "Reminder schedule",
+                            text = "Reminder Schedule",
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -203,7 +203,7 @@ fun MedicationScreen(
                             FilterChip(
                                 selected = scheduleMode == MedicationScheduleMode.SPECIFIC_TIMES,
                                 onClick = { viewModel.setScheduleMode(MedicationScheduleMode.SPECIFIC_TIMES) },
-                                label = { Text("Specific times") },
+                                label = { Text("Specific Times") },
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = MaterialTheme.colorScheme.primaryContainer
                                 )
@@ -285,7 +285,7 @@ fun MedicationScreen(
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Add time")
+                                Text("Add Time")
                             }
                         }
                     }
@@ -686,7 +686,7 @@ private fun TimePickerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Select time") },
+        title = { Text("Select Time") },
         text = {
             TimePicker(state = timePickerState)
         },
@@ -734,7 +734,7 @@ private fun MedDialog(
                 OutlinedTextField(
                     value = label,
                     onValueChange = { label = it },
-                    label = { Text("Medication name") },
+                    label = { Text("Medication Name") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
