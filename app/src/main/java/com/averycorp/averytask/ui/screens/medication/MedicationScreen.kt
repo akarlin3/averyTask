@@ -76,7 +76,6 @@ import androidx.navigation.NavController
 import com.averycorp.averytask.data.local.entity.SelfCareStepEntity
 import com.averycorp.averytask.data.preferences.MedicationScheduleMode
 import com.averycorp.averytask.data.repository.MedStepLog
-import com.averycorp.averytask.domain.model.RoutineTier
 import com.averycorp.averytask.domain.model.SelfCareRoutines
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -100,6 +99,7 @@ fun MedicationScreen(
     val logsByStepId = medStepLogs.associateBy { it.id }
     val selectedTier = viewModel.getSelectedTier(todayLog)
     val tiers = SelfCareRoutines.medicationTiers
+    val tiersByTime = viewModel.getTiersByTime(todayLog)
 
     val doneCount = allSteps.count { it.stepId in completedSteps }
     val allDone = allSteps.isNotEmpty() && doneCount == allSteps.size
@@ -111,8 +111,6 @@ fun MedicationScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var editingStep by remember { mutableStateOf<SelfCareStepEntity?>(null) }
     var deletingStep by remember { mutableStateOf<SelfCareStepEntity?>(null) }
-    var loggingTier by remember { mutableStateOf<RoutineTier?>(null) }
-    var unloggingTier by remember { mutableStateOf<RoutineTier?>(null) }
 
     Scaffold(
         topBar = {
@@ -308,104 +306,8 @@ fun MedicationScreen(
                 }
             }
 
-            // Tier selector — tap to log/unlog a tier
+            // Progress bar
             if (!editMode) {
-                item {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        tiers.forEach { tier ->
-                            val color = Color(tier.color)
-                            val tierLogged = viewModel.isTierFullyLogged(allSteps, completedSteps, tier.id)
-                            val cumulativeSteps = viewModel.getStepsForTier(allSteps, tier.id)
-                            val exactSteps = viewModel.getStepsInExactTier(allSteps, tier.id)
-                            val hasSteps = cumulativeSteps.isNotEmpty()
-                            val loggedCount = cumulativeSteps.count { it.stepId in completedSteps }
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .then(
-                                        if (tierLogged) Modifier
-                                            .background(color.copy(alpha = 0.12f))
-                                            .border(2.dp, color, RoundedCornerShape(16.dp))
-                                        else Modifier
-                                            .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                                            .border(
-                                                2.dp,
-                                                MaterialTheme.colorScheme.outlineVariant,
-                                                RoundedCornerShape(16.dp)
-                                            )
-                                    )
-                                    .clickable(enabled = hasSteps) {
-                                        if (tierLogged) {
-                                            unloggingTier = tier
-                                        } else {
-                                            loggingTier = tier
-                                        }
-                                    }
-                                    .padding(horizontal = 20.dp, vertical = 16.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    if (tierLogged) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(28.dp)
-                                                .clip(RoundedCornerShape(8.dp))
-                                                .background(color),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                Icons.Default.Check,
-                                                contentDescription = null,
-                                                tint = Color.White,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
-                                    } else {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(28.dp)
-                                                .clip(RoundedCornerShape(8.dp))
-                                                .border(2.dp, color.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.width(14.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = tier.label,
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = if (tierLogged) color else MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Text(
-                                            text = if (tierLogged) "All ${cumulativeSteps.size} meds logged"
-                                            else "${cumulativeSteps.size} meds (${exactSteps.size} in this tier)",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = if (tierLogged) color.copy(alpha = 0.7f)
-                                            else MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                    if (!tierLogged && loggedCount > 0) {
-                                        Text(
-                                            text = "$loggedCount/${cumulativeSteps.size}",
-                                            style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = color
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
-
-                // Progress bar
                 item {
                     val progressColor by animateColorAsState(
                         targetValue = if (allDone) Color(0xFF10B981) else tierColor,
@@ -483,22 +385,96 @@ fun MedicationScreen(
                 timeGroups.forEach { (tod, stepsInGroup) ->
                     item(key = "header_${tod.id}") {
                         val todColor = Color(tod.color)
-                        Row(
-                            modifier = Modifier.padding(top = 12.dp, bottom = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = tod.icon,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = tod.label.uppercase(),
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = todColor,
-                                letterSpacing = MaterialTheme.typography.labelSmall.letterSpacing * 1.5f
-                            )
+                        Column(modifier = Modifier.padding(top = 12.dp, bottom = 6.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = tod.icon,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = tod.label.uppercase(),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = todColor,
+                                    letterSpacing = MaterialTheme.typography.labelSmall.letterSpacing * 1.5f
+                                )
+                            }
+                            if (!editMode) {
+                                val pickedTier = tiersByTime[tod.id]
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    tiers.forEach { tier ->
+                                        val tierC = Color(tier.color)
+                                        val isPicked = pickedTier == tier.id
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(
+                                                    if (isPicked) tierC.copy(alpha = 0.18f)
+                                                    else MaterialTheme.colorScheme.surfaceContainerLow
+                                                )
+                                                .border(
+                                                    width = if (isPicked) 1.5.dp else 1.dp,
+                                                    color = if (isPicked) tierC
+                                                    else MaterialTheme.colorScheme.outlineVariant,
+                                                    shape = RoundedCornerShape(10.dp)
+                                                )
+                                                .clickable {
+                                                    viewModel.setTierForTime(
+                                                        tod.id,
+                                                        if (isPicked) null else tier.id
+                                                    )
+                                                }
+                                                .padding(vertical = 8.dp, horizontal = 6.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.Center
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(16.dp)
+                                                        .clip(RoundedCornerShape(4.dp))
+                                                        .then(
+                                                            if (isPicked) Modifier.background(tierC)
+                                                            else Modifier.border(
+                                                                1.5.dp,
+                                                                tierC.copy(alpha = 0.5f),
+                                                                RoundedCornerShape(4.dp)
+                                                            )
+                                                        ),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    if (isPicked) {
+                                                        Icon(
+                                                            Icons.Default.Check,
+                                                            contentDescription = null,
+                                                            tint = Color.White,
+                                                            modifier = Modifier.size(12.dp)
+                                                        )
+                                                    }
+                                                }
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text(
+                                                    text = tier.label,
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    fontWeight = if (isPicked) FontWeight.Bold else FontWeight.Normal,
+                                                    color = if (isPicked) tierC
+                                                    else MaterialTheme.colorScheme.onSurface,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                     items(stepsInGroup, key = { "med_${tod.id}_${it.stepId}_${it.id}" }) { step ->
@@ -680,126 +656,6 @@ fun MedicationScreen(
         )
     }
 
-    // Log tier dialog
-    loggingTier?.let { tier ->
-        val stepsToLog = viewModel.getStepsForTier(allSteps, tier.id)
-            .filter { it.stepId !in completedSteps }
-        LogTierDialog(
-            tier = tier,
-            stepsToLog = stepsToLog,
-            onDismiss = { loggingTier = null },
-            onConfirm = { note ->
-                viewModel.logTier(tier.id, note)
-                loggingTier = null
-            }
-        )
-    }
-
-    // Unlog tier confirmation
-    unloggingTier?.let { tier ->
-        AlertDialog(
-            onDismissRequest = { unloggingTier = null },
-            title = { Text("Unlog ${tier.label}") },
-            text = { Text("Remove logs for all ${tier.label} medications?") },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.unlogTier(tier.id)
-                    unloggingTier = null
-                }) {
-                    Text("Unlog", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { unloggingTier = null }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-}
-
-@Composable
-private fun LogTierDialog(
-    tier: RoutineTier,
-    stepsToLog: List<SelfCareStepEntity>,
-    onDismiss: () -> Unit,
-    onConfirm: (note: String) -> Unit
-) {
-    var note by remember { mutableStateOf("") }
-    val tierColor = Color(tier.color)
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Log ${tier.label} meds") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = "Logging at ${SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date())}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                if (stepsToLog.isNotEmpty()) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(tierColor.copy(alpha = 0.06f))
-                            .padding(10.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        stepsToLog.forEach { step ->
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .clip(RoundedCornerShape(3.dp))
-                                        .background(tierColor)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = step.label,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                if (step.duration.isNotEmpty()) {
-                                    Text(
-                                        text = step.duration,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    Text(
-                        text = "All ${tier.label} meds already logged",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                OutlinedTextField(
-                    value = note,
-                    onValueChange = { note = it },
-                    label = { Text("Note (optional)") },
-                    placeholder = { Text("e.g. taken with food") },
-                    singleLine = false,
-                    maxLines = 3,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { onConfirm(note.trim()) }) {
-                Text("Log ${stepsToLog.size} med${if (stepsToLog.size != 1) "s" else ""}")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
-    )
 }
 
 /** Convert "HH:mm" (24h) to "h:mm a" (12h) for display. */

@@ -26,6 +26,9 @@ data class SelfCareLogEntity(
     @ColumnInfo(name = "completed_steps")
     val completedSteps: String = "[]",
 
+    @ColumnInfo(name = "tiers_by_time")
+    val tiersByTime: String = "{}",
+
     @ColumnInfo(name = "is_complete")
     val isComplete: Boolean = false,
 

@@ -84,6 +84,17 @@ class MedicationViewModel @Inject constructor(
         }
     }
 
+    fun setTierForTime(timeOfDay: String, tier: String?) {
+        viewModelScope.launch {
+            repository.setTierForTime(timeOfDay, tier)
+        }
+    }
+
+    fun getTiersByTime(log: SelfCareLogEntity?): Map<String, String> {
+        if (log == null) return emptyMap()
+        return repository.parseTiersByTime(log.tiersByTime)
+    }
+
     fun logTier(tier: String, note: String) {
         viewModelScope.launch {
             repository.logTier(tier, note)

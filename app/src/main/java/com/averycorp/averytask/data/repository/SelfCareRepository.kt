@@ -384,6 +384,7 @@ class SelfCareRepository @Inject constructor(
         }
         val updated = existing.copy(
             completedSteps = "[]",
+            tiersByTime = if (routineType == "medication") "{}" else existing.tiersByTime,
             isComplete = false,
             startedAt = null
         )
@@ -419,6 +420,115 @@ class SelfCareRepository @Inject constructor(
             }
         } catch (_: Exception) {
             emptyList()
+        }
+    }
+
+    fun parseTiersByTime(json: String): Map<String, String> {
+        if (json.isBlank() || json == "{}") return emptyMap()
+        return try {
+            val obj = gson.fromJson(json, JsonObject::class.java) ?: return emptyMap()
+            obj.entrySet().associate { (k, v) -> k to v.asString }
+        } catch (_: Exception) {
+            emptyMap()
+        }
+    }
+
+    private fun serializeTiersByTime(map: Map<String, String>): String {
+        val obj = JsonObject()
+        for ((k, v) in map) obj.addProperty(k, v)
+        return gson.toJson(obj)
+    }
+
+    /**
+     * Set or clear the medication tier picked for a specific time-of-day.
+     * Pass [tier] = null to clear the selection for that time-of-day.
+     *
+     * Logging behavior: any med whose time_of_day includes [timeOfDay] AND whose
+     * tier is included in the selected tier (cumulative) becomes logged. Meds in
+     * managed time-of-days that don't satisfy any selection are unlogged. Logs
+     * for meds in time-of-days that aren't currently managed are preserved.
+     */
+    suspend fun setTierForTime(timeOfDay: String, tier: String?) {
+        val routineType = "medication"
+        val today = todayMidnight()
+        var existing = selfCareDao.getLogForDateOnce(routineType, today)
+        if (existing == null) {
+            selfCareDao.insertLog(
+                SelfCareLogEntity(
+                    routineType = routineType,
+                    date = today,
+                    startedAt = System.currentTimeMillis()
+                )
+            )
+            existing = selfCareDao.getLogForDateOnce(routineType, today)!!
+        }
+
+        val tiersByTime = parseTiersByTime(existing.tiersByTime).toMutableMap()
+        if (tier.isNullOrBlank()) {
+            tiersByTime.remove(timeOfDay)
+        } else {
+            tiersByTime[timeOfDay] = tier
+        }
+
+        val dbSteps = selfCareDao.getStepsForRoutineOnce(routineType)
+
+        // Compute target logged step ids based on the full tiers-by-time map.
+        val targetLoggedIds = mutableSetOf<String>()
+        for ((tod, t) in tiersByTime) {
+            val visibleForTier = getVisibleStepsFromEntities(dbSteps, t, routineType)
+            for (step in visibleForTier) {
+                if (tod in SelfCareRoutines.parseTimeOfDay(step.timeOfDay)) {
+                    targetLoggedIds.add(step.stepId)
+                }
+            }
+        }
+
+        val managedTods = tiersByTime.keys
+        val existingLogs = parseMedStepLogs(existing.completedSteps)
+        val resultLogs = mutableListOf<MedStepLog>()
+
+        // Keep existing logs that are still targeted, or that belong to meds whose
+        // time-of-days are entirely outside any managed time (manual toggles).
+        for (log in existingLogs) {
+            val step = dbSteps.firstOrNull { it.stepId == log.id }
+            if (step == null) {
+                resultLogs.add(log)
+                continue
+            }
+            val stepTods = SelfCareRoutines.parseTimeOfDay(step.timeOfDay)
+            if (log.id in targetLoggedIds) {
+                resultLogs.add(log)
+            } else if (stepTods.none { it in managedTods }) {
+                resultLogs.add(log)
+            }
+        }
+
+        // Add newly-targeted logs that weren't already present.
+        val now = System.currentTimeMillis()
+        val resultIds = resultLogs.map { it.id }.toMutableSet()
+        for (id in targetLoggedIds) {
+            if (id !in resultIds) {
+                resultLogs.add(MedStepLog(id = id, note = "", at = now))
+                resultIds.add(id)
+            }
+        }
+
+        val activeVisible = getVisibleStepsFromEntities(dbSteps, existing.selectedTier, routineType)
+        val allDone = activeVisible.isNotEmpty() && activeVisible.all { it.stepId in resultIds }
+
+        selfCareDao.updateLog(
+            existing.copy(
+                tiersByTime = serializeTiersByTime(tiersByTime),
+                completedSteps = serializeMedStepLogs(resultLogs),
+                isComplete = allDone,
+                startedAt = existing.startedAt ?: now
+            )
+        )
+        syncHabitCompletion(routineType, allDone)
+
+        val intervalMinutes = medicationPreferences.getReminderIntervalMinutesOnce()
+        if (!tier.isNullOrBlank() && intervalMinutes > 0) {
+            scheduleMedicationReminder(now, intervalMinutes.toLong() * 60_000L)
         }
     }
 
