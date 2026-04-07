@@ -17,6 +17,7 @@ concurrency:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
+    environment: copilot
     permissions:
       contents: write
 
