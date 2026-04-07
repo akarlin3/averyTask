@@ -68,6 +68,17 @@ jobs:
             keytool -list -keystore app/release.keystore -storepass "$KEYSTORE_PASSWORD" 2>/dev/null | grep -i "alias"
             exit 1
           }
+          # Validate the signing certificate fingerprint matches what Google Play expects
+          EXPECTED_SHA1="2F:F4:64:39:D2:B2:F2:A7:77:4A:FD:00:C9:B7:92:85:EF:B4:A6:50"
+          ACTUAL_SHA1=$(keytool -list -v -keystore app/release.keystore -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" 2>/dev/null | grep "SHA1:" | head -1 | sed 's/.*SHA1: //')
+          if [ "$ACTUAL_SHA1" != "$EXPECTED_SHA1" ]; then
+            echo "::error::Keystore certificate fingerprint mismatch!"
+            echo "::error::Expected SHA1: $EXPECTED_SHA1"
+            echo "::error::Actual SHA1:   $ACTUAL_SHA1"
+            echo "::error::Update the KEYSTORE_BASE64 secret with the correct keystore file."
+            exit 1
+          fi
+          echo "Keystore fingerprint verified: $ACTUAL_SHA1"
           echo "has_keystore=true" >> $GITHUB_OUTPUT
 
       - name: Auto-increment versionCode
