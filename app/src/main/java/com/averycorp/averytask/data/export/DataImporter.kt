@@ -36,6 +36,7 @@ import com.averycorp.averytask.data.preferences.UrgencyWeights
 import com.google.gson.Gson
 import com.google.gson.JsonParser
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.flow.first
 import java.time.DayOfWeek
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -250,13 +251,21 @@ class DataImporter @Inject constructor(
                 }
             }
 
-            // Import habit completions
+            // Import habit completions (dedupe by habitId + completedDate)
+            val existingCompletionKeys = habitCompletionDao.getAllCompletionsOnce()
+                .map { it.habitId to it.completedDate }
+                .toMutableSet()
             root.getAsJsonArray("habitCompletions")?.forEach { elem ->
                 try {
                     val obj = elem.asJsonObject
                     val habitName = obj.get("habitName")?.asString ?: return@forEach
                     val habitId = habitNameToId[habitName.lowercase()] ?: return@forEach
                     val completedDate = obj.get("completedDate")?.asLong ?: return@forEach
+                    val key = habitId to completedDate
+                    if (key in existingCompletionKeys) {
+                        duplicatesSkipped++
+                        return@forEach
+                    }
                     val completion = HabitCompletionEntity(
                         habitId = habitId,
                         completedDate = completedDate,
@@ -264,17 +273,23 @@ class DataImporter @Inject constructor(
                         notes = obj.get("notes")?.takeIf { !it.isJsonNull }?.asString
                     )
                     habitCompletionDao.insert(completion)
+                    existingCompletionKeys.add(key)
                     habitCompletionsImported++
                 } catch (e: Exception) {
                     errors.add("Failed to import habit completion: ${e.message}")
                 }
             }
 
-            // Import leisure logs
+            // Import leisure logs (dedupe by date)
+            val existingLeisureDates = leisureDao.getAllLogsOnce().map { it.date }.toMutableSet()
             root.getAsJsonArray("leisureLogs")?.forEach { elem ->
                 try {
                     val obj = elem.asJsonObject
                     val date = obj.get("date")?.asLong ?: return@forEach
+                    if (date in existingLeisureDates) {
+                        duplicatesSkipped++
+                        return@forEach
+                    }
                     val log = LeisureLogEntity(
                         date = date,
                         musicPick = obj.get("musicPick")?.takeIf { !it.isJsonNull }?.asString,
@@ -285,19 +300,30 @@ class DataImporter @Inject constructor(
                         createdAt = obj.get("createdAt")?.asLong ?: System.currentTimeMillis()
                     )
                     leisureDao.insertLog(log)
+                    existingLeisureDates.add(date)
                     leisureLogsImported++
                 } catch (e: Exception) {
                     errors.add("Failed to import leisure log: ${e.message}")
                 }
             }
 
-            // Import self-care logs
+            // Import self-care logs (dedupe by routineType + date)
+            val existingSelfCareLogKeys = selfCareDao.getAllLogsOnce()
+                .map { it.routineType to it.date }
+                .toMutableSet()
             root.getAsJsonArray("selfCareLogs")?.forEach { elem ->
                 try {
                     val obj = elem.asJsonObject
+                    val routineType = obj.get("routineType")?.asString ?: return@forEach
+                    val date = obj.get("date")?.asLong ?: return@forEach
+                    val key = routineType to date
+                    if (key in existingSelfCareLogKeys) {
+                        duplicatesSkipped++
+                        return@forEach
+                    }
                     val log = SelfCareLogEntity(
-                        routineType = obj.get("routineType")?.asString ?: return@forEach,
-                        date = obj.get("date")?.asLong ?: return@forEach,
+                        routineType = routineType,
+                        date = date,
                         selectedTier = obj.get("selectedTier")?.asString ?: "solid",
                         completedSteps = obj.get("completedSteps")?.asString ?: "[]",
                         isComplete = obj.get("isComplete")?.asBoolean ?: false,
@@ -305,18 +331,25 @@ class DataImporter @Inject constructor(
                         createdAt = obj.get("createdAt")?.asLong ?: System.currentTimeMillis()
                     )
                     selfCareDao.insertLog(log)
+                    existingSelfCareLogKeys.add(key)
                     selfCareLogsImported++
                 } catch (e: Exception) {
                     errors.add("Failed to import self-care log: ${e.message}")
                 }
             }
 
-            // Import self-care steps
+            // Import self-care steps (dedupe by stepId)
+            val existingStepIds = selfCareDao.getAllStepsOnce().map { it.stepId }.toMutableSet()
             root.getAsJsonArray("selfCareSteps")?.forEach { elem ->
                 try {
                     val obj = elem.asJsonObject
+                    val stepId = obj.get("stepId")?.asString ?: return@forEach
+                    if (stepId in existingStepIds) {
+                        duplicatesSkipped++
+                        return@forEach
+                    }
                     val step = SelfCareStepEntity(
-                        stepId = obj.get("stepId")?.asString ?: return@forEach,
+                        stepId = stepId,
                         routineType = obj.get("routineType")?.asString ?: return@forEach,
                         label = obj.get("label")?.asString ?: return@forEach,
                         duration = obj.get("duration")?.asString ?: "0",
@@ -328,6 +361,7 @@ class DataImporter @Inject constructor(
                         timeOfDay = obj.get("timeOfDay")?.asString ?: "morning"
                     )
                     selfCareDao.insertStep(step)
+                    existingStepIds.add(stepId)
                     selfCareStepsImported++
                 } catch (e: Exception) {
                     errors.add("Failed to import self-care step: ${e.message}")
@@ -365,42 +399,63 @@ class DataImporter @Inject constructor(
                 }
             }
 
-            // Import assignments
+            // Import assignments (dedupe by courseId + title + dueDate)
+            val existingAssignmentKeys = schoolworkDao.getAllAssignmentsOnce()
+                .map { Triple(it.courseId, it.title, it.dueDate) }
+                .toMutableSet()
             root.getAsJsonArray("assignments")?.forEach { elem ->
                 try {
                     val obj = elem.asJsonObject
                     val courseName = obj.get("courseName")?.asString ?: return@forEach
                     val courseId = courseNameToId[courseName.lowercase()] ?: return@forEach
+                    val title = obj.get("title")?.asString ?: return@forEach
+                    val dueDate = obj.get("dueDate")?.takeIf { !it.isJsonNull }?.asLong
+                    val key = Triple(courseId, title, dueDate)
+                    if (key in existingAssignmentKeys) {
+                        duplicatesSkipped++
+                        return@forEach
+                    }
                     val assignment = AssignmentEntity(
                         courseId = courseId,
-                        title = obj.get("title")?.asString ?: return@forEach,
-                        dueDate = obj.get("dueDate")?.takeIf { !it.isJsonNull }?.asLong,
+                        title = title,
+                        dueDate = dueDate,
                         completed = obj.get("completed")?.asBoolean ?: false,
                         completedAt = obj.get("completedAt")?.takeIf { !it.isJsonNull }?.asLong,
                         notes = obj.get("notes")?.takeIf { !it.isJsonNull }?.asString,
                         createdAt = obj.get("createdAt")?.asLong ?: System.currentTimeMillis()
                     )
                     schoolworkDao.insertAssignment(assignment)
+                    existingAssignmentKeys.add(key)
                     assignmentsImported++
                 } catch (e: Exception) {
                     errors.add("Failed to import assignment: ${e.message}")
                 }
             }
 
-            // Import course completions
+            // Import course completions (dedupe by courseId + date)
+            val existingCourseCompletionKeys = schoolworkDao.getAllCompletionsOnce()
+                .map { it.courseId to it.date }
+                .toMutableSet()
             root.getAsJsonArray("courseCompletions")?.forEach { elem ->
                 try {
                     val obj = elem.asJsonObject
                     val courseName = obj.get("courseName")?.asString ?: return@forEach
                     val courseId = courseNameToId[courseName.lowercase()] ?: return@forEach
+                    val date = obj.get("date")?.asLong ?: return@forEach
+                    val key = courseId to date
+                    if (key in existingCourseCompletionKeys) {
+                        duplicatesSkipped++
+                        return@forEach
+                    }
                     val completion = CourseCompletionEntity(
-                        date = obj.get("date")?.asLong ?: return@forEach,
+                        date = date,
                         courseId = courseId,
                         completed = obj.get("completed")?.asBoolean ?: false,
                         completedAt = obj.get("completedAt")?.takeIf { !it.isJsonNull }?.asLong,
                         createdAt = obj.get("createdAt")?.asLong ?: System.currentTimeMillis()
                     )
                     schoolworkDao.insertCompletion(completion)
+                    existingCourseCompletionKeys.add(key)
                     courseCompletionsImported++
                 } catch (e: Exception) {
                     errors.add("Failed to import course completion: ${e.message}")
@@ -486,16 +541,34 @@ class DataImporter @Inject constructor(
                         hl.get("houseworkEnabled")?.asBoolean?.let { habitListPreferences.setHouseworkEnabled(it) }
                     }
 
-                    // Leisure preferences
+                    // Leisure preferences (dedupe by label, case-insensitive)
                     config.getAsJsonObject("leisure")?.let { lp ->
                         val listType = object : TypeToken<List<CustomLeisureActivity>>() {}.type
                         lp.getAsJsonArray("customMusicActivities")?.let { arr ->
                             val activities: List<CustomLeisureActivity> = gson.fromJson(arr, listType)
-                            activities.forEach { leisurePreferences.addMusicActivity(it.label, it.icon) }
+                            val existingLabels = leisurePreferences.getCustomMusicActivities()
+                                .first().map { it.label.lowercase() }.toMutableSet()
+                            activities.forEach {
+                                if (it.label.lowercase() !in existingLabels) {
+                                    leisurePreferences.addMusicActivity(it.label, it.icon)
+                                    existingLabels.add(it.label.lowercase())
+                                } else {
+                                    duplicatesSkipped++
+                                }
+                            }
                         }
                         lp.getAsJsonArray("customFlexActivities")?.let { arr ->
                             val activities: List<CustomLeisureActivity> = gson.fromJson(arr, listType)
-                            activities.forEach { leisurePreferences.addFlexActivity(it.label, it.icon) }
+                            val existingLabels = leisurePreferences.getCustomFlexActivities()
+                                .first().map { it.label.lowercase() }.toMutableSet()
+                            activities.forEach {
+                                if (it.label.lowercase() !in existingLabels) {
+                                    leisurePreferences.addFlexActivity(it.label, it.icon)
+                                    existingLabels.add(it.label.lowercase())
+                                } else {
+                                    duplicatesSkipped++
+                                }
+                            }
                         }
                     }
 
@@ -508,6 +581,13 @@ class DataImporter @Inject constructor(
                         med.getAsJsonArray("specificTimes")?.let { arr ->
                             medicationPreferences.setSpecificTimes(arr.map { it.asString }.toSet())
                         }
+                    }
+
+                    // Calendar preferences
+                    config.getAsJsonObject("calendar")?.let { cal ->
+                        cal.get("enabled")?.asBoolean?.let { calendarPreferences.setEnabled(it) }
+                        cal.get("calendarId")?.asLong?.let { calendarPreferences.setCalendarId(it) }
+                        cal.get("calendarName")?.asString?.let { calendarPreferences.setCalendarName(it) }
                     }
 
                     configImported = true

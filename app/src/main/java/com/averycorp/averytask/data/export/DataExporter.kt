@@ -296,6 +296,13 @@ class DataExporter @Inject constructor(
         medication.add("specificTimes", gson.toJsonTree(medicationPreferences.getSpecificTimesOnce()))
         config.add("medication", medication)
 
+        // Calendar
+        val calendar = JsonObject()
+        calendar.addProperty("enabled", calendarPreferences.isEnabled().first())
+        calendar.addProperty("calendarId", calendarPreferences.getCalendarId().first())
+        calendar.addProperty("calendarName", calendarPreferences.getCalendarName().first())
+        config.add("calendar", calendar)
+
         root.add("config", config)
 
         return gson.toJson(root)
