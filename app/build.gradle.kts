@@ -9,11 +9,11 @@ plugins {
 }
 
 android {
-    namespace = "com.averykarlin.averytask"
+    namespace = "com.averycorp.averytask"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.averykarlin.averytask"
+        applicationId = "com.averycorp.averytask"
         minSdk = 26
         targetSdk = 35
         versionCode = 8
