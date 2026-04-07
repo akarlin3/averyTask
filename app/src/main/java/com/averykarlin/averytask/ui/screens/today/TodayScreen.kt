@@ -72,6 +72,7 @@ import com.averykarlin.averytask.ui.components.StreakBadge
 import com.averykarlin.averytask.ui.navigation.AveryTaskRoute
 import com.averykarlin.averytask.ui.theme.LocalPriorityColors
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -106,8 +107,24 @@ fun TodayScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = viewModel.snackbarHostState) },
         topBar = {
+            val greeting = remember {
+                when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
+                    in 0..11 -> "Good Morning"
+                    in 12..16 -> "Good Afternoon"
+                    else -> "Good Evening"
+                }
+            }
             TopAppBar(
-                title = { Text("Today", fontWeight = FontWeight.Bold) },
+                title = {
+                    Column {
+                        Text(greeting, fontWeight = FontWeight.Bold)
+                        Text(
+                            SimpleDateFormat("EEEE, MMM d", Locale.getDefault()).format(Date()),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
                 actions = {},
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
