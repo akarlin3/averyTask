@@ -159,7 +159,6 @@ fun SettingsScreen(
     val availableCalendars by viewModel.availableCalendars.collectAsStateWithLifecycle()
     val updateStatus by viewModel.appUpdater.status.collectAsStateWithLifecycle()
     val updateError by viewModel.appUpdater.errorMessage.collectAsStateWithLifecycle()
-    val updateLatestCommitDate by viewModel.appUpdater.latestCommitDate.collectAsStateWithLifecycle()
     val latestReleaseTag by viewModel.appUpdater.latestReleaseTag.collectAsStateWithLifecycle()
     var showAutoArchiveDialog by remember { mutableStateOf(false) }
     var showResetConfirmDialog by remember { mutableStateOf(false) }
@@ -1087,8 +1086,8 @@ fun SettingsScreen(
             val statusText = when (updateStatus) {
                 UpdateStatus.IDLE -> null
                 UpdateStatus.CHECKING -> "Checking for updates..."
-                UpdateStatus.UPDATE_AVAILABLE -> updateLatestCommitDate?.let { "Update available (built $it)" } ?: "Update available"
-                UpdateStatus.NO_UPDATE -> "You're on the latest build"
+                UpdateStatus.UPDATE_AVAILABLE -> latestReleaseTag?.let { "Update available ($it)" } ?: "Update available"
+                UpdateStatus.NO_UPDATE -> "You're on the latest build (v${BuildConfig.VERSION_NAME})"
                 UpdateStatus.DOWNLOADING -> "Downloading APK..."
                 UpdateStatus.READY_TO_INSTALL -> "Ready to install"
                 UpdateStatus.ERROR -> updateError?.let { "Error: $it" } ?: "Update failed"

@@ -91,4 +91,90 @@ class AppUpdaterTest {
     fun test_statusCount_isSeven() {
         assertEquals(7, UpdateStatus.entries.size)
     }
+
+    // --- Version parsing / comparison ---
+
+    @Test
+    fun test_parseVersion_stripsVPrefix() {
+        val parsed = AppUpdater.parseVersion("v0.7.13")
+        assertNotNull(parsed)
+        assertArrayEquals(intArrayOf(0, 7, 13), parsed)
+    }
+
+    @Test
+    fun test_parseVersion_withoutPrefix() {
+        val parsed = AppUpdater.parseVersion("1.2.3")
+        assertNotNull(parsed)
+        assertArrayEquals(intArrayOf(1, 2, 3), parsed)
+    }
+
+    @Test
+    fun test_parseVersion_buildSuffixIgnored() {
+        // The "-build.N" suffix exists only on CI-rebuild tags, never in
+        // BuildConfig.VERSION_NAME, so we strip it and compare the base.
+        val parsed = AppUpdater.parseVersion("v0.7.13-build.2")
+        assertNotNull(parsed)
+        assertArrayEquals(intArrayOf(0, 7, 13), parsed)
+    }
+
+    @Test
+    fun test_parseVersion_partialVersion() {
+        val parsed = AppUpdater.parseVersion("v1.2")
+        assertNotNull(parsed)
+        assertArrayEquals(intArrayOf(1, 2, 0), parsed)
+    }
+
+    @Test
+    fun test_parseVersion_nullOrBlank() {
+        assertNull(AppUpdater.parseVersion(null))
+        assertNull(AppUpdater.parseVersion(""))
+        assertNull(AppUpdater.parseVersion("   "))
+    }
+
+    @Test
+    fun test_parseVersion_garbageReturnsNull() {
+        assertNull(AppUpdater.parseVersion("not-a-version"))
+        assertNull(AppUpdater.parseVersion("v.a.b.c"))
+    }
+
+    @Test
+    fun test_isRemoteNewer_patchBump() {
+        assertTrue(AppUpdater.isRemoteNewer("v0.7.14", "0.7.13"))
+    }
+
+    @Test
+    fun test_isRemoteNewer_minorBump() {
+        assertTrue(AppUpdater.isRemoteNewer("v0.8.0", "0.7.13"))
+    }
+
+    @Test
+    fun test_isRemoteNewer_majorBump() {
+        assertTrue(AppUpdater.isRemoteNewer("v1.0.0", "0.99.99"))
+    }
+
+    @Test
+    fun test_isRemoteNewer_sameVersionReturnsFalse() {
+        assertFalse(AppUpdater.isRemoteNewer("v0.7.13", "0.7.13"))
+    }
+
+    @Test
+    fun test_isRemoteNewer_olderRemoteReturnsFalse() {
+        assertFalse(AppUpdater.isRemoteNewer("v0.7.12", "0.7.13"))
+    }
+
+    @Test
+    fun test_isRemoteNewer_rebuildOfSameVersionReturnsFalse() {
+        // A CI rebuild (v0.7.13-build.2) of the already-installed version
+        // must NOT trigger an update prompt, or the user would be stuck
+        // in a forever-update loop.
+        assertFalse(AppUpdater.isRemoteNewer("v0.7.13-build.2", "0.7.13"))
+    }
+
+    @Test
+    fun test_isRemoteNewer_unparseableReturnsFalse() {
+        // Defensive: if we can't parse, never claim an update is available.
+        assertFalse(AppUpdater.isRemoteNewer(null, "0.7.13"))
+        assertFalse(AppUpdater.isRemoteNewer("garbage", "0.7.13"))
+        assertFalse(AppUpdater.isRemoteNewer("v0.7.14", null))
+    }
 }
