@@ -95,31 +95,20 @@ fun MedicationScreen(
     val specificTimes by viewModel.specificTimes.collectAsStateWithLifecycle()
 
     val medStepLogs = viewModel.getMedStepLogs(todayLog)
-    val selectedTier = viewModel.getSelectedTier(todayLog)
     val tiers = SelfCareRoutines.medicationTiers
     val tiersByTime = viewModel.getTiersByTime(todayLog)
 
-    // Each (step, time-of-day) pair counts as one dose. A step scheduled in
-    // morning + night contributes two toward the total and is only fully
-    // done when both blocks are logged.
-    val doseTotal = allSteps.sumOf { step ->
-        val tods = SelfCareRoutines.parseTimeOfDay(step.timeOfDay)
-        if (tods.isEmpty()) 1 else tods.size
-    }
-    val doseDone = allSteps.sumOf { step ->
-        val tods = SelfCareRoutines.parseTimeOfDay(step.timeOfDay)
-        if (tods.isEmpty()) {
-            if (medStepLogs.any { it.id == step.stepId }) 1 else 0
-        } else {
-            tods.count { tod -> viewModel.isStepDoneAt(medStepLogs, step.stepId, tod) }
-        }
-    }
-    val doneCount = doseDone
-    val allDone = doseTotal > 0 && doseDone == doseTotal
-    val pct = if (doseTotal > 0) doseDone.toFloat() / doseTotal else 0f
-
-    val activeTier = tiers.find { it.id == selectedTier } ?: tiers.last()
-    val tierColor = Color(activeTier.color)
+    // Count how many times-of-day have been "checked" — meaning the user has
+    // picked a tier for that block (essential, prescription, complete, or
+    // skipped). Only time-of-day groups that actually have meds scheduled
+    // count toward the total.
+    val timeGroupIds = SelfCareRoutines.timesOfDay
+        .filter { tod -> allSteps.any { step -> tod.id in SelfCareRoutines.parseTimeOfDay(step.timeOfDay) } }
+        .map { it.id }
+    val timesTotal = timeGroupIds.size
+    val timesChecked = timeGroupIds.count { it in tiersByTime.keys }
+    val allDone = timesTotal > 0 && timesChecked == timesTotal
+    val pct = if (timesTotal > 0) timesChecked.toFloat() / timesTotal else 0f
 
     var showAddDialog by remember { mutableStateOf(false) }
     var editingStep by remember { mutableStateOf<SelfCareStepEntity?>(null) }
@@ -322,8 +311,11 @@ fun MedicationScreen(
             // Progress bar
             if (!editMode) {
                 item {
+                    // Neutral color until the user has actually checked at least
+                    // one time-of-day; no default tier color is applied.
+                    val neutralColor = MaterialTheme.colorScheme.primary
                     val progressColor by animateColorAsState(
-                        targetValue = if (allDone) Color(0xFF10B981) else tierColor,
+                        targetValue = if (allDone) Color(0xFF10B981) else neutralColor,
                         animationSpec = tween(300),
                         label = "progressColor"
                     )
@@ -345,7 +337,7 @@ fun MedicationScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = "$doneCount / $doseTotal meds",
+                                text = "$timesChecked / $timesTotal times of day",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -369,7 +361,7 @@ fun MedicationScreen(
                         if (allDone) {
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "All meds taken \u2014 nice work.",
+                                text = "All Times Checked \u2014 Nice Work.",
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF10B981),
@@ -416,73 +408,81 @@ fun MedicationScreen(
                             if (!editMode) {
                                 val pickedTier = tiersByTime[tod.id]
                                 Spacer(modifier = Modifier.height(6.dp))
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    tiers.forEach { tier ->
-                                        val tierC = Color(tier.color)
-                                        val isPicked = pickedTier == tier.id
-                                        Box(
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .clip(RoundedCornerShape(10.dp))
-                                                .background(
-                                                    if (isPicked) tierC.copy(alpha = 0.18f)
-                                                    else MaterialTheme.colorScheme.surfaceContainerLow
-                                                )
-                                                .border(
-                                                    width = if (isPicked) 1.5.dp else 1.dp,
-                                                    color = if (isPicked) tierC
-                                                    else MaterialTheme.colorScheme.outlineVariant,
-                                                    shape = RoundedCornerShape(10.dp)
-                                                )
-                                                .clickable {
-                                                    viewModel.setTierForTime(
-                                                        tod.id,
-                                                        if (isPicked) null else tier.id
-                                                    )
-                                                }
-                                                .padding(vertical = 8.dp, horizontal = 6.dp),
-                                            contentAlignment = Alignment.Center
+                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    tiers.chunked(2).forEach { rowTiers ->
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                                         ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.Center
-                                            ) {
+                                            rowTiers.forEach { tier ->
+                                                val tierC = Color(tier.color)
+                                                val isPicked = pickedTier == tier.id
                                                 Box(
                                                     modifier = Modifier
-                                                        .size(16.dp)
-                                                        .clip(RoundedCornerShape(4.dp))
-                                                        .then(
-                                                            if (isPicked) Modifier.background(tierC)
-                                                            else Modifier.border(
-                                                                1.5.dp,
-                                                                tierC.copy(alpha = 0.5f),
-                                                                RoundedCornerShape(4.dp)
+                                                        .weight(1f)
+                                                        .clip(RoundedCornerShape(10.dp))
+                                                        .background(
+                                                            if (isPicked) tierC.copy(alpha = 0.18f)
+                                                            else MaterialTheme.colorScheme.surfaceContainerLow
+                                                        )
+                                                        .border(
+                                                            width = if (isPicked) 1.5.dp else 1.dp,
+                                                            color = if (isPicked) tierC
+                                                            else MaterialTheme.colorScheme.outlineVariant,
+                                                            shape = RoundedCornerShape(10.dp)
+                                                        )
+                                                        .clickable {
+                                                            viewModel.setTierForTime(
+                                                                tod.id,
+                                                                if (isPicked) null else tier.id
                                                             )
-                                                        ),
+                                                        }
+                                                        .padding(vertical = 8.dp, horizontal = 6.dp),
                                                     contentAlignment = Alignment.Center
                                                 ) {
-                                                    if (isPicked) {
-                                                        Icon(
-                                                            Icons.Default.Check,
-                                                            contentDescription = null,
-                                                            tint = Color.White,
-                                                            modifier = Modifier.size(12.dp)
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.Center
+                                                    ) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(16.dp)
+                                                                .clip(RoundedCornerShape(4.dp))
+                                                                .then(
+                                                                    if (isPicked) Modifier.background(tierC)
+                                                                    else Modifier.border(
+                                                                        1.5.dp,
+                                                                        tierC.copy(alpha = 0.5f),
+                                                                        RoundedCornerShape(4.dp)
+                                                                    )
+                                                                ),
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            if (isPicked) {
+                                                                Icon(
+                                                                    Icons.Default.Check,
+                                                                    contentDescription = null,
+                                                                    tint = Color.White,
+                                                                    modifier = Modifier.size(12.dp)
+                                                                )
+                                                            }
+                                                        }
+                                                        Spacer(modifier = Modifier.width(6.dp))
+                                                        Text(
+                                                            text = tier.label,
+                                                            style = MaterialTheme.typography.labelMedium,
+                                                            fontWeight = if (isPicked) FontWeight.Bold else FontWeight.Normal,
+                                                            color = if (isPicked) tierC
+                                                            else MaterialTheme.colorScheme.onSurface,
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis
                                                         )
                                                     }
                                                 }
-                                                Spacer(modifier = Modifier.width(6.dp))
-                                                Text(
-                                                    text = tier.label,
-                                                    style = MaterialTheme.typography.labelMedium,
-                                                    fontWeight = if (isPicked) FontWeight.Bold else FontWeight.Normal,
-                                                    color = if (isPicked) tierC
-                                                    else MaterialTheme.colorScheme.onSurface,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
+                                            }
+                                            // Fill any empty slots in the last row for odd tier counts.
+                                            repeat(2 - rowTiers.size) {
+                                                Spacer(modifier = Modifier.weight(1f))
                                             }
                                         }
                                     }
@@ -492,7 +492,9 @@ fun MedicationScreen(
                     }
                     items(stepsInGroup, key = { "med_${tod.id}_${it.stepId}_${it.id}" }) { step ->
                         val done = viewModel.isStepDoneAt(medStepLogs, step.stepId, tod.id)
-                        val stepTier = tiers.find { it.id == step.tier } ?: tiers.last()
+                        val stepTier = tiers.find { it.id == step.tier }
+                            ?: tiers.find { it.id == "complete" }
+                            ?: tiers.first()
                         val stepColor = Color(stepTier.color)
                         val stepIndex = allSteps.indexOf(step)
 
@@ -540,7 +542,9 @@ fun MedicationScreen(
                     }
                     items(ungrouped, key = { "med_other_${it.stepId}_${it.id}" }) { step ->
                         val done = medStepLogs.any { it.id == step.stepId }
-                        val stepTier = tiers.find { it.id == step.tier } ?: tiers.last()
+                        val stepTier = tiers.find { it.id == step.tier }
+                            ?: tiers.find { it.id == "complete" }
+                            ?: tiers.first()
                         val stepColor = Color(stepTier.color)
                         val stepIndex = allSteps.indexOf(step)
 
@@ -736,7 +740,8 @@ private fun MedDialog(
         mutableStateOf(SelfCareRoutines.parseTimeOfDay(initialTimeOfDay))
     }
 
-    val tiers = SelfCareRoutines.medicationTiers
+    // Exclude "skipped" — it's a per-time choice, not a medication category.
+    val tiers = SelfCareRoutines.medicationTiers.filter { it.id != "skipped" }
     var tierExpanded by remember { mutableStateOf(false) }
 
     AlertDialog(
