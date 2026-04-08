@@ -101,8 +101,19 @@ fun TodayScreen(
     val progressStyle by viewModel.progressStyle.collectAsStateWithLifecycle()
 
     var overdueExpanded by remember { mutableStateOf(true) }
-    var habitsExpanded by remember { mutableStateOf(true) }
+    var dailyHabitsExpanded by remember { mutableStateOf(true) }
+    var recurringHabitsExpanded by remember { mutableStateOf(true) }
     var completedExpanded by remember { mutableStateOf(false) }
+
+    val recurringHabitPeriods = remember {
+        setOf("weekly", "fortnightly", "monthly", "bimonthly", "quarterly")
+    }
+    val dailyHabits = remember(todayHabits) {
+        todayHabits.filter { it.habit.frequencyPeriod == "daily" }
+    }
+    val recurringHabits = remember(todayHabits) {
+        todayHabits.filter { it.habit.frequencyPeriod in recurringHabitPeriods }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = viewModel.snackbarHostState) },
@@ -175,18 +186,44 @@ fun TodayScreen(
                             }
 
                             "habits" -> {
-                                if (todayHabits.isNotEmpty()) {
-                                    item(key = "header_habits") {
+                                if (dailyHabits.isNotEmpty()) {
+                                    item(key = "header_habits_daily") {
                                         SectionHeader(
-                                            title = "Habits",
-                                            count = todayHabits.size,
+                                            title = "Daily Habits",
+                                            count = dailyHabits.size,
                                             color = MaterialTheme.colorScheme.tertiary,
-                                            expanded = habitsExpanded,
-                                            onToggle = { habitsExpanded = !habitsExpanded }
+                                            expanded = dailyHabitsExpanded,
+                                            onToggle = { dailyHabitsExpanded = !dailyHabitsExpanded }
                                         )
                                     }
-                                    if (habitsExpanded) {
-                                        items(todayHabits, key = { "habit_${it.habit.id}" }) { hws ->
+                                    if (dailyHabitsExpanded) {
+                                        items(dailyHabits, key = { "habit_daily_${it.habit.id}" }) { hws ->
+                                            CompactHabitItem(
+                                                habitWithStatus = hws,
+                                                onToggle = {
+                                                    viewModel.onToggleHabitCompletion(hws.habit.id, hws.isCompletedToday)
+                                                },
+                                                onClick = {
+                                                    navController.navigate(
+                                                        AveryTaskRoute.HabitAnalytics.createRoute(hws.habit.id)
+                                                    )
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                                if (recurringHabits.isNotEmpty()) {
+                                    item(key = "header_habits_recurring") {
+                                        SectionHeader(
+                                            title = "Recurring Habits",
+                                            count = recurringHabits.size,
+                                            color = MaterialTheme.colorScheme.tertiary,
+                                            expanded = recurringHabitsExpanded,
+                                            onToggle = { recurringHabitsExpanded = !recurringHabitsExpanded }
+                                        )
+                                    }
+                                    if (recurringHabitsExpanded) {
+                                        items(recurringHabits, key = { "habit_recurring_${it.habit.id}" }) { hws ->
                                             CompactHabitItem(
                                                 habitWithStatus = hws,
                                                 onToggle = {
