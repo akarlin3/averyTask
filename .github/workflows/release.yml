@@ -22,7 +22,7 @@ jobs:
         with:
           fetch-depth: 2
 
-      - name: Check if versionName increased (major/minor only)
+      - name: Check if versionName increased (major only)
         id: check
         run: |
           extract_version() {
@@ -36,9 +36,8 @@ jobs:
             exit 0
           fi
           git show HEAD^:app/build.gradle.kts > /tmp/prev-build.gradle.kts 2>/dev/null || {
-            echo "No previous commit found; treating as release."
-            echo "should_release=true" >> $GITHUB_OUTPUT
-            echo "version_name=$NEW_VERSION" >> $GITHUB_OUTPUT
+            echo "No previous commit found; skipping release (cannot verify major bump)."
+            echo "should_release=false" >> $GITHUB_OUTPUT
             exit 0
           }
           OLD_VERSION=$(extract_version /tmp/prev-build.gradle.kts)
@@ -55,17 +54,15 @@ jobs:
             echo "should_release=false" >> $GITHUB_OUTPUT
             exit 0
           fi
-          # Only release on major or minor bumps, not patch-only bumps
+          # Only release on major bumps, not minor or patch bumps
           NEW_MAJOR=$(echo "$NEW_VERSION" | cut -d. -f1)
-          NEW_MINOR=$(echo "$NEW_VERSION" | cut -d. -f2)
           OLD_MAJOR=$(echo "$OLD_VERSION" | cut -d. -f1)
-          OLD_MINOR=$(echo "$OLD_VERSION" | cut -d. -f2)
-          if [ "$NEW_MAJOR" != "$OLD_MAJOR" ] || [ "$NEW_MINOR" != "$OLD_MINOR" ]; then
-            echo "Major/minor versionName bump ($OLD_VERSION -> $NEW_VERSION); triggering release."
+          if [ "$NEW_MAJOR" != "$OLD_MAJOR" ]; then
+            echo "Major versionName bump ($OLD_VERSION -> $NEW_VERSION); triggering release."
             echo "should_release=true" >> $GITHUB_OUTPUT
             echo "version_name=$NEW_VERSION" >> $GITHUB_OUTPUT
           else
-            echo "Patch-only versionName bump ($OLD_VERSION -> $NEW_VERSION); skipping release."
+            echo "Non-major versionName bump ($OLD_VERSION -> $NEW_VERSION); skipping release."
             echo "should_release=false" >> $GITHUB_OUTPUT
           fi
 
