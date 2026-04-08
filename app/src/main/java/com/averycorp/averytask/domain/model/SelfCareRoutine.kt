@@ -111,10 +111,13 @@ object SelfCareRoutines {
         RoutineTier("essential", "Essential", "—", 0xFFEF4444),
         RoutineTier("prescription", "Prescription", "—", 0xFF3B82F6),
         RoutineTier("complete", "Complete", "—", 0xFF10B981),
+        RoutineTier("skipped", "Skipped", "—", 0xFF6B7280),
     )
 
     val medicationSteps = emptyList<RoutineStep>()
 
+    // Note: "skipped" is intentionally excluded from the tier order so it never
+    // marks any medication as visible/logged via the cumulative tier logic.
     val medicationTierOrder = listOf("essential", "prescription", "complete")
 
     // --- Housework ---
