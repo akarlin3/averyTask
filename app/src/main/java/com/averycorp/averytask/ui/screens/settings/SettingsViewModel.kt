@@ -22,6 +22,7 @@ import com.averycorp.averytask.data.preferences.CalendarPreferences
 import com.averycorp.averytask.data.preferences.DashboardPreferences
 import com.averycorp.averytask.data.preferences.TabPreferences
 import com.averycorp.averytask.data.preferences.TaskBehaviorPreferences
+import com.averycorp.averytask.data.preferences.TemplatePreferences
 import com.averycorp.averytask.data.preferences.TimerPreferences
 import com.averycorp.averytask.ui.navigation.ALL_BOTTOM_NAV_ITEMS
 import com.averycorp.averytask.data.preferences.ThemePreferences
@@ -82,6 +83,7 @@ class SettingsViewModel @Inject constructor(
     private val googleDriveService: GoogleDriveService,
     private val backendSyncService: BackendSyncService,
     private val backendSyncPreferences: BackendSyncPreferences,
+    private val templatePreferences: TemplatePreferences,
     private val authTokenPreferences: AuthTokenPreferences,
     private val averyTaskApi: AveryTaskApi,
     val appUpdater: AppUpdater
@@ -608,6 +610,11 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             authTokenPreferences.clearTokens()
             backendSyncPreferences.clear()
+            // Reset the templates-first-sync flag so the next account the
+            // user connects to gets a fresh first-connect push. The seeded
+            // flag is intentionally preserved — we don't want to re-insert
+            // the built-ins just because the user disconnected.
+            templatePreferences.setFirstSyncDone(false)
             _messages.emit("Disconnected from backend")
         }
     }
@@ -747,6 +754,7 @@ class SettingsViewModel @Inject constructor(
                 leisurePreferences.clearAll()
                 habitListPreferences.clearAll()
                 backendSyncPreferences.clear()
+                templatePreferences.clear()
                 authTokenPreferences.clearTokens()
                 authManager.signOut()
                 _messages.emit("App reset complete. Restart recommended.")

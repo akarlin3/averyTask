@@ -6,13 +6,16 @@ import com.averycorp.averytask.data.local.dao.HabitDao
 import com.averycorp.averytask.data.local.dao.ProjectDao
 import com.averycorp.averytask.data.local.dao.TagDao
 import com.averycorp.averytask.data.local.dao.TaskDao
+import com.averycorp.averytask.data.local.dao.TaskTemplateDao
 import com.averycorp.averytask.data.local.entity.HabitCompletionEntity
 import com.averycorp.averytask.data.local.entity.HabitEntity
 import com.averycorp.averytask.data.local.entity.ProjectEntity
 import com.averycorp.averytask.data.local.entity.TagEntity
 import com.averycorp.averytask.data.local.entity.TaskEntity
+import com.averycorp.averytask.data.local.entity.TaskTemplateEntity
 import com.averycorp.averytask.data.preferences.AuthTokenPreferences
 import com.averycorp.averytask.data.preferences.BackendSyncPreferences
+import com.averycorp.averytask.data.preferences.TemplatePreferences
 import com.averycorp.averytask.data.remote.api.AveryTaskApi
 import com.google.gson.JsonObject
 import java.time.Instant
@@ -42,8 +45,10 @@ class BackendSyncService @Inject constructor(
     private val tagDao: TagDao,
     private val habitDao: HabitDao,
     private val habitCompletionDao: HabitCompletionDao,
+    private val taskTemplateDao: TaskTemplateDao,
     private val authTokenPreferences: AuthTokenPreferences,
-    private val backendSyncPreferences: BackendSyncPreferences
+    private val backendSyncPreferences: BackendSyncPreferences,
+    private val templatePreferences: TemplatePreferences
 ) {
 
     /**
@@ -61,6 +66,10 @@ class BackendSyncService @Inject constructor(
         if (!isConnected()) {
             throw IllegalStateException("Not connected to backend. Sign in first.")
         }
+        // On the very first connect, push all local templates in one shot
+        // (including the built-ins). Subsequent syncs fall through to the
+        // normal updated_at-based incremental push.
+        ensureTemplatesPushedOnFirstConnect()
         val pushed = pushChanges()
         val pulled = pullChanges()
         SyncSummary(
@@ -68,6 +77,44 @@ class BackendSyncService @Inject constructor(
             pulled = pulled,
             lastSyncAt = backendSyncPreferences.getLastSyncAt()
         )
+    }
+
+    /**
+     * First-connect helper: pushes *every* local template to the backend the
+     * first time the user signs in with a JWT, regardless of the template's
+     * `updatedAt` timestamp. After this runs once, subsequent syncs use the
+     * normal `updatedAt > since` incremental filter in [pushChanges].
+     *
+     * The flag is stored in [TemplatePreferences] so it persists across app
+     * restarts but resets when the user signs out (via [TemplatePreferences.clear]).
+     *
+     * Merge behavior for the opposite direction (remote templates landing
+     * locally on a new device) is handled in [applyTemplateChanges] using
+     * [com.averycorp.averytask.data.repository.TaskTemplateRepository.mergeTemplatesByName].
+     */
+    suspend fun ensureTemplatesPushedOnFirstConnect() {
+        if (!isConnected()) return
+        if (templatePreferences.isFirstSyncDone()) return
+
+        val templates = taskTemplateDao.getAllTemplatesOnce()
+        if (templates.isEmpty()) {
+            templatePreferences.setFirstSyncDone(true)
+            return
+        }
+
+        val operations = templates.map { taskTemplateToOperation(it) }
+        val request = SyncPushRequest(
+            operations = operations,
+            lastSync = null
+        )
+        try {
+            api.syncPush(request)
+            templatePreferences.setFirstSyncDone(true)
+        } catch (e: Exception) {
+            Log.e(TAG, "First-connect template push failed", e)
+            // Leave the flag unset so we retry next sync.
+            throw e
+        }
     }
 
     /**
@@ -102,6 +149,13 @@ class BackendSyncService @Inject constructor(
         habitCompletionDao.getAllCompletionsOnce()
             .filter { it.completedAt > since }
             .forEach { operations += habitCompletionToOperation(it) }
+
+        // Task templates — use updatedAt. First-connect push is handled
+        // separately by ensureTemplatesPushedOnFirstConnect; here we only pick
+        // up templates the user has touched since the last successful sync.
+        taskTemplateDao.getAllTemplatesOnce()
+            .filter { it.updatedAt > since }
+            .forEach { operations += taskTemplateToOperation(it) }
 
         if (operations.isEmpty()) return 0
 
@@ -142,6 +196,9 @@ class BackendSyncService @Inject constructor(
         applied += applyTaskChanges(response.changes.filter { it.entityType == "task" })
         applied += applyHabitCompletionChanges(
             response.changes.filter { it.entityType == "habit_completion" }
+        )
+        applied += applyTemplateChanges(
+            response.changes.filter { it.entityType == "task_template" }
         )
 
         val timestampMillis = response.serverTimestamp?.let { isoToMillisOrNull(it) }
@@ -264,6 +321,43 @@ class BackendSyncService @Inject constructor(
             entityId = completion.id,
             data = data,
             clientTimestamp = millisToIso(completion.completedAt)
+        )
+    }
+
+    private fun taskTemplateToOperation(template: TaskTemplateEntity): SyncOperation {
+        val data = JsonObject().apply {
+            addProperty("id", template.id)
+            addProperty("name", template.name)
+            if (template.description != null) addProperty("description", template.description)
+            if (template.icon != null) addProperty("icon", template.icon)
+            if (template.category != null) addProperty("category", template.category)
+            if (template.templateTitle != null) addProperty("template_title", template.templateTitle)
+            if (template.templateDescription != null)
+                addProperty("template_description", template.templateDescription)
+            if (template.templatePriority != null)
+                addProperty("template_priority", template.templatePriority)
+            if (template.templateProjectId != null)
+                addProperty("template_project_id", template.templateProjectId)
+            if (template.templateTagsJson != null)
+                addProperty("template_tags_json", template.templateTagsJson)
+            if (template.templateRecurrenceJson != null)
+                addProperty("template_recurrence_json", template.templateRecurrenceJson)
+            if (template.templateDuration != null)
+                addProperty("template_duration", template.templateDuration)
+            if (template.templateSubtasksJson != null)
+                addProperty("template_subtasks_json", template.templateSubtasksJson)
+            addProperty("is_built_in", template.isBuiltIn)
+            addProperty("usage_count", template.usageCount)
+            if (template.lastUsedAt != null) addProperty("last_used_at", template.lastUsedAt)
+            addProperty("created_at", template.createdAt)
+            addProperty("updated_at", template.updatedAt)
+        }
+        return SyncOperation(
+            entityType = "task_template",
+            operation = "update",
+            entityId = template.id,
+            data = data,
+            clientTimestamp = millisToIso(template.updatedAt)
         )
     }
 
@@ -411,6 +505,77 @@ class BackendSyncService @Inject constructor(
                 updatedAt = remoteUpdatedAt
             )
             habitDao.insert(habit)
+            applied++
+        }
+        return applied
+    }
+
+    /**
+     * Apply incoming template changes using merge-by-name semantics. When a
+     * remote template arrives that shares a name with a local template:
+     *
+     *  - If the remote copy has a strictly higher `usage_count`, overwrite the
+     *    local row with the remote one (keeping the local row id intact so
+     *    nothing else references a stale id).
+     *  - Otherwise the local copy wins and we skip the remote update.
+     *
+     * Templates with a new name are inserted as-is. Deletes are honored
+     * unconditionally.
+     */
+    private suspend fun applyTemplateChanges(changes: List<SyncChange>): Int {
+        var applied = 0
+        for (change in changes) {
+            val clientId = change.entityId
+            if (change.operation == "delete") {
+                taskTemplateDao.deleteTemplate(clientId)
+                applied++
+                continue
+            }
+            val data = change.data ?: continue
+            val remoteName = data.optString("name") ?: continue
+            val remoteUsage = data.optInt("usage_count") ?: 0
+            val remoteUpdatedAt = data.optLong("updated_at")
+                ?: change.timestamp?.let { isoToMillisOrNull(it) }
+                ?: System.currentTimeMillis()
+
+            val remote = TaskTemplateEntity(
+                id = clientId,
+                name = remoteName,
+                description = data.optString("description"),
+                icon = data.optString("icon"),
+                category = data.optString("category"),
+                templateTitle = data.optString("template_title"),
+                templateDescription = data.optString("template_description"),
+                templatePriority = data.optInt("template_priority"),
+                templateProjectId = data.optLong("template_project_id"),
+                templateTagsJson = data.optString("template_tags_json"),
+                templateRecurrenceJson = data.optString("template_recurrence_json"),
+                templateDuration = data.optInt("template_duration"),
+                templateSubtasksJson = data.optString("template_subtasks_json"),
+                isBuiltIn = data.optBool("is_built_in") ?: false,
+                usageCount = remoteUsage,
+                lastUsedAt = data.optLong("last_used_at"),
+                createdAt = data.optLong("created_at") ?: System.currentTimeMillis(),
+                updatedAt = remoteUpdatedAt
+            )
+
+            // Merge-by-name: if there's already a local template with this
+            // name (possibly at a different id, e.g., seeded built-in on a
+            // new device), keep the higher-usage copy.
+            val existingByName = taskTemplateDao.getTemplateByName(remoteName)
+            if (existingByName != null) {
+                if (remote.usageCount > existingByName.usageCount) {
+                    taskTemplateDao.updateTemplate(
+                        remote.copy(id = existingByName.id)
+                    )
+                    applied++
+                }
+                // Otherwise: local wins, no-op.
+                continue
+            }
+
+            // No name collision — upsert as a normal sync.
+            taskTemplateDao.insertTemplate(remote)
             applied++
         }
         return applied
