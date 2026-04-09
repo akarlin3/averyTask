@@ -17,7 +17,7 @@ android {
         applicationId = "com.averykarlin.averytask"
         minSdk = 26
         targetSdk = 35
-        versionCode = 42
+        versionCode = 43
         versionName = "0.7.20"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
