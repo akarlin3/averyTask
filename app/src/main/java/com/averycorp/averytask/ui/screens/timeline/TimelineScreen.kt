@@ -329,10 +329,13 @@ fun TimelineScreen(
     }
 
     if (showEditorSheet) {
+        val initialDateForCreate = remember(currentDate) {
+            currentDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        }
         AddEditTaskSheetHost(
             taskId = editorSheetTaskId,
             projectId = null,
-            initialDate = null,
+            initialDate = if (editorSheetTaskId == null) initialDateForCreate else null,
             onDismiss = { showEditorSheet = false }
         )
     }

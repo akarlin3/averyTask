@@ -55,6 +55,9 @@ class AddEditTaskViewModel @Inject constructor(
     private val _taskIdFlow = MutableStateFlow<Long?>(null)
     val isEditMode: Boolean get() = currentTaskId != null
 
+    /** The id of the task currently being edited, or null in create mode. */
+    val currentEditingTaskId: Long? get() = currentTaskId
+
     private var existingTask: TaskEntity? = null
     private var loadJob: Job? = null
 
@@ -243,6 +246,45 @@ class AddEditTaskViewModel @Inject constructor(
     fun onNotesChange(value: String) { notes = value }
     fun onReminderOffsetChange(value: Long?) { reminderOffset = value }
     fun onSelectedTagIdsChange(value: Set<Long>) { selectedTagIds = value }
+    fun onParentTaskIdChange(value: Long?) { parentTaskId = value }
+
+    /**
+     * Inline project creation from the Organize tab. Creates the project via the
+     * repository and then selects it on the in-progress form. Uses the default
+     * project icon so the caller only has to supply name + color.
+     */
+    fun createAndSelectProject(name: String, color: String) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        viewModelScope.launch {
+            try {
+                val newId = projectRepository.addProject(name = trimmed, color = color)
+                projectId = newId
+            } catch (e: Exception) {
+                Log.e("AddEditTaskVM", "Failed to create project", e)
+                _errorMessages.emit("Failed to create project")
+            }
+        }
+    }
+
+    /**
+     * Inline tag creation from the Organize tab. Creates the tag via the
+     * repository and then adds it to the currently selected tag set so the
+     * new tag is immediately assigned to the task.
+     */
+    fun createAndAssignTag(name: String, color: String) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        viewModelScope.launch {
+            try {
+                val newId = tagRepository.addTag(name = trimmed, color = color)
+                selectedTagIds = selectedTagIds + newId
+            } catch (e: Exception) {
+                Log.e("AddEditTaskVM", "Failed to create tag", e)
+                _errorMessages.emit("Failed to create tag")
+            }
+        }
+    }
 
     fun onAddImageAttachment(context: Context, uri: Uri) {
         val id = currentTaskId ?: return

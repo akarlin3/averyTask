@@ -277,6 +277,25 @@ class TodayViewModel @Inject constructor(
         }
     }
 
+    fun onDeleteTaskWithUndo(taskId: Long) {
+        viewModelScope.launch {
+            try {
+                val savedTask = taskRepository.getTaskByIdOnce(taskId) ?: return@launch
+                taskRepository.deleteTask(taskId)
+                val result = snackbarHostState.showSnackbar(
+                    message = "Task deleted",
+                    actionLabel = "UNDO",
+                    duration = SnackbarDuration.Short
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    taskRepository.insertTask(savedTask)
+                }
+            } catch (e: Exception) {
+                Log.e("TodayVM", "Failed to delete task", e)
+            }
+        }
+    }
+
     // Rollover
     fun onRolloverToTomorrow(taskIds: List<Long>) {
         viewModelScope.launch {

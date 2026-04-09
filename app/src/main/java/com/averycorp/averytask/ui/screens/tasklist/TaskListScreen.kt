@@ -495,7 +495,11 @@ fun TaskListScreen(
                         Icon(Icons.Default.UploadFile, contentDescription = "Import File", modifier = Modifier.size(20.dp))
                     }
                     FloatingActionButton(
-                        onClick = { editorSheet = TaskEditorSheetState() },
+                        onClick = {
+                            editorSheet = TaskEditorSheetState(
+                                projectId = selectedProjectId
+                            )
+                        },
                         containerColor = MaterialTheme.colorScheme.primary
                     ) {
                         Icon(
@@ -624,7 +628,8 @@ fun TaskListScreen(
             taskId = state.taskId,
             projectId = state.projectId,
             initialDate = state.initialDate,
-            onDismiss = { editorSheet = null }
+            onDismiss = { editorSheet = null },
+            onDeleteTask = { id -> viewModel.onDeleteTaskWithUndo(id) }
         )
     }
 }
