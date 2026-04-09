@@ -23,6 +23,13 @@ class Base(DeclarativeBase):
     pass
 
 
+def _enum_values(enum_cls):
+    """Callable for SQLAlchemy Enum columns so the .value (lowercase string)
+    is persisted instead of the member name. Required because our Postgres
+    enum types use lowercase values defined in the Alembic migrations."""
+    return [e.value for e in enum_cls]
+
+
 # --- Enums ---
 
 
@@ -83,7 +90,11 @@ class Goal(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    status = Column(Enum(GoalStatus), default=GoalStatus.ACTIVE, nullable=False)
+    status = Column(
+        Enum(GoalStatus, values_callable=_enum_values),
+        default=GoalStatus.ACTIVE,
+        nullable=False,
+    )
     target_date = Column(Date, nullable=True)
     color = Column(String(7), nullable=True)
     sort_order = Column(Integer, default=0)
@@ -102,7 +113,11 @@ class Project(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    status = Column(Enum(ProjectStatus), default=ProjectStatus.ACTIVE, nullable=False)
+    status = Column(
+        Enum(ProjectStatus, values_callable=_enum_values),
+        default=ProjectStatus.ACTIVE,
+        nullable=False,
+    )
     due_date = Column(Date, nullable=True)
     sort_order = Column(Integer, default=0)
     created_at = Column(DateTime, server_default=func.now())
@@ -139,7 +154,11 @@ class Task(Base):
     title = Column(String(500), nullable=False)
     description = Column(Text, nullable=True)
     notes = Column(Text, nullable=True)
-    status = Column(Enum(TaskStatus), default=TaskStatus.TODO, nullable=False)
+    status = Column(
+        Enum(TaskStatus, values_callable=_enum_values),
+        default=TaskStatus.TODO,
+        nullable=False,
+    )
     priority = Column(Integer, default=TaskPriority.MEDIUM)
     due_date = Column(Date, nullable=True)
     due_time = Column(Time, nullable=True)
@@ -197,7 +216,11 @@ class Habit(Base):
     icon = Column(String(10), nullable=True)
     color = Column(String(7), nullable=True)
     category = Column(String(100), nullable=True)
-    frequency = Column(Enum(HabitFrequency), default=HabitFrequency.DAILY, nullable=False)
+    frequency = Column(
+        Enum(HabitFrequency, values_callable=_enum_values),
+        default=HabitFrequency.DAILY,
+        nullable=False,
+    )
     target_count = Column(Integer, default=1)
     active_days_json = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
