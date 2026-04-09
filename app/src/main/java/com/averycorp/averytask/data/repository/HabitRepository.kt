@@ -2,6 +2,7 @@ package com.averycorp.averytask.data.repository
 
 import com.averycorp.averytask.data.local.dao.HabitCompletionDao
 import com.averycorp.averytask.data.local.dao.HabitDao
+import com.averycorp.averytask.data.local.dao.TaskDao
 import com.averycorp.averytask.data.local.entity.HabitCompletionEntity
 import com.averycorp.averytask.data.local.entity.HabitEntity
 import com.averycorp.averytask.data.preferences.TaskBehaviorPreferences
@@ -24,13 +25,18 @@ data class HabitWithStatus(
     val currentStreak: Int,
     val completionsThisWeek: Int,
     val completionsToday: Int = if (isCompletedToday) 1 else 0,
-    val dailyTarget: Int = 1
+    val dailyTarget: Int = 1,
+    val isBookedThisPeriod: Boolean = false,
+    val bookedTasksThisPeriod: Int = 0,
+    val previousPeriodCompletions: Int = 0,
+    val previousPeriodMet: Boolean = false
 )
 
 @Singleton
 class HabitRepository @Inject constructor(
     private val habitDao: HabitDao,
     private val completionDao: HabitCompletionDao,
+    private val taskDao: TaskDao,
     private val syncTracker: SyncTracker,
     private val medicationReminderScheduler: MedicationReminderScheduler,
     private val taskBehaviorPreferences: TaskBehaviorPreferences
@@ -242,16 +248,87 @@ class HabitRepository @Inject constructor(
                     else -> periodCompletions >= habit.targetFrequency
                 }
 
+                // Previous-period completion tracking
+                val (prevStart, prevEnd) = previousPeriodBounds(habit.frequencyPeriod, periodStart)
+                val previousCount = if (habit.trackPreviousPeriod && prevStart != null && prevEnd != null) {
+                    completions.filter { it.completedDate in prevStart..prevEnd }
+                        .groupBy { it.completedDate }
+                        .count { (_, dayCompletions) -> dayCompletions.size >= target }
+                } else 0
+                val previousMet = habit.trackPreviousPeriod && previousCount >= habit.targetFrequency
+
+                // Booking tracking: tasks scoped to this habit scheduled within the current period
+                val bookedTasks = if (habit.trackBooking) {
+                    taskDao.getTasksForHabitInRangeOnce(habit.id, periodStart, periodEnd).size
+                } else 0
+                val isBooked = habit.trackBooking && bookedTasks > 0
+
                 HabitWithStatus(
                     habit = habit,
                     isCompletedToday = isCompleted,
                     currentStreak = StreakCalculator.calculateCurrentStreak(completions, habit, todayLocal),
                     completionsThisWeek = periodCompletions,
                     completionsToday = count,
-                    dailyTarget = target
+                    dailyTarget = target,
+                    isBookedThisPeriod = isBooked,
+                    bookedTasksThisPeriod = bookedTasks,
+                    previousPeriodCompletions = previousCount,
+                    previousPeriodMet = previousMet
                 )
             }
             }
+        }
+    }
+
+    /**
+     * Returns the [start, end] inclusive bounds of the period immediately preceding
+     * the one that contains [currentPeriodStart]. Returns (null, null) for "daily"
+     * or unknown periods — previous-period tracking only applies to recurring habits.
+     */
+    private fun previousPeriodBounds(frequencyPeriod: String, currentPeriodStart: Long): Pair<Long?, Long?> {
+        val cal = Calendar.getInstance()
+        return when (frequencyPeriod) {
+            "weekly" -> {
+                cal.timeInMillis = currentPeriodStart
+                cal.add(Calendar.WEEK_OF_YEAR, -1)
+                val start = cal.timeInMillis
+                cal.add(Calendar.WEEK_OF_YEAR, 1)
+                cal.add(Calendar.MILLISECOND, -1)
+                start to cal.timeInMillis
+            }
+            "fortnightly" -> {
+                cal.timeInMillis = currentPeriodStart
+                cal.add(Calendar.WEEK_OF_YEAR, -2)
+                val start = cal.timeInMillis
+                cal.add(Calendar.WEEK_OF_YEAR, 2)
+                cal.add(Calendar.MILLISECOND, -1)
+                start to cal.timeInMillis
+            }
+            "monthly" -> {
+                cal.timeInMillis = currentPeriodStart
+                cal.add(Calendar.MONTH, -1)
+                val start = cal.timeInMillis
+                cal.add(Calendar.MONTH, 1)
+                cal.add(Calendar.MILLISECOND, -1)
+                start to cal.timeInMillis
+            }
+            "bimonthly" -> {
+                cal.timeInMillis = currentPeriodStart
+                cal.add(Calendar.MONTH, -2)
+                val start = cal.timeInMillis
+                cal.add(Calendar.MONTH, 2)
+                cal.add(Calendar.MILLISECOND, -1)
+                start to cal.timeInMillis
+            }
+            "quarterly" -> {
+                cal.timeInMillis = currentPeriodStart
+                cal.add(Calendar.MONTH, -3)
+                val start = cal.timeInMillis
+                cal.add(Calendar.MONTH, 3)
+                cal.add(Calendar.MILLISECOND, -1)
+                start to cal.timeInMillis
+            }
+            else -> null to null
         }
     }
 

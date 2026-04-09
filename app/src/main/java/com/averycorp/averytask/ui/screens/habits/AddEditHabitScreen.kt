@@ -503,6 +503,60 @@ fun AddEditHabitScreen(
                 )
             }
 
+            // Recurring habit tracking toggles: booking + previous period
+            if (viewModel.frequencyPeriod != "daily") {
+                val periodNoun = when (viewModel.frequencyPeriod) {
+                    "weekly" -> "week"
+                    "fortnightly" -> "fortnight"
+                    "monthly" -> "month"
+                    "bimonthly" -> "2 months"
+                    "quarterly" -> "quarter"
+                    else -> "period"
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Track Booking",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            text = "Show whether this habit is booked this $periodNoun (a task is linked to this habit)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = viewModel.trackBooking,
+                        onCheckedChange = viewModel::onTrackBookingChange
+                    )
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Track Previous Period",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            text = "Show whether this habit was completed last $periodNoun",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = viewModel.trackPreviousPeriod,
+                        onCheckedChange = viewModel::onTrackPreviousPeriodChange
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
 
             Button(

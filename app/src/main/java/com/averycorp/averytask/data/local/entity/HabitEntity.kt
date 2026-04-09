@@ -49,6 +49,12 @@ data class HabitEntity(
     @ColumnInfo(name = "has_logging", defaultValue = "0")
     val hasLogging: Boolean = false,
 
+    @ColumnInfo(name = "track_booking", defaultValue = "0")
+    val trackBooking: Boolean = false,
+
+    @ColumnInfo(name = "track_previous_period", defaultValue = "0")
+    val trackPreviousPeriod: Boolean = false,
+
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis(),
 

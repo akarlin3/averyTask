@@ -426,6 +426,48 @@ private fun HabitItem(
                     target = dotsTarget,
                     color = habitColor
                 )
+
+                // Booking / previous-period status badges (recurring habits only)
+                if (habit.frequencyPeriod != "daily" &&
+                    (habit.trackBooking || habit.trackPreviousPeriod)
+                ) {
+                    val periodNoun = when (habit.frequencyPeriod) {
+                        "weekly" -> "week"
+                        "fortnightly" -> "fortnight"
+                        "monthly" -> "month"
+                        "bimonthly" -> "period"
+                        "quarterly" -> "quarter"
+                        else -> "period"
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        if (habit.trackBooking) {
+                            StatusPill(
+                                label = if (habitWithStatus.isBookedThisPeriod) {
+                                    if (habitWithStatus.bookedTasksThisPeriod > 1)
+                                        "Booked (${habitWithStatus.bookedTasksThisPeriod})"
+                                    else "Booked"
+                                } else "Not Booked",
+                                active = habitWithStatus.isBookedThisPeriod,
+                                activeColor = habitColor
+                            )
+                        }
+                        if (habit.trackPreviousPeriod) {
+                            val periodTitle = periodNoun.replaceFirstChar { it.uppercase() }
+                            StatusPill(
+                                label = if (habitWithStatus.previousPeriodMet)
+                                    "Last $periodTitle Done"
+                                else
+                                    "Last $periodTitle Missed",
+                                active = habitWithStatus.previousPeriodMet,
+                                activeColor = habitColor
+                            )
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.width(4.dp))
@@ -595,6 +637,33 @@ private fun HabitLogDialog(
             TextButton(onClick = onDismiss) { Text("Cancel") }
         }
     )
+}
+
+@Composable
+private fun StatusPill(
+    label: String,
+    active: Boolean,
+    activeColor: Color
+) {
+    val bg = if (active) activeColor.copy(alpha = 0.18f)
+    else MaterialTheme.colorScheme.surfaceContainerHighest
+    val textColor = if (active) activeColor
+    else MaterialTheme.colorScheme.onSurfaceVariant
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(bg)
+            .padding(horizontal = 8.dp, vertical = 3.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = textColor,
+            maxLines = 1
+        )
+    }
 }
 
 @Composable
