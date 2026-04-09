@@ -60,11 +60,14 @@ async def _process_operation(
         # Add user_id for entities that need it
         if hasattr(model, "user_id"):
             data["user_id"] = user.id
-        # Convert status enums
+        # Default status for new tasks (PostgreSQL enum values are lowercase)
+        if op.entity_type == "task" and "status" not in data:
+            data["status"] = TaskStatus.TODO.value
+        # Convert status enums to their lowercase values
         if "status" in data and op.entity_type in STATUS_ENUM_MAP:
-            data["status"] = STATUS_ENUM_MAP[op.entity_type](data["status"])
+            data["status"] = STATUS_ENUM_MAP[op.entity_type](data["status"]).value
         if "frequency" in data and op.entity_type == "habit":
-            data["frequency"] = HabitFrequency(data["frequency"])
+            data["frequency"] = HabitFrequency(data["frequency"]).value
         entity = model(**data)
         db.add(entity)
 
@@ -80,9 +83,9 @@ async def _process_operation(
             return f"{op.entity_type} {op.entity_id} not found"
         for key, value in op.data.items():
             if key == "status" and op.entity_type in STATUS_ENUM_MAP:
-                value = STATUS_ENUM_MAP[op.entity_type](value)
+                value = STATUS_ENUM_MAP[op.entity_type](value).value
             if key == "frequency" and op.entity_type == "habit":
-                value = HabitFrequency(value)
+                value = HabitFrequency(value).value
             setattr(entity, key, value)
 
     elif op.operation == "delete":
