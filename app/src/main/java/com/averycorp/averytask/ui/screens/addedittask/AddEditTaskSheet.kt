@@ -27,18 +27,23 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddLink
@@ -47,6 +52,10 @@ import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.DragIndicator
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsNone
@@ -100,6 +109,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.averycorp.averytask.data.local.entity.ProjectEntity
+import com.averycorp.averytask.data.local.entity.TagEntity
+import com.averycorp.averytask.ui.components.RecurrenceSelector
 import com.averycorp.averytask.domain.model.RecurrenceRule
 import com.averycorp.averytask.domain.model.RecurrenceType
 import com.averycorp.averytask.ui.components.RecurrenceDialog
@@ -122,6 +134,11 @@ import java.util.Locale
  * @param initialDate pre-set due date for create mode (ignored in edit mode).
  * @param initialTab tab to open first (0=Details, 1=Schedule, 2=Organize).
  * @param onDismiss invoked after the sheet has finished closing.
+ * @param onDeleteTask optional handler invoked when the user confirms deletion
+ *   from the Organize tab. When supplied, the parent is responsible for
+ *   performing the delete (typically via a delete-with-undo VM call) and the
+ *   sheet will dismiss itself. When null, the sheet falls back to calling
+ *   [AddEditTaskViewModel.deleteTask] directly and deletion has no undo.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -131,6 +148,7 @@ fun AddEditTaskSheetHost(
     initialDate: Long?,
     initialTab: Int = 0,
     onDismiss: () -> Unit,
+    onDeleteTask: ((Long) -> Unit)? = null,
 ) {
     val viewModel: AddEditTaskViewModel = hiltViewModel(key = "addedit_task_sheet")
 
@@ -141,7 +159,8 @@ fun AddEditTaskSheetHost(
     AddEditTaskSheet(
         viewModel = viewModel,
         initialTab = initialTab,
-        onDismiss = onDismiss
+        onDismiss = onDismiss,
+        onDeleteTask = onDeleteTask
     )
 }
 
@@ -155,6 +174,7 @@ fun AddEditTaskSheet(
     viewModel: AddEditTaskViewModel,
     initialTab: Int = 0,
     onDismiss: () -> Unit,
+    onDeleteTask: ((Long) -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -285,7 +305,11 @@ fun AddEditTaskSheet(
                     when (page) {
                         0 -> DetailsTabContent(viewModel)
                         1 -> ScheduleTabContent(viewModel)
-                        2 -> OrganizeTabContent(viewModel)
+                        2 -> OrganizeTabContent(
+                            viewModel = viewModel,
+                            onDeleteTask = onDeleteTask,
+                            onDismiss = onDismiss
+                        )
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                 }
@@ -1170,23 +1194,745 @@ private fun formatRecurrenceSummary(rule: RecurrenceRule): String {
 }
 
 @Composable
-private fun OrganizeTabContent(viewModel: AddEditTaskViewModel) {
+private fun OrganizeTabContent(
+    viewModel: AddEditTaskViewModel,
+    onDeleteTask: ((Long) -> Unit)?,
+    onDismiss: () -> Unit
+) {
+    val scope = rememberCoroutineScope()
     val projects by viewModel.projects.collectAsStateWithLifecycle()
     val allTags by viewModel.allTags.collectAsStateWithLifecycle()
 
-    // Project
-    SectionLabel("Project")
-    ProjectDropdown(
-        selectedProjectId = viewModel.projectId,
-        projects = projects,
-        onSelect = viewModel::onProjectIdChange
-    )
+    var showProjectPicker by remember { mutableStateOf(false) }
+    var showCreateProjectForm by remember { mutableStateOf(false) }
+    var tagsExpanded by remember { mutableStateOf(false) }
+    var showNewTagForm by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
 
-    // Tags
+    // ---- Project section ----
+    SectionLabel("Project")
+    if (projects.isEmpty()) {
+        EmptyProjectsCard(onCreate = {
+            showProjectPicker = true
+            showCreateProjectForm = true
+        })
+    } else {
+        ProjectSelectorCard(
+            selectedProject = projects.find { it.id == viewModel.projectId },
+            onClick = { showProjectPicker = true }
+        )
+    }
+
+    // ---- Tags section ----
     SectionLabel("Tags")
-    TagSelector(
-        availableTags = allTags,
-        selectedTagIds = viewModel.selectedTagIds,
-        onSelectionChanged = viewModel::onSelectedTagIdsChange
-    )
+    if (allTags.isEmpty() && !showNewTagForm) {
+        EmptyTagsCard(onCreate = { showNewTagForm = true })
+    } else {
+        TagFlowSelector(
+            tags = allTags,
+            selectedTagIds = viewModel.selectedTagIds,
+            expanded = tagsExpanded,
+            onToggleExpanded = { tagsExpanded = !tagsExpanded },
+            onToggleTag = { tagId ->
+                val newSet = if (tagId in viewModel.selectedTagIds) {
+                    viewModel.selectedTagIds - tagId
+                } else {
+                    viewModel.selectedTagIds + tagId
+                }
+                viewModel.onSelectedTagIdsChange(newSet)
+            },
+            onAddTag = { showNewTagForm = true },
+            showNewTagForm = showNewTagForm,
+            onCancelNewTag = { showNewTagForm = false },
+            onCreateTag = { name, color ->
+                viewModel.createAndAssignTag(name, color)
+                showNewTagForm = false
+            }
+        )
+    }
+
+    // ---- Parent task section ----
+    // TODO: Add searchable parent-task picker so tasks can be nested as subtasks
+    // from the Organize tab. For now we expose a minimal read-only indicator
+    // when a parent is already set (e.g. when editing a task opened from a
+    // subtask row) so the relationship is visible and can be cleared.
+    if (viewModel.parentTaskId != null) {
+        SectionLabel("Parent Task")
+        ParentTaskIndicator(
+            parentTaskId = viewModel.parentTaskId!!,
+            onClear = { viewModel.onParentTaskIdChange(null) }
+        )
+    }
+
+    // ---- Delete task (edit mode only) ----
+    if (viewModel.isEditMode) {
+        Spacer(modifier = Modifier.height(8.dp))
+        HorizontalDivider()
+        Spacer(modifier = Modifier.height(4.dp))
+        TextButton(
+            onClick = { showDeleteConfirm = true },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(
+                imageVector = Icons.Default.Delete,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.error
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Delete Task",
+                color = MaterialTheme.colorScheme.error,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
+
+    // ---- Project picker sheet ----
+    if (showProjectPicker) {
+        ProjectPickerSheet(
+            projects = projects,
+            selectedProjectId = viewModel.projectId,
+            showCreateForm = showCreateProjectForm,
+            onShowCreateForm = { showCreateProjectForm = true },
+            onHideCreateForm = { showCreateProjectForm = false },
+            onSelect = { id ->
+                viewModel.onProjectIdChange(id)
+                showProjectPicker = false
+                showCreateProjectForm = false
+            },
+            onCreate = { name, color ->
+                viewModel.createAndSelectProject(name, color)
+                showProjectPicker = false
+                showCreateProjectForm = false
+            },
+            onDismiss = {
+                showProjectPicker = false
+                showCreateProjectForm = false
+            }
+        )
+    }
+
+    // ---- Delete confirmation ----
+    if (showDeleteConfirm) {
+        val taskTitle = viewModel.title.trim().ifEmpty { "this task" }
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete Task") },
+            text = { Text("Delete '$taskTitle'? This cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteConfirm = false
+                        val id = viewModel.currentEditingTaskId
+                        val callback = onDeleteTask
+                        if (id != null && callback != null) {
+                            callback(id)
+                            onDismiss()
+                        } else {
+                            scope.launch {
+                                viewModel.deleteTask()
+                                onDismiss()
+                            }
+                        }
+                    }
+                ) {
+                    Text(
+                        text = "Delete",
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
+            }
+        )
+    }
 }
+
+// ---------------------------------------------------------------------------
+// Organize tab: Project selector
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun ProjectSelectorCard(
+    selectedProject: ProjectEntity?,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant,
+                shape = RoundedCornerShape(12.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (selectedProject != null) {
+            Box(
+                modifier = Modifier
+                    .size(12.dp)
+                    .clip(CircleShape)
+                    .background(parseColorOr(selectedProject.color, Color.Gray))
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = selectedProject.icon,
+                style = MaterialTheme.typography.titleMedium
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = selectedProject.name,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f)
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Default.Folder,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = "No Project",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f)
+            )
+        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = "Change project",
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp)
+        )
+    }
+}
+
+@Composable
+private fun EmptyProjectsCard(onCreate: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant,
+                shape = RoundedCornerShape(12.dp)
+            )
+            .clickable(onClick = onCreate)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.Add,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = "Create Your First Project",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ProjectPickerSheet(
+    projects: List<ProjectEntity>,
+    selectedProjectId: Long?,
+    showCreateForm: Boolean,
+    onShowCreateForm: () -> Unit,
+    onHideCreateForm: () -> Unit,
+    onSelect: (Long?) -> Unit,
+    onCreate: (String, String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 24.dp)
+        ) {
+            Text(
+                text = "Select Project",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+            LazyColumn(
+                modifier = Modifier.heightIn(max = 400.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                item {
+                    ProjectPickerRow(
+                        leading = {
+                            Icon(
+                                imageVector = Icons.Default.Clear,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        },
+                        label = "None",
+                        trailing = {
+                            if (selectedProjectId == null) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Selected",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        },
+                        onClick = { onSelect(null) }
+                    )
+                }
+                items(projects, key = { it.id }) { project ->
+                    ProjectPickerRow(
+                        leading = {
+                            Box(
+                                modifier = Modifier
+                                    .size(12.dp)
+                                    .clip(CircleShape)
+                                    .background(parseColorOr(project.color, Color.Gray))
+                            )
+                        },
+                        label = "${project.icon} ${project.name}",
+                        trailing = {
+                            if (selectedProjectId == project.id) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Selected",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        },
+                        onClick = { onSelect(project.id) }
+                    )
+                }
+                item {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    if (showCreateForm) {
+                        InlineCreateProjectForm(
+                            onCreate = onCreate,
+                            onCancel = onHideCreateForm
+                        )
+                    } else {
+                        ProjectPickerRow(
+                            leading = {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
+                            label = "Create New Project",
+                            labelColor = MaterialTheme.colorScheme.primary,
+                            onClick = onShowCreateForm
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProjectPickerRow(
+    leading: @Composable () -> Unit,
+    label: String,
+    labelColor: Color = MaterialTheme.colorScheme.onSurface,
+    trailing: (@Composable () -> Unit)? = null,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(modifier = Modifier.size(20.dp), contentAlignment = Alignment.Center) {
+            leading()
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
+            color = labelColor,
+            modifier = Modifier.weight(1f)
+        )
+        trailing?.invoke()
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun InlineCreateProjectForm(
+    onCreate: (name: String, color: String) -> Unit,
+    onCancel: () -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var selectedColor by remember { mutableStateOf(PROJECT_COLORS.first()) }
+
+    Column(
+        modifier = Modifier.padding(vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        OutlinedTextField(
+            value = name,
+            onValueChange = { name = it },
+            label = { Text("Project Name") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            PROJECT_COLORS.forEach { color ->
+                ColorDot(
+                    color = color,
+                    selected = color == selectedColor,
+                    onClick = { selectedColor = color }
+                )
+            }
+        }
+        Row(
+            horizontalArrangement = Arrangement.End,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            TextButton(onClick = onCancel) { Text("Cancel") }
+            Spacer(modifier = Modifier.width(4.dp))
+            TextButton(
+                onClick = { if (name.isNotBlank()) onCreate(name, selectedColor) },
+                enabled = name.isNotBlank()
+            ) {
+                Text("Create", fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Organize tab: Tag selector
+// ---------------------------------------------------------------------------
+
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
+@Composable
+private fun TagFlowSelector(
+    tags: List<TagEntity>,
+    selectedTagIds: Set<Long>,
+    expanded: Boolean,
+    onToggleExpanded: () -> Unit,
+    onToggleTag: (Long) -> Unit,
+    onAddTag: () -> Unit,
+    showNewTagForm: Boolean,
+    onCancelNewTag: () -> Unit,
+    onCreateTag: (String, String) -> Unit
+) {
+    val showAllThreshold = 12
+    val collapsedLimit = 8
+    val shouldCollapse = tags.size > showAllThreshold && !expanded
+    val visibleTags = if (shouldCollapse) tags.take(collapsedLimit) else tags
+
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        visibleTags.forEach { tag ->
+            TagToggleChip(
+                tag = tag,
+                selected = tag.id in selectedTagIds,
+                onClick = { onToggleTag(tag.id) }
+            )
+        }
+        if (shouldCollapse) {
+            ShowMoreChip(
+                count = tags.size,
+                onClick = onToggleExpanded
+            )
+        }
+        NewTagChip(onClick = onAddTag)
+    }
+
+    if (showNewTagForm) {
+        Spacer(modifier = Modifier.height(4.dp))
+        InlineCreateTagForm(
+            onCreate = onCreateTag,
+            onCancel = onCancelNewTag
+        )
+    }
+}
+
+@Composable
+private fun TagToggleChip(
+    tag: TagEntity,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val tagColor = parseColorOr(tag.color, Color.Gray)
+    val bg = if (selected) tagColor else Color.Transparent
+    val textColor = if (selected) Color.White else tagColor
+    val borderColor = tagColor
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(bg)
+            .border(
+                width = 1.5.dp,
+                color = borderColor,
+                shape = RoundedCornerShape(16.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = tag.name,
+            style = MaterialTheme.typography.labelLarge,
+            color = textColor,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
+        )
+    }
+}
+
+@Composable
+private fun NewTagChip(onClick: () -> Unit) {
+    val color = MaterialTheme.colorScheme.primary
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .border(
+                width = 1.5.dp,
+                color = color,
+                shape = RoundedCornerShape(16.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.Add,
+            contentDescription = null,
+            modifier = Modifier.size(14.dp),
+            tint = color
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = "New Tag",
+            style = MaterialTheme.typography.labelLarge,
+            color = color,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+@Composable
+private fun ShowMoreChip(count: Int, onClick: () -> Unit) {
+    val color = MaterialTheme.colorScheme.onSurfaceVariant
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .border(
+                width = 1.5.dp,
+                color = MaterialTheme.colorScheme.outlineVariant,
+                shape = RoundedCornerShape(16.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "Show All ($count)",
+            style = MaterialTheme.typography.labelLarge,
+            color = color,
+            fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+@Composable
+private fun EmptyTagsCard(onCreate: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant,
+                shape = RoundedCornerShape(12.dp)
+            )
+            .clickable(onClick = onCreate)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.Add,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = "Add Tags to Organize Tasks",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun InlineCreateTagForm(
+    onCreate: (name: String, color: String) -> Unit,
+    onCancel: () -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var selectedColor by remember { mutableStateOf(TAG_COLORS.first()) }
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .padding(12.dp)
+    ) {
+        OutlinedTextField(
+            value = name,
+            onValueChange = { name = it },
+            label = { Text("Tag Name") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TAG_COLORS.forEach { color ->
+                ColorDot(
+                    color = color,
+                    selected = color == selectedColor,
+                    onClick = { selectedColor = color }
+                )
+            }
+        }
+        Row(
+            horizontalArrangement = Arrangement.End,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            TextButton(onClick = onCancel) { Text("Cancel") }
+            Spacer(modifier = Modifier.width(4.dp))
+            TextButton(
+                onClick = { if (name.isNotBlank()) onCreate(name, selectedColor) },
+                enabled = name.isNotBlank()
+            ) {
+                Text("Add", fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Organize tab: Parent task indicator
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun ParentTaskIndicator(
+    parentTaskId: Long,
+    onClear: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "Subtask of task #$parentTaskId",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f)
+        )
+        IconButton(onClick = onClear, modifier = Modifier.size(24.dp)) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "Remove parent",
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Organize tab: Shared helpers
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun ColorDot(
+    color: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val parsed = parseColorOr(color, Color.Gray)
+    Box(
+        modifier = Modifier
+            .size(28.dp)
+            .clip(CircleShape)
+            .background(parsed)
+            .then(
+                if (selected) Modifier.border(
+                    width = 2.dp,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    shape = CircleShape
+                ) else Modifier
+            )
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        if (selected) {
+            Icon(
+                imageVector = Icons.Default.Check,
+                contentDescription = "Selected",
+                tint = Color.White,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+    }
+}
+
+private fun parseColorOr(hex: String, fallback: Color): Color = try {
+    Color(android.graphics.Color.parseColor(hex))
+} catch (_: Exception) {
+    fallback
+}
+
+private val PROJECT_COLORS = listOf(
+    "#4A90D9", "#7B61FF", "#E8872A", "#D93025",
+    "#2E7D32", "#00897B", "#F4B400", "#8E24AA"
+)
+
+private val TAG_COLORS = listOf(
+    "#6B7280", "#4A90D9", "#7B61FF", "#2E7D32",
+    "#E8872A", "#D93025", "#00897B", "#F4B400"
+)

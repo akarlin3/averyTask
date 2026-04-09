@@ -355,8 +355,9 @@ fun TodayScreen(
         AddEditTaskSheetHost(
             taskId = editorSheetTaskId,
             projectId = null,
-            initialDate = null,
-            onDismiss = { showEditorSheet = false }
+            initialDate = if (editorSheetTaskId == null) startOfToday else null,
+            onDismiss = { showEditorSheet = false },
+            onDeleteTask = { id -> viewModel.onDeleteTaskWithUndo(id) }
         )
     }
 }
