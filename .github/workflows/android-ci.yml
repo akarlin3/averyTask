@@ -2,20 +2,27 @@ name: Android CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     paths-ignore:
       - 'backend/**'
-      - '*.md'
+      - '**.md'
+  pull_request:
+    paths-ignore:
+      - 'backend/**'
+      - '**.md'
+  workflow_dispatch:
 
 concurrency:
   group: android-ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  debug-build:
+  build:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      IS_MAIN_PUSH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,9 +40,9 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Auto-increment version on merge to main
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        id: version_bump
+      - name: Bump version
+        id: bump
+        if: env.IS_MAIN_PUSH == 'true'
         run: |
           set -euo pipefail
           BUILD_FILE="app/build.gradle.kts"
@@ -43,173 +50,63 @@ jobs:
           CURRENT_CODE=$(grep -oP 'versionCode\s*=\s*\K[0-9]+' "$BUILD_FILE" | head -1)
           CURRENT_NAME=$(grep -oP 'versionName\s*=\s*"\K[^"]+' "$BUILD_FILE" | head -1)
 
-          if [ -z "$CURRENT_CODE" ] || [ -z "$CURRENT_NAME" ]; then
-            echo "::error::Could not extract current versionCode/versionName from $BUILD_FILE"
+          if [[ ! "$CURRENT_NAME" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            echo "::error::versionName '$CURRENT_NAME' must match MAJOR.MINOR.PATCH"
             exit 1
           fi
-
-          echo "Current versionCode: $CURRENT_CODE"
-          echo "Current versionName: $CURRENT_NAME"
 
           NEW_CODE=$((CURRENT_CODE + 1))
-
-          if [[ "$CURRENT_NAME" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
-            MAJOR="${BASH_REMATCH[1]}"
-            MINOR="${BASH_REMATCH[2]}"
-            PATCH="${BASH_REMATCH[3]}"
-            NEW_PATCH=$((PATCH + 1))
-            NEW_NAME="${MAJOR}.${MINOR}.${NEW_PATCH}"
-          else
-            echo "::error::versionName '$CURRENT_NAME' does not match MAJOR.MINOR.PATCH; cannot auto-bump"
-            exit 1
-          fi
-
-          echo "New versionCode: $NEW_CODE"
-          echo "New versionName: $NEW_NAME"
+          NEW_NAME="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.$((BASH_REMATCH[3] + 1))"
 
           sed -i -E "s/(versionCode\s*=\s*)[0-9]+/\1${NEW_CODE}/" "$BUILD_FILE"
           sed -i -E "s/(versionName\s*=\s*\")[^\"]+(\")/\1${NEW_NAME}\2/" "$BUILD_FILE"
 
-          # Sanity-check the rewrite
-          grep -E 'versionCode|versionName' "$BUILD_FILE" | head -5
-
-          echo "bumped=true" >> "$GITHUB_OUTPUT"
-          echo "new_version_code=$NEW_CODE" >> "$GITHUB_OUTPUT"
-          echo "new_version_name=$NEW_NAME" >> "$GITHUB_OUTPUT"
+          echo "Bumped: v$CURRENT_NAME ($CURRENT_CODE) -> v$NEW_NAME ($NEW_CODE)"
+          echo "version_name=$NEW_NAME" >> "$GITHUB_OUTPUT"
+          echo "version_code=$NEW_CODE" >> "$GITHUB_OUTPUT"
 
       - name: Build debug APK and run unit tests
         run: ./gradlew assembleDebug testDebugUnitTest --build-cache --parallel -x lint -x lintVitalRelease
 
-      - name: Check if version increased
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        id: version_check
-        run: |
-          extract_version_name() {
-            grep 'versionName' "$1" | head -1 | grep -oP '"\K[^"]+' || echo ""
-          }
-          extract_version_code() {
-            grep 'versionCode' "$1" | head -1 | grep -oP 'versionCode\s*=\s*\K[0-9]+' || echo ""
-          }
-          NEW_VERSION=$(extract_version_name app/build.gradle.kts)
-          NEW_CODE=$(extract_version_code app/build.gradle.kts)
-          echo "New versionName: $NEW_VERSION"
-          echo "New versionCode: $NEW_CODE"
-          if [ -z "$NEW_VERSION" ]; then
-            echo "::warning::Could not extract versionName from app/build.gradle.kts"
-            echo "version_bumped=false" >> $GITHUB_OUTPUT
-            echo "version_code_bumped=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          git show HEAD^:app/build.gradle.kts > /tmp/prev-build.gradle.kts 2>/dev/null || {
-            echo "No previous commit found; treating as version bump."
-            echo "version_bumped=true" >> $GITHUB_OUTPUT
-            echo "version_code_bumped=true" >> $GITHUB_OUTPUT
-            echo "version_name=$NEW_VERSION" >> $GITHUB_OUTPUT
-            echo "version_code=$NEW_CODE" >> $GITHUB_OUTPUT
-            exit 0
-          }
-          OLD_VERSION=$(extract_version_name /tmp/prev-build.gradle.kts)
-          OLD_CODE=$(extract_version_code /tmp/prev-build.gradle.kts)
-          echo "Previous versionName: $OLD_VERSION"
-          echo "Previous versionCode: $OLD_CODE"
-
-          # versionName bump: requires strict semver increase
-          if [ "$NEW_VERSION" = "$OLD_VERSION" ]; then
-            echo "versionName unchanged."
-            echo "version_bumped=false" >> $GITHUB_OUTPUT
-          else
-            HIGHEST=$(printf '%s\n%s\n' "$OLD_VERSION" "$NEW_VERSION" | sort -V | tail -1)
-            if [ "$HIGHEST" = "$NEW_VERSION" ]; then
-              echo "versionName increased from $OLD_VERSION to $NEW_VERSION."
-              echo "version_bumped=true" >> $GITHUB_OUTPUT
-            else
-              echo "versionName did not increase ($OLD_VERSION -> $NEW_VERSION)."
-              echo "version_bumped=false" >> $GITHUB_OUTPUT
-            fi
-          fi
-
-          # versionCode bump: strict numeric increase
-          if [ -n "$NEW_CODE" ] && [ -n "$OLD_CODE" ] && [ "$NEW_CODE" -gt "$OLD_CODE" ] 2>/dev/null; then
-            echo "versionCode increased from $OLD_CODE to $NEW_CODE."
-            echo "version_code_bumped=true" >> $GITHUB_OUTPUT
-          elif [ -n "$NEW_CODE" ] && [ -z "$OLD_CODE" ]; then
-            echo "versionCode added: $NEW_CODE."
-            echo "version_code_bumped=true" >> $GITHUB_OUTPUT
-          else
-            echo "versionCode did not increase ($OLD_CODE -> $NEW_CODE)."
-            echo "version_code_bumped=false" >> $GITHUB_OUTPUT
-          fi
-
-          echo "version_name=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "version_code=$NEW_CODE" >> $GITHUB_OUTPUT
-
       - name: Compute release tag
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.version_check.outputs.version_bumped == 'true'
         id: tag
+        if: env.IS_MAIN_PUSH == 'true'
+        env:
+          BASE_TAG: v${{ steps.bump.outputs.version_name }}
         run: |
           set -euo pipefail
-          VERSION_NAME="${{ steps.version_check.outputs.version_name }}"
-          BASE_TAG="v$VERSION_NAME"
-          echo "Base tag: $BASE_TAG"
+          EXISTING=$(git ls-remote --tags origin "refs/tags/${BASE_TAG}" "refs/tags/${BASE_TAG}-build.*" \
+            | awk '{print $2}' | sed -e 's|refs/tags/||' -e 's|\^{}$||' | sort -u)
 
-          # Query the remote for matching tags without needing a full local fetch
-          EXISTING_TAGS=$(git ls-remote --tags origin "refs/tags/${BASE_TAG}" "refs/tags/${BASE_TAG}-build.*" \
-            | awk '{print $2}' \
-            | sed 's|refs/tags/||' \
-            | sed 's|\^{}$||' \
-            | sort -u)
-          echo "Existing matching tags:"
-          echo "$EXISTING_TAGS"
-
-          if ! echo "$EXISTING_TAGS" | grep -qx "$BASE_TAG"; then
-            FINAL_TAG="$BASE_TAG"
+          if ! echo "$EXISTING" | grep -qx "$BASE_TAG"; then
+            TAG="$BASE_TAG"
           else
-            HIGHEST=$(echo "$EXISTING_TAGS" \
+            HIGHEST=$(echo "$EXISTING" \
               | { grep -E "^${BASE_TAG}-build\.[0-9]+$" || true; } \
-              | sed -E "s/^${BASE_TAG}-build\.([0-9]+)$/\1/" \
-              | sort -n \
-              | tail -1)
-            if [ -z "$HIGHEST" ]; then
-              NEXT=2
-            else
-              NEXT=$((HIGHEST + 1))
-            fi
-            FINAL_TAG="${BASE_TAG}-build.${NEXT}"
+              | sed -E "s/.*-build\.([0-9]+)$/\1/" | sort -n | tail -1)
+            TAG="${BASE_TAG}-build.$(( ${HIGHEST:-1} + 1 ))"
           fi
-          echo "Final tag: $FINAL_TAG"
-          echo "tag=$FINAL_TAG" >> "$GITHUB_OUTPUT"
-          echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
 
-      - name: Stage APK for release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.version_check.outputs.version_bumped == 'true'
-        run: |
-          set -euo pipefail
-          APK_SRC="app/build/outputs/apk/debug/app-debug.apk"
-          if [ ! -f "$APK_SRC" ]; then
-            echo "::error::Debug APK not found at $APK_SRC"
-            ls -la app/build/outputs/apk/debug/ || true
-            exit 1
-          fi
-          mkdir -p release-assets
-          cp "$APK_SRC" "release-assets/averyTask-debug.apk"
+          echo "Release tag: $TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.version_check.outputs.version_bumped == 'true'
+        if: env.IS_MAIN_PUSH == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: ${{ steps.tag.outputs.tag }}
           body: |
-            Automated debug build for version ${{ steps.tag.outputs.version_name }}.
+            Automated debug build for v${{ steps.bump.outputs.version_name }} (build ${{ steps.bump.outputs.version_code }}).
 
             Commit: ${{ github.sha }}
-          files: release-assets/averyTask-debug.apk
+          files: app/build/outputs/apk/debug/app-debug.apk
           fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload to Firebase App Distribution
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && (steps.version_check.outputs.version_bumped == 'true' || steps.version_check.outputs.version_code_bumped == 'true')
+        if: env.IS_MAIN_PUSH == 'true'
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
@@ -217,22 +114,17 @@ jobs:
           firebase appdistribution:distribute app/build/outputs/apk/debug/app-debug.apk \
             --app 1:403186103462:android:919c46244d4a7f5f47b067 \
             --groups testers \
-            --release-notes "v${{ steps.version_check.outputs.version_name }} (build ${{ steps.version_check.outputs.version_code }}) from commit ${{ github.sha }}" \
-            --token "${{ secrets.FIREBASE_TOKEN }}"
+            --release-notes "v${{ steps.bump.outputs.version_name }} (build ${{ steps.bump.outputs.version_code }}) from commit ${{ github.sha }}" \
+            --token "$FIREBASE_TOKEN"
 
-      - name: Commit version bump and debug APK to repo root
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && (steps.version_check.outputs.version_bumped == 'true' || steps.version_check.outputs.version_code_bumped == 'true')
+      - name: Commit version bump and debug APK
+        if: env.IS_MAIN_PUSH == 'true'
         run: |
-          APK_PATH=$(find app/build/outputs/apk/debug -name '*.apk' | head -1)
-          if [ -z "$APK_PATH" ]; then
-            echo "ERROR: No debug APK found"
-            ls -la app/build/outputs/apk/debug/ || true
-            exit 1
-          fi
-          cp "$APK_PATH" app-debug.apk
+          set -euo pipefail
+          cp app/build/outputs/apk/debug/app-debug.apk app-debug.apk
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add app-debug.apk app/build.gradle.kts
-          git diff --cached --quiet || git commit -m "chore: bump to v${{ steps.version_check.outputs.version_name }} (build ${{ steps.version_check.outputs.version_code }}) [skip ci]"
+          git diff --cached --quiet || git commit -m "chore: bump to v${{ steps.bump.outputs.version_name }} (build ${{ steps.bump.outputs.version_code }}) [skip ci]"
           git pull --rebase origin main || true
           git push
