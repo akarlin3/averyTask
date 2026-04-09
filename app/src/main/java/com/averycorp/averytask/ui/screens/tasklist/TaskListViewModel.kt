@@ -527,10 +527,12 @@ class TaskListViewModel @Inject constructor(
             sortPreferences.setSortMode(SortPreferences.ScreenKeys.TASK_LIST, sort.token)
             val projectFilter = _currentFilter.value.selectedProjectIds
             if (projectFilter.size == 1) {
-                sortPreferences.setSortMode(
-                    SortPreferences.ScreenKeys.project(projectFilter.first()),
-                    sort.token
-                )
+                projectFilter.first()?.let { singleProjectId ->
+                    sortPreferences.setSortMode(
+                        SortPreferences.ScreenKeys.project(singleProjectId),
+                        sort.token
+                    )
+                }
             }
             // When the user explicitly picks Custom from the menu, hint at
             // the new interaction so they discover drag-to-reorder.
