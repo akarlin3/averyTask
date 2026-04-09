@@ -16,6 +16,9 @@ import com.averycorp.averytask.data.local.dao.TaskDao
 import com.averycorp.averytask.data.local.dao.TaskTemplateDao
 import com.averycorp.averytask.data.local.dao.UsageLogDao
 import com.averycorp.averytask.data.local.database.AveryTaskDatabase
+import com.averycorp.averytask.data.seed.TemplatePreferencesSeededFlagStore
+import com.averycorp.averytask.data.seed.TemplateSeeder
+import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -81,4 +84,20 @@ object DatabaseModule {
 
     @Provides
     fun provideTaskTemplateDao(database: AveryTaskDatabase): TaskTemplateDao = database.taskTemplateDao()
+}
+
+/**
+ * Binds the production [TemplateSeeder.SeededFlagStore] implementation
+ * ([TemplatePreferencesSeededFlagStore]) into the Hilt graph. Split into a
+ * separate abstract module because `@Binds` can't live alongside `@Provides`
+ * in an `object` module.
+ */
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class TemplateSeederModule {
+    @Binds
+    @Singleton
+    abstract fun bindSeededFlagStore(
+        impl: TemplatePreferencesSeededFlagStore
+    ): TemplateSeeder.SeededFlagStore
 }

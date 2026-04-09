@@ -52,7 +52,9 @@ class TemplateListViewModel @Inject constructor(
      * All templates, filtered client-side by the current category and search
      * query. Keeping the filter here (instead of querying the DAO per change)
      * lets the screen react instantly to chip taps without re-subscribing to
-     * a new Flow each time.
+     * a new Flow each time. The DAO already sorts by usage_count DESC (then
+     * last_used_at DESC), so "most used" ordering is free — we just preserve
+     * it here.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     val templates: StateFlow<List<TaskTemplateEntity>> = combine(
@@ -87,6 +89,26 @@ class TemplateListViewModel @Inject constructor(
                 templateRepository.deleteTemplate(id)
             } catch (e: Exception) {
                 Log.e("TemplateListVM", "Failed to delete template", e)
+            }
+        }
+    }
+
+    /**
+     * Removes a category label from every template that currently has it.
+     * The templates themselves survive — only their [category] field is
+     * cleared. Invoked from the "Manage Categories" dialog in [TemplateListScreen].
+     */
+    fun deleteCategory(category: String) {
+        viewModelScope.launch {
+            try {
+                templateRepository.clearCategory(category)
+                // If the user was currently filtering by this category, drop
+                // the filter so the list doesn't go suddenly empty on them.
+                if (_selectedCategory.value == category) {
+                    _selectedCategory.value = null
+                }
+            } catch (e: Exception) {
+                Log.e("TemplateListVM", "Failed to delete category", e)
             }
         }
     }

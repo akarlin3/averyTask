@@ -11,11 +11,20 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface TaskTemplateDao {
 
-    @Query("SELECT * FROM task_templates ORDER BY usage_count DESC")
+    @Query("SELECT * FROM task_templates ORDER BY usage_count DESC, last_used_at DESC")
     fun getAllTemplates(): Flow<List<TaskTemplateEntity>>
 
-    @Query("SELECT * FROM task_templates ORDER BY usage_count DESC")
+    @Query("SELECT * FROM task_templates ORDER BY usage_count DESC, last_used_at DESC")
     suspend fun getAllTemplatesOnce(): List<TaskTemplateEntity>
+
+    @Query("SELECT COUNT(*) FROM task_templates")
+    suspend fun countTemplates(): Int
+
+    @Query("SELECT * FROM task_templates WHERE name = :name LIMIT 1")
+    suspend fun getTemplateByName(name: String): TaskTemplateEntity?
+
+    @Query("UPDATE task_templates SET category = NULL, updated_at = :now WHERE category = :category")
+    suspend fun clearCategory(category: String, now: Long = System.currentTimeMillis())
 
     @Query("SELECT * FROM task_templates WHERE category = :category ORDER BY usage_count DESC")
     fun getTemplatesByCategory(category: String): Flow<List<TaskTemplateEntity>>

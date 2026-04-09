@@ -75,6 +75,9 @@ import com.averycorp.averytask.ui.components.EmptyState
 import com.averycorp.averytask.ui.navigation.AveryTaskRoute
 import com.averycorp.averytask.ui.screens.addedittask.AddEditTaskSheetHost
 import kotlinx.coroutines.delay
+import java.text.DateFormat
+import java.util.Date
+import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -92,6 +95,9 @@ fun TemplateListScreen(
     var templateToDelete by remember { mutableStateOf<TaskTemplateEntity?>(null) }
     var editorSheetTaskId by remember { mutableStateOf<Long?>(null) }
     var showEditorSheet by remember { mutableStateOf(false) }
+    var overflowMenuExpanded by remember { mutableStateOf(false) }
+    var showManageCategoriesDialog by remember { mutableStateOf(false) }
+    var categoryToDelete by remember { mutableStateOf<String?>(null) }
 
     // Auto-dismiss the quick-use banner after a short window so it behaves
     // like a Snackbar despite being a bespoke composable. The delay is
@@ -125,6 +131,26 @@ fun TemplateListScreen(
                                 if (showSearch) Icons.Default.Close else Icons.Default.Search,
                                 contentDescription = if (showSearch) "Close Search" else "Search"
                             )
+                        }
+                        Box {
+                            IconButton(onClick = { overflowMenuExpanded = true }) {
+                                Icon(
+                                    Icons.Default.MoreVert,
+                                    contentDescription = "More Options"
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = overflowMenuExpanded,
+                                onDismissRequest = { overflowMenuExpanded = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Manage Categories") },
+                                    onClick = {
+                                        overflowMenuExpanded = false
+                                        showManageCategoriesDialog = true
+                                    }
+                                )
+                            }
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -274,6 +300,92 @@ fun TemplateListScreen(
             }
         )
     }
+
+    if (showManageCategoriesDialog) {
+        ManageCategoriesDialog(
+            categories = categories,
+            onDelete = { categoryToDelete = it },
+            onDismiss = { showManageCategoriesDialog = false }
+        )
+    }
+
+    categoryToDelete?.let { category ->
+        AlertDialog(
+            onDismissRequest = { categoryToDelete = null },
+            title = { Text("Delete Category") },
+            text = {
+                Text(
+                    "Remove the \"$category\" category? Templates in this " +
+                        "category will stay, but they'll no longer be grouped."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteCategory(category)
+                    categoryToDelete = null
+                }) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { categoryToDelete = null }) { Text("Cancel") }
+            }
+        )
+    }
+}
+
+/**
+ * Simple list-of-categories dialog invoked from the "Manage Categories"
+ * overflow menu item. Each row has a trash icon that asks for a confirmation
+ * via [onDelete]; the confirmation itself is an [AlertDialog] hoisted into the
+ * parent so the two dialogs can be stacked.
+ */
+@Composable
+private fun ManageCategoriesDialog(
+    categories: List<String>,
+    onDelete: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Manage Categories") },
+        text = {
+            if (categories.isEmpty()) {
+                Text(
+                    "No Categories Yet. Add a category when creating or editing a template.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                Column {
+                    categories.forEach { category ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = category,
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.weight(1f)
+                            )
+                            IconButton(onClick = { onDelete(category) }) {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = "Delete $category",
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Done") }
+        }
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -356,7 +468,7 @@ private fun TemplateCard(
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // Name + preview
+            // Name + preview + usage analytics
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = template.name,
@@ -383,11 +495,14 @@ private fun TemplateCard(
                         fontWeight = FontWeight.Medium
                     )
                 }
+                // Usage analytics footer — different copy depending on whether
+                // the template has ever been used.
+                TemplateUsageLine(template = template)
             }
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            // Usage badge
+            // Usage badge — "Used Nx" at a glance.
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(10.dp))
@@ -548,6 +663,64 @@ private fun QuickUseSnackbar(
             }
         }
     }
+}
+
+/**
+ * Tiny footer shown under the template name + preview that summarizes usage:
+ *
+ *  - 0 uses ever → "Not Used Yet" in muted text.
+ *  - Used, last used within 30 days → "Used N Times · Last Used: <date>".
+ *  - Used, but untouched for 30+ days → adds a subtle "Haven't Used This In a
+ *    While" tail so cold templates are visually distinct without being shouty.
+ */
+@Composable
+private fun TemplateUsageLine(template: TaskTemplateEntity) {
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+    if (template.usageCount == 0) {
+        Text(
+            text = "Not Used Yet",
+            style = MaterialTheme.typography.labelSmall,
+            color = muted
+        )
+        return
+    }
+    val lastUsedAt = template.lastUsedAt
+    val text = buildString {
+        append("Used ")
+        append(template.usageCount)
+        append(" time")
+        if (template.usageCount != 1) append("s")
+        if (lastUsedAt != null) {
+            append(" · Last Used: ")
+            append(DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(lastUsedAt)))
+        }
+    }
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelSmall,
+        color = muted,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis
+    )
+    if (isStaleTemplate(template, System.currentTimeMillis())) {
+        Text(
+            text = "Haven't Used This In a While",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+        )
+    }
+}
+
+/**
+ * Returns true when a template has been used at least once but not in the
+ * last 30 days. Exposed as a top-level function (rather than inlined) so it
+ * can be unit-tested with a deterministic `now`.
+ */
+internal fun isStaleTemplate(template: TaskTemplateEntity, now: Long): Boolean {
+    if (template.usageCount == 0) return false
+    val lastUsed = template.lastUsedAt ?: return false
+    val thirtyDaysMs = TimeUnit.DAYS.toMillis(30)
+    return (now - lastUsed) >= thirtyDaysMs
 }
 
 /**

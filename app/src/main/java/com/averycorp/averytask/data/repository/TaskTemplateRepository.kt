@@ -32,10 +32,40 @@ class TaskTemplateRepository @Inject constructor(
     suspend fun createTemplate(template: TaskTemplateEntity): Long =
         templateDao.insertTemplate(template)
 
+    /**
+     * Persists an edit to a template. Because users can edit the seeded
+     * built-ins in place, any update flips [TaskTemplateEntity.isBuiltIn] to
+     * `false` — the intent is that a modified default is no longer a "built-in",
+     * it's the user's template now. We intentionally do NOT preserve the flag
+     * (e.g., "it was once a built-in") because the UI treats built-in purely as
+     * "shipped as-is by us".
+     */
     suspend fun updateTemplate(template: TaskTemplateEntity) =
-        templateDao.updateTemplate(template.copy(updatedAt = System.currentTimeMillis()))
+        templateDao.updateTemplate(
+            template.copy(
+                isBuiltIn = false,
+                updatedAt = System.currentTimeMillis()
+            )
+        )
 
     suspend fun deleteTemplate(id: Long) = templateDao.deleteTemplate(id)
+
+    /**
+     * Removes [category] from every template that currently has it set,
+     * setting their category to `null`. This is the "Manage Categories →
+     * Delete" action in [com.averycorp.averytask.ui.screens.templates.TemplateListScreen]:
+     * deleting a category only removes the label, it doesn't touch the templates
+     * themselves.
+     */
+    suspend fun clearCategory(category: String) {
+        templateDao.clearCategory(category)
+    }
+
+    suspend fun getTemplateByName(name: String): TaskTemplateEntity? =
+        templateDao.getTemplateByName(name)
+
+    suspend fun getAllTemplatesOnce(): List<TaskTemplateEntity> =
+        templateDao.getAllTemplatesOnce()
 
     /**
      * Instantiates a new [TaskEntity] from the template referenced by
@@ -183,6 +213,88 @@ class TaskTemplateRepository @Inject constructor(
             } catch (e: Exception) {
                 emptyList()
             }
+        }
+
+        /**
+         * Case-insensitive fuzzy name lookup used by the NLP quick-add path
+         * ("apply my morning routine template"). The algorithm is deliberately
+         * simple — substring match first, then token-prefix match — so that
+         * common abbreviations ("morning", "review", "grocery") resolve to the
+         * right template without pulling in a full Levenshtein implementation.
+         *
+         * Returns the best-matching template or null if nothing matches. Ties
+         * are broken by the template with the higher [TaskTemplateEntity.usageCount]
+         * so a frequently-used template wins over an unused one.
+         */
+        fun findBestMatchByName(
+            templates: List<TaskTemplateEntity>,
+            query: String
+        ): TaskTemplateEntity? {
+            val normalized = query.trim().lowercase()
+            if (normalized.isEmpty() || templates.isEmpty()) return null
+
+            // 1) Exact match (case-insensitive) wins outright.
+            templates.firstOrNull { it.name.equals(normalized, ignoreCase = true) }
+                ?.let { return it }
+
+            // 2) Score everything else with a simple substring/prefix score.
+            //    Higher score = better match.
+            fun score(template: TaskTemplateEntity): Int {
+                val name = template.name.lowercase()
+                return when {
+                    name == normalized -> 1000
+                    name.startsWith(normalized) -> 500 + template.usageCount
+                    name.contains(normalized) -> 300 + template.usageCount
+                    // Token-prefix: any word in the template name starts with the query.
+                    name.split(' ', '-', '_')
+                        .any { it.startsWith(normalized) } -> 200 + template.usageCount
+                    // Reverse: query contains the template name (e.g., query is a
+                    // longer phrase, template name is a short keyword).
+                    normalized.contains(name) && name.length >= 3 -> 100 + template.usageCount
+                    else -> 0
+                }
+            }
+
+            return templates
+                .map { it to score(it) }
+                .filter { it.second > 0 }
+                .maxWithOrNull(
+                    compareBy<Pair<TaskTemplateEntity, Int>> { it.second }
+                        .thenBy { it.first.usageCount }
+                )
+                ?.first
+        }
+
+        /**
+         * Merge two template lists by name, keeping whichever copy has the
+         * higher [TaskTemplateEntity.usageCount]. Used on first-connect to the
+         * backend when the same template exists both locally and remotely (e.g.,
+         * the user installed on a second device). Templates that appear in only
+         * one list are passed through unchanged.
+         *
+         * This is intentionally a pure function so it can be unit-tested without
+         * any Room or network plumbing.
+         */
+        fun mergeTemplatesByName(
+            local: List<TaskTemplateEntity>,
+            remote: List<TaskTemplateEntity>
+        ): List<TaskTemplateEntity> {
+            val byName = mutableMapOf<String, TaskTemplateEntity>()
+            for (template in local) {
+                byName[template.name.lowercase()] = template
+            }
+            for (template in remote) {
+                val key = template.name.lowercase()
+                val existing = byName[key]
+                byName[key] = if (existing == null) {
+                    template
+                } else if (template.usageCount > existing.usageCount) {
+                    template
+                } else {
+                    existing
+                }
+            }
+            return byName.values.toList()
         }
 
         /**

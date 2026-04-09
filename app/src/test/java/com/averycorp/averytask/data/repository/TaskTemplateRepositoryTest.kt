@@ -56,6 +56,95 @@ class TaskTemplateRepositoryTest {
     }
 
     @Test
+    fun updateTemplate_flipsIsBuiltInFalseWhenUserEditsDefault() = runBlocking {
+        // Editing a built-in template should demote it to a plain user
+        // template — the point of shipping the bit is "this is exactly what
+        // we gave you", so any edit invalidates that claim.
+        val templateDao = FakeTemplateDao()
+        val taskDao = FakeTaskDao()
+        val tagDao = FakeTagDao()
+        val repo = TaskTemplateRepository(templateDao, taskDao, tagDao)
+
+        val id = templateDao.insertTemplate(
+            sampleTemplate(
+                name = "Morning Routine",
+                templateTitle = "Morning Routine"
+            ).copy(isBuiltIn = true)
+        )
+
+        val original = templateDao.getTemplateById(id)!!
+        assertTrue(
+            "Precondition: inserted template should be marked as built-in",
+            original.isBuiltIn
+        )
+
+        repo.updateTemplate(original.copy(name = "My Morning Routine"))
+
+        val stored = templateDao.getTemplateById(id)!!
+        assertEquals("My Morning Routine", stored.name)
+        assertEquals(
+            "Editing a built-in template should flip isBuiltIn to false",
+            false,
+            stored.isBuiltIn
+        )
+    }
+
+    @Test
+    fun findBestMatchByName_prefersExactMatchOverSubstring() {
+        val templates = listOf(
+            sampleTemplate(name = "Morning Routine"),
+            sampleTemplate(name = "Routine", usageCount = 10)
+        )
+        val match = TaskTemplateRepository.findBestMatchByName(templates, "morning routine")
+        assertNotNull(match)
+        assertEquals("Morning Routine", match!!.name)
+    }
+
+    @Test
+    fun findBestMatchByName_fallsBackToSubstringAndTokenPrefix() {
+        val templates = listOf(
+            sampleTemplate(name = "Weekly Review"),
+            sampleTemplate(name = "Deep Clean"),
+            sampleTemplate(name = "Grocery Shopping")
+        )
+        // Substring match — "review" appears inside "Weekly Review".
+        val reviewMatch = TaskTemplateRepository.findBestMatchByName(templates, "review")
+        assertEquals("Weekly Review", reviewMatch?.name)
+
+        // Token-prefix match — "groc" is a prefix of "Grocery".
+        val groceryMatch = TaskTemplateRepository.findBestMatchByName(templates, "groc")
+        assertEquals("Grocery Shopping", groceryMatch?.name)
+
+        // Nothing matches — return null rather than guessing.
+        val noMatch = TaskTemplateRepository.findBestMatchByName(templates, "pizza party")
+        assertTrue(noMatch == null)
+    }
+
+    @Test
+    fun mergeTemplatesByName_keepsHigherUsageCountOnCollision() {
+        val local = listOf(
+            sampleTemplate(name = "Morning Routine", usageCount = 8),
+            sampleTemplate(name = "Deep Clean", usageCount = 2)
+        )
+        val remote = listOf(
+            // Remote "Morning Routine" has lower usage, so local wins.
+            sampleTemplate(name = "morning routine", usageCount = 3),
+            // Remote "Deep Clean" has higher usage, so remote wins.
+            sampleTemplate(name = "Deep Clean", usageCount = 11),
+            // Remote-only template — should be included as-is.
+            sampleTemplate(name = "Weekly Review", usageCount = 0)
+        )
+
+        val merged = TaskTemplateRepository.mergeTemplatesByName(local, remote)
+            .associateBy { it.name.lowercase() }
+
+        assertEquals(3, merged.size)
+        assertEquals(8, merged["morning routine"]?.usageCount)
+        assertEquals(11, merged["deep clean"]?.usageCount)
+        assertNotNull(merged["weekly review"])
+    }
+
+    @Test
     fun parseSubtaskTitles_returnsEmptyListForNullBlankOrMalformedInput() {
         // Templates can land in the DB with null / empty / malformed JSON
         // (e.g., from an older schema or a bad pull). createTaskFromTemplate
@@ -304,6 +393,19 @@ class TaskTemplateRepositoryTest {
         override suspend fun incrementUsage(id: Long, usedAt: Long) {
             store[id]?.let {
                 store[id] = it.copy(usageCount = it.usageCount + 1, lastUsedAt = usedAt)
+            }
+        }
+
+        override suspend fun countTemplates(): Int = store.size
+
+        override suspend fun getTemplateByName(name: String): TaskTemplateEntity? =
+            store.values.firstOrNull { it.name == name }
+
+        override suspend fun clearCategory(category: String, now: Long) {
+            store.entries.forEach { (id, template) ->
+                if (template.category == category) {
+                    store[id] = template.copy(category = null, updatedAt = now)
+                }
             }
         }
 

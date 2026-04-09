@@ -10,6 +10,7 @@ import com.averycorp.averytask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.averytask.data.repository.LeisureRepository
 import com.averycorp.averytask.data.repository.SchoolworkRepository
 import com.averycorp.averytask.data.repository.SelfCareRepository
+import com.averycorp.averytask.data.seed.TemplateSeeder
 import com.averycorp.averytask.workers.AutoArchiveWorker
 import com.averycorp.averytask.workers.DailyResetWorker
 import dagger.hilt.android.HiltAndroidApp
@@ -39,6 +40,9 @@ class AveryTaskApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var taskBehaviorPreferences: TaskBehaviorPreferences
 
+    @Inject
+    lateinit var templateSeeder: TemplateSeeder
+
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override val workManagerConfiguration: Configuration
@@ -51,6 +55,18 @@ class AveryTaskApplication : Application(), Configuration.Provider {
         scheduleAutoArchive()
         scheduleDailyReset()
         seedBuiltInHabits()
+        seedBuiltInTemplates()
+    }
+
+    /**
+     * Inserts the six built-in task templates on first launch. Gated by a
+     * `templates_seeded` flag in [com.averycorp.averytask.data.preferences.TemplatePreferences]
+     * so it runs exactly once per install and never resurrects deleted defaults.
+     */
+    private fun seedBuiltInTemplates() {
+        appScope.launch {
+            templateSeeder.seedIfNeeded()
+        }
     }
 
     /**
