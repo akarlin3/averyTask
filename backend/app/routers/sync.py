@@ -62,7 +62,7 @@ async def _process_operation(
             data["user_id"] = user.id
         # Default status for new tasks (PostgreSQL enum values are lowercase)
         if op.entity_type == "task" and "status" not in data:
-            data["status"] = TaskStatus.TODO.value
+            data["status"] = "todo"
         # Convert status enums to their lowercase values
         if "status" in data and op.entity_type in STATUS_ENUM_MAP:
             data["status"] = STATUS_ENUM_MAP[op.entity_type](data["status"]).value
