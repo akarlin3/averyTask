@@ -138,4 +138,8 @@ interface TaskDao {
 
     @Query("UPDATE tasks SET due_date = :newDate, updated_at = :now WHERE id = :id")
     suspend fun updateDueDate(id: Long, newDate: Long?, now: Long = System.currentTimeMillis())
+
+    // Tasks booked against a habit whose due_date or planned_date falls in the given range.
+    @Query("SELECT * FROM tasks WHERE source_habit_id = :habitId AND archived_at IS NULL AND ((due_date IS NOT NULL AND due_date >= :startDate AND due_date <= :endDate) OR (planned_date IS NOT NULL AND planned_date >= :startDate AND planned_date <= :endDate))")
+    suspend fun getTasksForHabitInRangeOnce(habitId: Long, startDate: Long, endDate: Long): List<TaskEntity>
 }

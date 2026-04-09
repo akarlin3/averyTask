@@ -63,6 +63,10 @@ class AddEditHabitViewModel @Inject constructor(
         private set
     var hasLogging by mutableStateOf(false)
         private set
+    var trackBooking by mutableStateOf(false)
+        private set
+    var trackPreviousPeriod by mutableStateOf(false)
+        private set
     var nameError by mutableStateOf(false)
         private set
     var customCategories by mutableStateOf<List<String>>(emptyList())
@@ -85,6 +89,8 @@ class AddEditHabitViewModel @Inject constructor(
                     icon = habit.icon
                     category = habit.category ?: ""
                     hasLogging = habit.hasLogging
+                    trackBooking = habit.trackBooking
+                    trackPreviousPeriod = habit.trackPreviousPeriod
                     if (habit.reminderTime != null) {
                         reminderEnabled = true
                         reminderHour = (habit.reminderTime / (60 * 60 * 1000)).toInt()
@@ -142,6 +148,8 @@ class AddEditHabitViewModel @Inject constructor(
     fun onMedicationReminderIntervalChange(index: Int) { medicationReminderIntervalIndex = index.coerceIn(1, 48) }
     fun onMedicationTimesPerDayChange(value: Int) { medicationTimesPerDay = value.coerceIn(1, 10) }
     fun onHasLoggingChange(value: Boolean) { hasLogging = value }
+    fun onTrackBookingChange(value: Boolean) { trackBooking = value }
+    fun onTrackPreviousPeriodChange(value: Boolean) { trackPreviousPeriod = value }
 
     suspend fun saveHabit(): Boolean {
         if (name.isBlank()) {
@@ -164,6 +172,11 @@ class AddEditHabitViewModel @Inject constructor(
                 "[${activeDays.sorted().joinToString(",")}]"
             } else null
 
+            // Booking/previous period tracking only applies to recurring habits
+            val isRecurring = frequencyPeriod != "daily"
+            val effectiveTrackBooking = isRecurring && trackBooking
+            val effectiveTrackPreviousPeriod = isRecurring && trackPreviousPeriod
+
             val existing = existingHabit
             if (existing != null) {
                 habitRepository.updateHabit(
@@ -179,7 +192,9 @@ class AddEditHabitViewModel @Inject constructor(
                         reminderIntervalMillis = reminderIntervalMillis,
                         reminderTimesPerDay = timesPerDay,
                         category = category.trim().ifEmpty { null },
-                        hasLogging = hasLogging
+                        hasLogging = hasLogging,
+                        trackBooking = effectiveTrackBooking,
+                        trackPreviousPeriod = effectiveTrackPreviousPeriod
                     )
                 )
                 // Cancel or reschedule medication reminder on edit
@@ -202,7 +217,9 @@ class AddEditHabitViewModel @Inject constructor(
                         reminderIntervalMillis = reminderIntervalMillis,
                         reminderTimesPerDay = timesPerDay,
                         category = category.trim().ifEmpty { null },
-                        hasLogging = hasLogging
+                        hasLogging = hasLogging,
+                        trackBooking = effectiveTrackBooking,
+                        trackPreviousPeriod = effectiveTrackPreviousPeriod
                     )
                 )
             }

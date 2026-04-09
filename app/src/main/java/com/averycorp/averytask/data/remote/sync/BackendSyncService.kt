@@ -236,6 +236,8 @@ class BackendSyncService @Inject constructor(
             if (habit.reminderIntervalMillis != null) addProperty("reminder_interval_millis", habit.reminderIntervalMillis)
             addProperty("reminder_times_per_day", habit.reminderTimesPerDay)
             addProperty("has_logging", habit.hasLogging)
+            addProperty("track_booking", habit.trackBooking)
+            addProperty("track_previous_period", habit.trackPreviousPeriod)
             addProperty("created_at", habit.createdAt)
             addProperty("updated_at", habit.updatedAt)
         }
@@ -403,6 +405,8 @@ class BackendSyncService @Inject constructor(
                 reminderIntervalMillis = data.optLong("reminder_interval_millis"),
                 reminderTimesPerDay = data.optInt("reminder_times_per_day") ?: 1,
                 hasLogging = data.optBool("has_logging") ?: false,
+                trackBooking = data.optBool("track_booking") ?: false,
+                trackPreviousPeriod = data.optBool("track_previous_period") ?: false,
                 createdAt = data.optLong("created_at") ?: System.currentTimeMillis(),
                 updatedAt = remoteUpdatedAt
             )

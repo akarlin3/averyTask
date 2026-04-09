@@ -104,6 +104,8 @@ object SyncMapper {
         "reminderIntervalMillis" to habit.reminderIntervalMillis,
         "reminderTimesPerDay" to habit.reminderTimesPerDay,
         "hasLogging" to habit.hasLogging,
+        "trackBooking" to habit.trackBooking,
+        "trackPreviousPeriod" to habit.trackPreviousPeriod,
         "createdAt" to habit.createdAt,
         "updatedAt" to habit.updatedAt
     )
@@ -125,6 +127,8 @@ object SyncMapper {
         reminderIntervalMillis = (data["reminderIntervalMillis"] as? Number)?.toLong(),
         reminderTimesPerDay = (data["reminderTimesPerDay"] as? Number)?.toInt() ?: 1,
         hasLogging = data["hasLogging"] as? Boolean ?: false,
+        trackBooking = data["trackBooking"] as? Boolean ?: false,
+        trackPreviousPeriod = data["trackPreviousPeriod"] as? Boolean ?: false,
         createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
         updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
     )
