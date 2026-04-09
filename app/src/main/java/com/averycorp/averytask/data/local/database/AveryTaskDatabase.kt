@@ -15,6 +15,7 @@ import com.averycorp.averytask.data.local.dao.SelfCareDao
 import com.averycorp.averytask.data.local.dao.SyncMetadataDao
 import com.averycorp.averytask.data.local.dao.TagDao
 import com.averycorp.averytask.data.local.dao.TaskDao
+import com.averycorp.averytask.data.local.dao.TaskTemplateDao
 import com.averycorp.averytask.data.local.dao.UsageLogDao
 import com.averycorp.averytask.data.local.entity.AttachmentEntity
 import com.averycorp.averytask.data.local.entity.CalendarSyncEntity
@@ -32,11 +33,12 @@ import com.averycorp.averytask.data.local.entity.SyncMetadataEntity
 import com.averycorp.averytask.data.local.entity.TagEntity
 import com.averycorp.averytask.data.local.entity.TaskEntity
 import com.averycorp.averytask.data.local.entity.TaskTagCrossRef
+import com.averycorp.averytask.data.local.entity.TaskTemplateEntity
 import com.averycorp.averytask.data.local.entity.UsageLogEntity
 
 @Database(
-    entities = [TaskEntity::class, ProjectEntity::class, TagEntity::class, TaskTagCrossRef::class, AttachmentEntity::class, UsageLogEntity::class, SyncMetadataEntity::class, CalendarSyncEntity::class, HabitEntity::class, HabitCompletionEntity::class, LeisureLogEntity::class, CourseEntity::class, AssignmentEntity::class, StudyLogEntity::class, CourseCompletionEntity::class, SelfCareLogEntity::class, SelfCareStepEntity::class],
-    version = 23,
+    entities = [TaskEntity::class, ProjectEntity::class, TagEntity::class, TaskTagCrossRef::class, AttachmentEntity::class, UsageLogEntity::class, SyncMetadataEntity::class, CalendarSyncEntity::class, HabitEntity::class, HabitCompletionEntity::class, LeisureLogEntity::class, CourseEntity::class, AssignmentEntity::class, StudyLogEntity::class, CourseCompletionEntity::class, SelfCareLogEntity::class, SelfCareStepEntity::class, TaskTemplateEntity::class],
+    version = 24,
     exportSchema = false
 )
 abstract class AveryTaskDatabase : RoomDatabase() {
@@ -52,6 +54,7 @@ abstract class AveryTaskDatabase : RoomDatabase() {
     abstract fun leisureDao(): LeisureDao
     abstract fun schoolworkDao(): SchoolworkDao
     abstract fun selfCareDao(): SelfCareDao
+    abstract fun taskTemplateDao(): TaskTemplateDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -388,6 +391,38 @@ abstract class AveryTaskDatabase : RoomDatabase() {
                     WHERE parent_task_id IS NULL
                     """.trimIndent()
                 )
+            }
+        }
+
+        val MIGRATION_23_24 = object : Migration(23, 24) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `task_templates` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `userId` TEXT,
+                        `remoteId` INTEGER,
+                        `name` TEXT NOT NULL,
+                        `description` TEXT,
+                        `icon` TEXT,
+                        `category` TEXT,
+                        `template_title` TEXT,
+                        `template_description` TEXT,
+                        `template_priority` INTEGER,
+                        `templateProjectId` INTEGER,
+                        `template_tags_json` TEXT,
+                        `template_recurrence_json` TEXT,
+                        `template_duration` INTEGER,
+                        `template_subtasks_json` TEXT,
+                        `is_built_in` INTEGER NOT NULL DEFAULT 0,
+                        `usage_count` INTEGER NOT NULL DEFAULT 0,
+                        `last_used_at` INTEGER,
+                        `created_at` INTEGER NOT NULL,
+                        `updated_at` INTEGER NOT NULL,
+                        FOREIGN KEY(`templateProjectId`) REFERENCES `projects`(`id`) ON DELETE SET NULL
+                    )"""
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_task_templates_templateProjectId` ON `task_templates` (`templateProjectId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_task_templates_userId` ON `task_templates` (`userId`)")
             }
         }
     }

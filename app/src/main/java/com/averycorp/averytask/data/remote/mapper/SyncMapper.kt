@@ -5,6 +5,7 @@ import com.averycorp.averytask.data.local.entity.HabitEntity
 import com.averycorp.averytask.data.local.entity.ProjectEntity
 import com.averycorp.averytask.data.local.entity.TagEntity
 import com.averycorp.averytask.data.local.entity.TaskEntity
+import com.averycorp.averytask.data.local.entity.TaskTemplateEntity
 
 object SyncMapper {
 
@@ -149,4 +150,51 @@ object SyncMapper {
             completedAt = (data["completedAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
             notes = data["notes"] as? String
         )
+
+    fun taskTemplateToMap(template: TaskTemplateEntity): Map<String, Any?> = mapOf(
+        "localId" to template.id,
+        "userId" to template.userId,
+        "remoteId" to template.remoteId,
+        "name" to template.name,
+        "description" to template.description,
+        "icon" to template.icon,
+        "category" to template.category,
+        "templateTitle" to template.templateTitle,
+        "templateDescription" to template.templateDescription,
+        "templatePriority" to template.templatePriority,
+        "templateProjectId" to template.templateProjectId?.toString(),
+        "templateTagsJson" to template.templateTagsJson,
+        "templateRecurrenceJson" to template.templateRecurrenceJson,
+        "templateDuration" to template.templateDuration,
+        "templateSubtasksJson" to template.templateSubtasksJson,
+        "isBuiltIn" to template.isBuiltIn,
+        "usageCount" to template.usageCount,
+        "lastUsedAt" to template.lastUsedAt,
+        "createdAt" to template.createdAt,
+        "updatedAt" to template.updatedAt
+    )
+
+    fun mapToTaskTemplate(data: Map<String, Any?>, localId: Long = 0): TaskTemplateEntity = TaskTemplateEntity(
+        id = localId,
+        userId = data["userId"] as? String,
+        remoteId = (data["remoteId"] as? Number)?.toInt(),
+        name = data["name"] as? String ?: "",
+        description = data["description"] as? String,
+        icon = data["icon"] as? String,
+        category = data["category"] as? String,
+        templateTitle = data["templateTitle"] as? String,
+        templateDescription = data["templateDescription"] as? String,
+        templatePriority = (data["templatePriority"] as? Number)?.toInt(),
+        templateProjectId = (data["templateProjectId"] as? String)?.toLongOrNull()
+            ?: (data["templateProjectId"] as? Number)?.toLong(),
+        templateTagsJson = data["templateTagsJson"] as? String,
+        templateRecurrenceJson = data["templateRecurrenceJson"] as? String,
+        templateDuration = (data["templateDuration"] as? Number)?.toInt(),
+        templateSubtasksJson = data["templateSubtasksJson"] as? String,
+        isBuiltIn = data["isBuiltIn"] as? Boolean ?: false,
+        usageCount = (data["usageCount"] as? Number)?.toInt() ?: 0,
+        lastUsedAt = (data["lastUsedAt"] as? Number)?.toLong(),
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+        updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+    )
 }

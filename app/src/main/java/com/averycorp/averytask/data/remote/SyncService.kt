@@ -6,6 +6,7 @@ import com.averycorp.averytask.data.local.dao.HabitDao
 import com.averycorp.averytask.data.local.dao.SyncMetadataDao
 import com.averycorp.averytask.data.local.dao.TagDao
 import com.averycorp.averytask.data.local.dao.TaskDao
+import com.averycorp.averytask.data.local.dao.TaskTemplateDao
 import com.averycorp.averytask.data.local.dao.ProjectDao
 import com.averycorp.averytask.data.local.entity.SyncMetadataEntity
 import com.averycorp.averytask.data.local.entity.TaskTagCrossRef
@@ -28,7 +29,8 @@ class SyncService @Inject constructor(
     private val tagDao: TagDao,
     private val syncMetadataDao: SyncMetadataDao,
     private val habitDao: HabitDao,
-    private val habitCompletionDao: HabitCompletionDao
+    private val habitCompletionDao: HabitCompletionDao,
+    private val taskTemplateDao: TaskTemplateDao
 ) {
     private val firestore = FirebaseFirestore.getInstance()
     private val listeners = mutableListOf<ListenerRegistration>()
@@ -101,6 +103,17 @@ class SyncService @Inject constructor(
                 cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()
             ))
         }
+
+        // Upload task templates
+        val templates = taskTemplateDao.getAllTemplatesOnce()
+        for (template in templates) {
+            val docRef = userCollection("task_templates")?.document() ?: continue
+            docRef.set(SyncMapper.taskTemplateToMap(template)).await()
+            syncMetadataDao.upsert(SyncMetadataEntity(
+                localId = template.id, entityType = "task_template",
+                cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()
+            ))
+        }
     }
 
     suspend fun pushLocalChanges() {
@@ -123,9 +136,14 @@ class SyncService @Inject constructor(
         }
     }
 
+    private fun collectionNameFor(entityType: String): String = when (entityType) {
+        "habit_completion" -> "habit_completions"
+        "task_template" -> "task_templates"
+        else -> entityType + "s"
+    }
+
     private suspend fun pushCreate(meta: SyncMetadataEntity) {
-        val collectionName = if (meta.entityType == "habit_completion") "habit_completions" else meta.entityType + "s"
-        val collection = userCollection(collectionName) ?: return
+        val collection = userCollection(collectionNameFor(meta.entityType)) ?: return
         val docRef = collection.document()
         val data = when (meta.entityType) {
             "task" -> {
@@ -150,6 +168,10 @@ class SyncService @Inject constructor(
                 val habitCloudId = syncMetadataDao.getCloudId(completion.habitId, "habit") ?: return
                 SyncMapper.habitCompletionToMap(completion, habitCloudId)
             }
+            "task_template" -> {
+                val template = taskTemplateDao.getTemplateById(meta.localId) ?: return
+                SyncMapper.taskTemplateToMap(template)
+            }
             else -> return
         }
         docRef.set(data).await()
@@ -158,8 +180,7 @@ class SyncService @Inject constructor(
 
     private suspend fun pushUpdate(meta: SyncMetadataEntity) {
         if (meta.cloudId.isEmpty()) { pushCreate(meta); return }
-        val collectionName = if (meta.entityType == "habit_completion") "habit_completions" else meta.entityType + "s"
-        val docRef = userCollection(collectionName)?.document(meta.cloudId) ?: return
+        val docRef = userCollection(collectionNameFor(meta.entityType))?.document(meta.cloudId) ?: return
         val data = when (meta.entityType) {
             "task" -> {
                 val task = taskDao.getTaskByIdOnce(meta.localId) ?: return
@@ -178,6 +199,10 @@ class SyncService @Inject constructor(
                 val habit = habitDao.getHabitByIdOnce(meta.localId) ?: return
                 SyncMapper.habitToMap(habit)
             }
+            "task_template" -> {
+                val template = taskTemplateDao.getTemplateById(meta.localId) ?: return
+                SyncMapper.taskTemplateToMap(template)
+            }
             else -> return
         }
         docRef.set(data).await()
@@ -185,8 +210,7 @@ class SyncService @Inject constructor(
 
     private suspend fun pushDelete(meta: SyncMetadataEntity) {
         if (meta.cloudId.isNotEmpty()) {
-            val collectionName = if (meta.entityType == "habit_completion") "habit_completions" else meta.entityType + "s"
-            userCollection(collectionName)?.document(meta.cloudId)?.delete()?.await()
+            userCollection(collectionNameFor(meta.entityType))?.document(meta.cloudId)?.delete()?.await()
         }
         syncMetadataDao.delete(meta.localId, meta.entityType)
     }
@@ -263,6 +287,20 @@ class SyncService @Inject constructor(
                 syncMetadataDao.upsert(SyncMetadataEntity(localId = newId, entityType = "habit_completion", cloudId = cloudId, lastSyncedAt = System.currentTimeMillis()))
             }
         }
+
+        // Pull task templates
+        pullCollection("task_templates") { data, cloudId ->
+            val localId = syncMetadataDao.getLocalId(cloudId, "task_template")
+            if (localId == null) {
+                val template = SyncMapper.mapToTaskTemplate(data)
+                val newId = taskTemplateDao.insertTemplate(template)
+                syncMetadataDao.upsert(SyncMetadataEntity(localId = newId, entityType = "task_template", cloudId = cloudId, lastSyncedAt = System.currentTimeMillis()))
+            } else {
+                val template = SyncMapper.mapToTaskTemplate(data, localId)
+                taskTemplateDao.updateTemplate(template)
+                syncMetadataDao.clearPendingAction(localId, "task_template")
+            }
+        }
     }
 
     private suspend fun pullCollection(name: String, handler: suspend (Map<String, Any?>, String) -> Unit) {
@@ -296,7 +334,7 @@ class SyncService @Inject constructor(
 
     fun startRealtimeListeners() {
         stopRealtimeListeners()
-        listOf("tasks", "projects", "tags", "habits", "habit_completions").forEach { collection ->
+        listOf("tasks", "projects", "tags", "habits", "habit_completions", "task_templates").forEach { collection ->
             val reg = userCollection(collection)?.addSnapshotListener { snapshot, error ->
                 if (error != null || snapshot == null) return@addSnapshotListener
                 if (snapshot.metadata.hasPendingWrites()) return@addSnapshotListener
