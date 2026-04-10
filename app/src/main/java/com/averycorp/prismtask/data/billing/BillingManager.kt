@@ -142,11 +142,9 @@ class BillingManager @Inject constructor(
             .setProductType(BillingClient.ProductType.SUBS)
             .build()
 
-        val (billingResult, purchasesList) = suspendCancellableCoroutine<Pair<BillingResult, List<Purchase>>> { cont ->
-            billingClient.queryPurchasesAsync(params) { result, purchases ->
-                cont.resume(Pair(result, purchases))
-            }
-        }
+        val purchasesResult = billingClient.queryPurchasesAsync(params)
+        val billingResult = purchasesResult.billingResult
+        val purchasesList = purchasesResult.purchasesList
 
         if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
             if (purchasesList.isNotEmpty()) {
@@ -191,14 +189,10 @@ class BillingManager @Inject constructor(
             .setPurchaseToken(purchase.purchaseToken)
             .build()
 
-        suspendCancellableCoroutine { cont ->
-            billingClient.acknowledgePurchase(params) { billingResult ->
-                cont.resume(billingResult)
-            }
-        }
+        billingClient.acknowledgePurchase(params)
     }
 
-    private suspend fun queryProductDetails(): com.android.billingclient.api.ProductDetails? {
+    private suspend fun queryProductDetails(): ProductDetails? {
         val productList = listOf(
             QueryProductDetailsParams.Product.newBuilder()
                 .setProductId(PRODUCT_ID)
@@ -210,14 +204,10 @@ class BillingManager @Inject constructor(
             .setProductList(productList)
             .build()
 
-        val (billingResult, productDetailsList) = suspendCancellableCoroutine<Pair<BillingResult, List<ProductDetails>?>> { cont ->
-            billingClient.queryProductDetailsAsync(params) { result, detailsList ->
-                cont.resume(Pair(result, detailsList))
-            }
-        }
+        val result = billingClient.queryProductDetailsAsync(params)
 
-        return if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-            productDetailsList?.firstOrNull()
+        return if (result.billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+            result.productDetailsList?.firstOrNull()
         } else {
             null
         }
