@@ -8,8 +8,6 @@ SQLite test database.
 Run:  pytest tests/test_smoke.py -v
 """
 
-import json
-
 import pytest
 from httpx import AsyncClient
 
