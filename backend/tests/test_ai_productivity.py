@@ -5,7 +5,6 @@ from datetime import date
 from unittest.mock import MagicMock, patch
 
 import pytest
-import pytest_asyncio
 from httpx import AsyncClient
 
 
