@@ -38,7 +38,7 @@ import com.averycorp.averytask.data.local.entity.UsageLogEntity
 
 @Database(
     entities = [TaskEntity::class, ProjectEntity::class, TagEntity::class, TaskTagCrossRef::class, AttachmentEntity::class, UsageLogEntity::class, SyncMetadataEntity::class, CalendarSyncEntity::class, HabitEntity::class, HabitCompletionEntity::class, LeisureLogEntity::class, CourseEntity::class, AssignmentEntity::class, StudyLogEntity::class, CourseCompletionEntity::class, SelfCareLogEntity::class, SelfCareStepEntity::class, TaskTemplateEntity::class],
-    version = 24,
+    version = 25,
     exportSchema = false
 )
 abstract class AveryTaskDatabase : RoomDatabase() {
@@ -391,6 +391,14 @@ abstract class AveryTaskDatabase : RoomDatabase() {
                     WHERE parent_task_id IS NULL
                     """.trimIndent()
                 )
+            }
+        }
+
+        val MIGRATION_24_25 = object : Migration(24, 25) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE tasks ADD COLUMN eisenhower_quadrant TEXT")
+                db.execSQL("ALTER TABLE tasks ADD COLUMN eisenhower_updated_at INTEGER")
+                db.execSQL("ALTER TABLE tasks ADD COLUMN eisenhower_reason TEXT")
             }
         }
 

@@ -42,6 +42,8 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -195,6 +197,18 @@ fun TodayScreen(
                         onPlanTomorrow = { viewModel.onShowPlanSheet() }
                     )
                 }
+            }
+
+            // Quick action: Focus session
+            item(key = "focus_action") {
+                AssistChip(
+                    onClick = { navController.navigate(AveryTaskRoute.SmartPomodoro.route) },
+                    label = { Text("Focus") },
+                    leadingIcon = {
+                        Icon(Icons.Default.Timer, contentDescription = null, modifier = Modifier.size(16.dp))
+                    },
+                    modifier = Modifier.padding(vertical = 2.dp)
+                )
             }
 
             // Overdue (special urgent treatment)

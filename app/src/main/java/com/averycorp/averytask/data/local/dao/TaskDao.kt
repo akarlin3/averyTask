@@ -157,6 +157,14 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE source_habit_id = :habitId AND archived_at IS NULL AND ((due_date IS NOT NULL AND due_date >= :startDate AND due_date <= :endDate) OR (planned_date IS NOT NULL AND planned_date >= :startDate AND planned_date <= :endDate))")
     suspend fun getTasksForHabitInRangeOnce(habitId: Long, startDate: Long, endDate: Long): List<TaskEntity>
 
+    // --- Eisenhower quadrant ---
+
+    @Query("UPDATE tasks SET eisenhower_quadrant = :quadrant, eisenhower_updated_at = :updatedAt, eisenhower_reason = :reason, updated_at = :updatedAt WHERE id = :id")
+    suspend fun updateEisenhowerQuadrant(id: Long, quadrant: String?, reason: String?, updatedAt: Long = System.currentTimeMillis())
+
+    @Query("SELECT * FROM tasks WHERE is_completed = 0 AND archived_at IS NULL AND parent_task_id IS NULL AND eisenhower_quadrant IS NOT NULL ORDER BY priority DESC")
+    fun getCategorizedTasks(): Flow<List<TaskEntity>>
+
     // --- Batch edit operations (multi-select bulk editing) ---
 
     @Query("UPDATE tasks SET priority = :priority, updated_at = :now WHERE id IN (:taskIds)")

@@ -20,6 +20,7 @@ class TaskUpdate(BaseModel):
     priority: Optional[int] = None
     due_date: Optional[date] = None
     sort_order: Optional[int] = None
+    eisenhower_quadrant: Optional[str] = None
 
 
 class SubtaskCreate(BaseModel):
@@ -42,6 +43,8 @@ class TaskResponse(BaseModel):
     priority: int
     due_date: Optional[date] = None
     completed_at: Optional[datetime] = None
+    eisenhower_quadrant: Optional[str] = None
+    eisenhower_updated_at: Optional[datetime] = None
     sort_order: int
     depth: int
     created_at: datetime

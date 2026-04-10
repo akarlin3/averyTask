@@ -88,6 +88,15 @@ data class TaskEntity(
     @ColumnInfo(name = "source_habit_id")
     val sourceHabitId: Long? = null,
 
+    @ColumnInfo(name = "eisenhower_quadrant")
+    val eisenhowerQuadrant: String? = null,
+
+    @ColumnInfo(name = "eisenhower_updated_at")
+    val eisenhowerUpdatedAt: Long? = null,
+
+    @ColumnInfo(name = "eisenhower_reason")
+    val eisenhowerReason: String? = null,
+
     @ColumnInfo(name = "sort_order")
     val sortOrder: Int = 0
 )
