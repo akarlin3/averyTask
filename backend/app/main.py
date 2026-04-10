@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import ai, app_update, auth, dashboard, export, goals, habits, projects, search, sync, tags, tasks, templates
+from app.routers import ai, analytics, app_update, auth, dashboard, export, goals, habits, projects, search, sync, tags, tasks, templates
 
 app = FastAPI(
     title="PrismTask API",
@@ -23,6 +23,7 @@ app.add_middleware(
 )
 
 app.include_router(ai.router, prefix="/api/v1")
+app.include_router(analytics.router, prefix="/api/v1")
 app.include_router(app_update.router, prefix="/api/v1")
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(goals.router, prefix="/api/v1")
