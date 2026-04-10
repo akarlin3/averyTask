@@ -155,6 +155,12 @@ private data class TaskEditorSheetState(
     val initialDate: Long? = null,
 )
 
+private data class DuplicateDialogState(
+    val taskId: Long,
+    val dueDate: Long?,
+    val subtaskCount: Int
+)
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun TaskListScreen(
@@ -195,6 +201,7 @@ fun TaskListScreen(
     var cascadeConfirmState by remember {
         mutableStateOf<Pair<TaskEntity, Long?>?>(null)
     }
+    var duplicateDialogState by remember { mutableStateOf<DuplicateDialogState?>(null) }
 
     // Open the editor sheet when the view model emits an event (e.g. after the
     // user taps "View" on the Task Duplicated snackbar).
@@ -214,6 +221,79 @@ fun TaskListScreen(
 
     BackHandler(enabled = isMultiSelectMode) {
         viewModel.onExitMultiSelect()
+    }
+
+    // Duplicate confirmation dialog — shown from the task card context menu.
+    duplicateDialogState?.let { dupState ->
+        var copyDueDate by remember { mutableStateOf(true) }
+        var includeSubtasks by remember { mutableStateOf(false) }
+        AlertDialog(
+            onDismissRequest = { duplicateDialogState = null },
+            title = { Text("Duplicate Task") },
+            text = {
+                Column {
+                    Text(
+                        text = "A copy will be created with \"Copy of \" prefixed to the title.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    if (dupState.dueDate != null) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { copyDueDate = !copyDueDate }
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Checkbox(
+                                checked = copyDueDate,
+                                onCheckedChange = { copyDueDate = it }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Copy Due Date (${
+                                    SimpleDateFormat("MMM d", Locale.getDefault())
+                                        .format(Date(dupState.dueDate))
+                                })"
+                            )
+                        }
+                    }
+                    if (dupState.subtaskCount > 0) {
+                        Spacer(modifier = Modifier.height(if (dupState.dueDate != null) 4.dp else 12.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { includeSubtasks = !includeSubtasks }
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Checkbox(
+                                checked = includeSubtasks,
+                                onCheckedChange = { includeSubtasks = it }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Include Subtasks (${dupState.subtaskCount})")
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val state = dupState
+                        duplicateDialogState = null
+                        viewModel.onDuplicateTask(
+                            taskId = state.taskId,
+                            includeSubtasks = includeSubtasks,
+                            copyDueDate = state.dueDate != null && copyDueDate
+                        )
+                    }
+                ) { Text("Duplicate") }
+            },
+            dismissButton = {
+                TextButton(onClick = { duplicateDialogState = null }) { Text("Cancel") }
+            }
+        )
     }
 
     if (showPasteDialog) {
@@ -928,13 +1008,10 @@ private fun androidx.compose.foundation.lazy.LazyListScope.reorderableTaskItemWi
                     onDuplicate = { viewModel.onDuplicateTask(task.id) },
                     onDelete = { viewModel.onDeleteTaskWithUndo(task.id) },
                     showDragHandle = true,
-                    dragHandleModifier = Modifier.longPressDraggableHandle(
+                    dragHandleModifier = Modifier.draggableHandle(
                         onDragStopped = { onDragEnd() }
                     ),
                     modifier = Modifier
-                        .longPressDraggableHandle(
-                            onDragStopped = { onDragEnd() }
-                        )
                         .shadow(elevation, RoundedCornerShape(12.dp))
                         .scale(scale)
                         .alpha(alpha)
