@@ -208,6 +208,43 @@ class WeekViewModel @Inject constructor(
         }
     }
 
+    fun onDeleteTaskWithUndo(taskId: Long) {
+        viewModelScope.launch {
+            try {
+                val savedTask = taskRepository.getTaskByIdOnce(taskId) ?: return@launch
+                taskRepository.deleteTask(taskId)
+                val result = snackbarHostState.showSnackbar(
+                    message = "Task deleted",
+                    actionLabel = "UNDO",
+                    duration = SnackbarDuration.Short
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    taskRepository.insertTask(savedTask)
+                }
+            } catch (e: Exception) {
+                Log.e("WeekViewVM", "Failed to delete task", e)
+            }
+        }
+    }
+
+    fun onDuplicateTask(taskId: Long) {
+        viewModelScope.launch {
+            try {
+                val newId = taskRepository.duplicateTask(taskId, includeSubtasks = false)
+                if (newId <= 0L) {
+                    snackbarHostState.showSnackbar("Something went wrong")
+                    return@launch
+                }
+                snackbarHostState.showSnackbar(
+                    message = "Task Duplicated",
+                    duration = SnackbarDuration.Short
+                )
+            } catch (e: Exception) {
+                Log.e("WeekViewVM", "Failed to duplicate task", e)
+            }
+        }
+    }
+
     suspend fun getSubtaskCount(taskId: Long): Int =
         taskRepository.getSubtasks(taskId).first().size
 }

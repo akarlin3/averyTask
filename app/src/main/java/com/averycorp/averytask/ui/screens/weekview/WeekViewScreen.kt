@@ -27,6 +27,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -58,7 +60,6 @@ import androidx.compose.runtime.LaunchedEffect
 import com.averycorp.averytask.data.local.entity.TaskEntity
 import com.averycorp.averytask.ui.components.MoveToProjectSheet
 import com.averycorp.averytask.ui.components.QuickReschedulePopup
-import com.averycorp.averytask.ui.components.TaskContextMenuSheet
 import com.averycorp.averytask.ui.navigation.AveryTaskRoute
 import com.averycorp.averytask.ui.screens.addedittask.AddEditTaskSheetHost
 import com.averycorp.averytask.ui.theme.LocalPriorityColors
@@ -88,7 +89,6 @@ fun WeekViewScreen(
 
     var editorState by remember { mutableStateOf<WeekTaskEditorState?>(null) }
     var reschedulePopupTask by remember { mutableStateOf<TaskEntity?>(null) }
-    var contextMenuTask by remember { mutableStateOf<TaskEntity?>(null) }
     var moveToProjectSheetTask by remember { mutableStateOf<TaskEntity?>(null) }
     var cascadeConfirmState by remember { mutableStateOf<Pair<TaskEntity, Long?>?>(null) }
     val projects by viewModel.projects.collectAsStateWithLifecycle()
@@ -208,7 +208,10 @@ fun WeekViewScreen(
                                 task = task,
                                 isOverdue = isPast && !task.isCompleted,
                                 onClick = { editorState = WeekTaskEditorState(taskId = task.id) },
-                                onLongPress = { contextMenuTask = task }
+                                onReschedule = { reschedulePopupTask = task },
+                                onMoveToProject = { moveToProjectSheetTask = task },
+                                onDuplicate = { viewModel.onDuplicateTask(task.id) },
+                                onDelete = { viewModel.onDeleteTaskWithUndo(task.id) }
                             )
                         }
                         if (tasks.size > 4) {
@@ -267,21 +270,6 @@ fun WeekViewScreen(
         )
     }
 
-    contextMenuTask?.let { task ->
-        TaskContextMenuSheet(
-            taskTitle = task.title,
-            onDismiss = { contextMenuTask = null },
-            onReschedule = {
-                contextMenuTask = null
-                reschedulePopupTask = task
-            },
-            onMoveToProject = {
-                contextMenuTask = null
-                moveToProjectSheetTask = task
-            }
-        )
-    }
-
     moveToProjectSheetTask?.let { task ->
         var subtaskCount by remember(task.id) { mutableStateOf(0) }
         LaunchedEffect(task.id) { subtaskCount = viewModel.getSubtaskCount(task.id) }
@@ -332,14 +320,18 @@ private fun WeekTaskCard(
     task: TaskEntity,
     isOverdue: Boolean,
     onClick: () -> Unit,
-    onLongPress: () -> Unit = {}
+    onReschedule: () -> Unit = {},
+    onMoveToProject: () -> Unit = {},
+    onDuplicate: () -> Unit = {},
+    onDelete: () -> Unit = {}
 ) {
+    var showOverflowMenu by remember { mutableStateOf(false) }
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(
                 onClick = onClick,
-                onLongClick = onLongPress
+                onLongClick = { showOverflowMenu = true }
             ),
         shape = RoundedCornerShape(6.dp),
         colors = CardDefaults.cardColors(
@@ -349,24 +341,59 @@ private fun WeekTaskCard(
                 MaterialTheme.colorScheme.surfaceContainerLow
         )
     ) {
-        Row(modifier = Modifier.padding(4.dp)) {
-            if (task.priority > 0) {
-                Box(
-                    modifier = Modifier
-                        .width(3.dp)
-                        .height(24.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(LocalPriorityColors.current.forLevel(task.priority))
+        Box {
+            Row(modifier = Modifier.padding(4.dp)) {
+                if (task.priority > 0) {
+                    Box(
+                        modifier = Modifier
+                            .width(3.dp)
+                            .height(24.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(LocalPriorityColors.current.forLevel(task.priority))
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                }
+                Text(
+                    text = task.title,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    fontSize = 10.sp
                 )
-                Spacer(modifier = Modifier.width(3.dp))
             }
-            Text(
-                text = task.title,
-                style = MaterialTheme.typography.labelSmall,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                fontSize = 10.sp
-            )
+            DropdownMenu(
+                expanded = showOverflowMenu,
+                onDismissRequest = { showOverflowMenu = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("\uD83D\uDCC5  Reschedule") },
+                    onClick = {
+                        showOverflowMenu = false
+                        onReschedule()
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("\uD83D\uDCC1  Move To Project") },
+                    onClick = {
+                        showOverflowMenu = false
+                        onMoveToProject()
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("\uD83D\uDCCB  Duplicate") },
+                    onClick = {
+                        showOverflowMenu = false
+                        onDuplicate()
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("\uD83D\uDDD1\uFE0F  Delete") },
+                    onClick = {
+                        showOverflowMenu = false
+                        onDelete()
+                    }
+                )
+            }
         }
     }
 }
