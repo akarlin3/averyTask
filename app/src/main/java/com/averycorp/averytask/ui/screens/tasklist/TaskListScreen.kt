@@ -768,7 +768,8 @@ fun TaskListScreen(
                                 reorderState = reorderState,
                                 onDragEnd = {
                                     viewModel.onReorderTasks(draftOrder.map { it.id })
-                                }
+                                },
+                                onDuplicate = { duplicateDialogState = it }
                             )
                         }
                     } else if (isByProjectView) {
@@ -806,7 +807,8 @@ fun TaskListScreen(
                                     isMultiSelectMode = isMultiSelectMode,
                                     selectedTaskIds = selectedTaskIds,
                                     onExpandChange = { expandedTaskIds = it },
-                                    onFocusChange = { focusSubtaskForId = it }
+                                    onFocusChange = { focusSubtaskForId = it },
+                                    onDuplicate = { duplicateDialogState = it }
                                 )
                             }
                             if (tasks.isEmpty()) {
@@ -841,7 +843,8 @@ fun TaskListScreen(
                                     isMultiSelectMode = isMultiSelectMode,
                                     selectedTaskIds = selectedTaskIds,
                                     onExpandChange = { expandedTaskIds = it },
-                                    onFocusChange = { focusSubtaskForId = it }
+                                    onFocusChange = { focusSubtaskForId = it },
+                                    onDuplicate = { duplicateDialogState = it }
                                 )
                             }
                         }
@@ -862,7 +865,8 @@ fun TaskListScreen(
                                 isMultiSelectMode = isMultiSelectMode,
                                 selectedTaskIds = selectedTaskIds,
                                 onExpandChange = { expandedTaskIds = it },
-                                onFocusChange = { focusSubtaskForId = it }
+                                onFocusChange = { focusSubtaskForId = it },
+                                onDuplicate = { duplicateDialogState = it }
                             )
                         }
                     }
@@ -963,7 +967,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.reorderableTaskItemWi
     onExpandChange: (Set<Long>) -> Unit,
     onFocusChange: (Long?) -> Unit,
     reorderState: ReorderableLazyListState,
-    onDragEnd: () -> Unit
+    onDragEnd: () -> Unit,
+    onDuplicate: (DuplicateDialogState) -> Unit
 ) {
     val subtasks = subtasksMap[task.id].orEmpty()
     val tags = taskTagsMap[task.id].orEmpty()
@@ -1003,10 +1008,13 @@ private fun androidx.compose.foundation.lazy.LazyListScope.reorderableTaskItemWi
                         onExpandChange(expandedTaskIds + task.id)
                         onFocusChange(task.id)
                     },
-                    onReschedule = { onReschedule(task) },
-                    onMoveToProject = { onMoveToProject(task) },
-                    onDuplicate = { viewModel.onDuplicateTask(task.id) },
-                    onDelete = { viewModel.onDeleteTaskWithUndo(task.id) },
+                    onDuplicate = {
+                        onDuplicate(DuplicateDialogState(
+                            taskId = task.id,
+                            dueDate = task.dueDate,
+                            subtaskCount = subtasks.size
+                        ))
+                    },
                     showDragHandle = true,
                     dragHandleModifier = Modifier.draggableHandle(
                         onDragStopped = { onDragEnd() }
@@ -1062,7 +1070,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks(
     isMultiSelectMode: Boolean,
     selectedTaskIds: Set<Long>,
     onExpandChange: (Set<Long>) -> Unit,
-    onFocusChange: (Long?) -> Unit
+    onFocusChange: (Long?) -> Unit,
+    onDuplicate: (DuplicateDialogState) -> Unit
 ) {
     val subtasks = subtasksMap[task.id].orEmpty()
     val tags = taskTagsMap[task.id].orEmpty()
@@ -1149,10 +1158,13 @@ private fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks(
                         onExpandChange(expandedTaskIds + task.id)
                         onFocusChange(task.id)
                     },
-                    onReschedule = { onReschedule(task) },
-                    onMoveToProject = { onMoveToProject(task) },
-                    onDuplicate = { viewModel.onDuplicateTask(task.id) },
-                    onDelete = { viewModel.onDeleteTaskWithUndo(task.id) }
+                    onDuplicate = {
+                        onDuplicate(DuplicateDialogState(
+                            taskId = task.id,
+                            dueDate = task.dueDate,
+                            subtaskCount = subtasks.size
+                        ))
+                    }
                 )
             }
         }
@@ -1341,7 +1353,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.draggableTaskItemWith
     isMultiSelectMode: Boolean,
     selectedTaskIds: Set<Long>,
     onExpandChange: (Set<Long>) -> Unit,
-    onFocusChange: (Long?) -> Unit
+    onFocusChange: (Long?) -> Unit,
+    onDuplicate: (DuplicateDialogState) -> Unit
 ) {
     val subtasks = subtasksMap[task.id].orEmpty()
     val tags = taskTagsMap[task.id].orEmpty()
@@ -1445,10 +1458,13 @@ private fun androidx.compose.foundation.lazy.LazyListScope.draggableTaskItemWith
                     onExpandChange(expandedTaskIds + task.id)
                     onFocusChange(task.id)
                 },
-                onReschedule = { onReschedule(task) },
-                onMoveToProject = { onMoveToProject(task) },
-                onDuplicate = { viewModel.onDuplicateTask(task.id) },
-                onDelete = { viewModel.onDeleteTaskWithUndo(task.id) },
+                onDuplicate = {
+                    onDuplicate(DuplicateDialogState(
+                        taskId = task.id,
+                        dueDate = task.dueDate,
+                        subtaskCount = subtasks.size
+                    ))
+                },
                 showDragHandle = true,
                 dragHandleModifier = dragHandleDragModifier,
                 modifier = dragModifier
