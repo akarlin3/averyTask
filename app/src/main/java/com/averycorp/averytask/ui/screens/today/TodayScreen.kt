@@ -112,6 +112,7 @@ private const val SECTION_OVERDUE = "overdue"
 private const val SECTION_TODAY_TASKS = "today_tasks"
 private const val SECTION_HABITS = "habits"
 private const val SECTION_PLANNED = "planned"
+private const val SECTION_PLAN_MORE = "plan_more"
 private const val SECTION_COMPLETED = "completed"
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -320,14 +321,16 @@ fun TodayScreen(
             }
 
             // Plan more shortcut — only if there's space to plan
-            item(key = "plan_more") {
-                FilledTonalButton(
-                    onClick = { viewModel.onShowPlanSheet() },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Plan More")
+            if (SECTION_PLAN_MORE !in hiddenSections) {
+                item(key = "plan_more") {
+                    FilledTonalButton(
+                        onClick = { viewModel.onShowPlanSheet() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Plan More")
+                    }
                 }
             }
 
