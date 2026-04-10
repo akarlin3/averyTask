@@ -358,6 +358,24 @@ class TodayViewModel @Inject constructor(
         }
     }
 
+    fun onDuplicateTask(taskId: Long) {
+        viewModelScope.launch {
+            try {
+                val newId = taskRepository.duplicateTask(taskId, includeSubtasks = false)
+                if (newId <= 0L) {
+                    snackbarHostState.showSnackbar("Something went wrong")
+                    return@launch
+                }
+                snackbarHostState.showSnackbar(
+                    message = "Task Duplicated",
+                    duration = SnackbarDuration.Short
+                )
+            } catch (e: Exception) {
+                Log.e("TodayVM", "Failed to duplicate task", e)
+            }
+        }
+    }
+
     /**
      * Reactive task-count map (projectId -> root-task count) that backs the
      * move-to-project sheet on the Today screen. Uses all tasks currently

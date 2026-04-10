@@ -3,11 +3,9 @@ package com.averycorp.averytask.ui.screens.monthview
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,10 +30,13 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -68,7 +69,6 @@ import androidx.compose.runtime.LaunchedEffect
 import com.averycorp.averytask.data.local.entity.TaskEntity
 import com.averycorp.averytask.ui.components.MoveToProjectSheet
 import com.averycorp.averytask.ui.components.QuickReschedulePopup
-import com.averycorp.averytask.ui.components.TaskContextMenuSheet
 import com.averycorp.averytask.ui.navigation.AveryTaskRoute
 import com.averycorp.averytask.ui.screens.addedittask.AddEditTaskSheetHost
 import com.averycorp.averytask.ui.theme.LocalPriorityColors
@@ -100,7 +100,6 @@ fun MonthViewScreen(
 
     var editorState by remember { mutableStateOf<MonthTaskEditorState?>(null) }
     var reschedulePopupTask by remember { mutableStateOf<TaskEntity?>(null) }
-    var contextMenuTask by remember { mutableStateOf<TaskEntity?>(null) }
     var moveToProjectSheetTask by remember { mutableStateOf<TaskEntity?>(null) }
     var cascadeConfirmState by remember { mutableStateOf<Pair<TaskEntity, Long?>?>(null) }
     val projects by viewModel.projects.collectAsStateWithLifecycle()
@@ -222,9 +221,10 @@ fun MonthViewScreen(
                         onTaskClick = { taskId ->
                             editorState = MonthTaskEditorState(taskId = taskId)
                         },
-                        onTaskLongPress = { task ->
-                            contextMenuTask = task
-                        },
+                        onReschedule = { task -> reschedulePopupTask = task },
+                        onMoveToProject = { task -> moveToProjectSheetTask = task },
+                        onDuplicate = { taskId -> viewModel.onDuplicateTask(taskId) },
+                        onDelete = { taskId -> viewModel.onDeleteTaskWithUndo(taskId) },
                         onAddTask = {
                             val dayStartMillis = date.atStartOfDay(ZoneId.systemDefault())
                                 .toInstant()
@@ -256,21 +256,6 @@ fun MonthViewScreen(
             onDismiss = { reschedulePopupTask = null },
             onReschedule = { newDate -> viewModel.onRescheduleTask(task.id, newDate) },
             onPlanForToday = { viewModel.onPlanTaskForToday(task.id) }
-        )
-    }
-
-    contextMenuTask?.let { task ->
-        TaskContextMenuSheet(
-            taskTitle = task.title,
-            onDismiss = { contextMenuTask = null },
-            onReschedule = {
-                contextMenuTask = null
-                reschedulePopupTask = task
-            },
-            onMoveToProject = {
-                contextMenuTask = null
-                moveToProjectSheetTask = task
-            }
         )
     }
 
@@ -404,13 +389,15 @@ private fun DayCell(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun DayDetail(
     date: LocalDate,
     tasks: List<TaskEntity>,
     onTaskClick: (Long) -> Unit,
-    onTaskLongPress: (TaskEntity) -> Unit,
+    onReschedule: (TaskEntity) -> Unit,
+    onMoveToProject: (TaskEntity) -> Unit,
+    onDuplicate: (Long) -> Unit,
+    onDelete: (Long) -> Unit,
     onAddTask: () -> Unit
 ) {
     Card(
@@ -452,13 +439,11 @@ private fun DayDetail(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     items(tasks, key = { it.id }) { task ->
+                        var showOverflowMenu by remember { mutableStateOf(false) }
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .combinedClickable(
-                                    onClick = { onTaskClick(task.id) },
-                                    onLongClick = { onTaskLongPress(task) }
-                                )
+                                .clickable { onTaskClick(task.id) }
                                 .padding(vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -488,6 +473,52 @@ private fun DayDetail(
                                     modifier = Modifier.size(16.dp),
                                     tint = Color(0xFF4CAF50)
                                 )
+                            }
+                            Box {
+                                IconButton(
+                                    onClick = { showOverflowMenu = true },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.MoreVert,
+                                        contentDescription = "More Actions",
+                                        modifier = Modifier.size(16.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                    )
+                                }
+                                DropdownMenu(
+                                    expanded = showOverflowMenu,
+                                    onDismissRequest = { showOverflowMenu = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("\uD83D\uDCC5  Reschedule") },
+                                        onClick = {
+                                            showOverflowMenu = false
+                                            onReschedule(task)
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("\uD83D\uDCC1  Move To Project") },
+                                        onClick = {
+                                            showOverflowMenu = false
+                                            onMoveToProject(task)
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("\uD83D\uDCCB  Duplicate") },
+                                        onClick = {
+                                            showOverflowMenu = false
+                                            onDuplicate(task.id)
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("\uD83D\uDDD1\uFE0F  Delete") },
+                                        onClick = {
+                                            showOverflowMenu = false
+                                            onDelete(task.id)
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
