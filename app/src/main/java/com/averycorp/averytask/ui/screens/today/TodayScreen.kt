@@ -142,6 +142,7 @@ fun TodayScreen(
     val habitCompletedCount by viewModel.habitCompletedCount.collectAsStateWithLifecycle()
     val habitTotalCount by viewModel.habitTotalCount.collectAsStateWithLifecycle()
 
+    val progressStyle by viewModel.progressStyle.collectAsStateWithLifecycle()
     val totalForHeader = combinedTotal
     val allTodayDone = remember(overdueTasks, todayTasks, plannedTasks, completedToday, allHabitsCompleted) {
         overdueTasks.isEmpty() && todayTasks.isEmpty() && plannedTasks.isEmpty() && completedToday.isNotEmpty() && allHabitsCompleted
@@ -160,7 +161,8 @@ fun TodayScreen(
             CompactProgressHeader(
                 completed = combinedCompleted,
                 total = totalForHeader,
-                progress = combinedProgress
+                progress = combinedProgress,
+                progressStyle = progressStyle
             )
         },
         bottomBar = {
@@ -482,7 +484,8 @@ fun TodayScreen(
 private fun CompactProgressHeader(
     completed: Int,
     total: Int,
-    progress: Float
+    progress: Float,
+    progressStyle: String = "ring"
 ) {
     val dateLabel = remember {
         SimpleDateFormat("EEEE, MMMM d", Locale.getDefault()).format(Date())
@@ -546,15 +549,56 @@ private fun CompactProgressHeader(
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            LinearProgressIndicator(
-                progress = { animatedProgress.coerceIn(0f, 1f) },
-                modifier = Modifier
-                    .weight(1f)
-                    .height((4f * barScale).dp)
-                    .clip(RoundedCornerShape(8.dp)),
-                color = barColor,
-                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
-            )
+            when (progressStyle) {
+                "ring" -> {
+                    Box(
+                        modifier = Modifier.size((36f * barScale).dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            progress = { 1f },
+                            modifier = Modifier.fillMaxSize(),
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            strokeWidth = 4.dp
+                        )
+                        CircularProgressIndicator(
+                            progress = { animatedProgress.coerceIn(0f, 1f) },
+                            modifier = Modifier.fillMaxSize(),
+                            color = barColor,
+                            strokeWidth = 4.dp
+                        )
+                        Text(
+                            text = "${(animatedProgress * 100).toInt()}%",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (progress >= 1f) CompletedGreen else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+                "percentage" -> {
+                    val pct = if (total > 0) (animatedProgress * 100).toInt() else 0
+                    Text(
+                        text = "$pct%",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = if (progress >= 1f) CompletedGreen else MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+                else -> { // "bar"
+                    LinearProgressIndicator(
+                        progress = { animatedProgress.coerceIn(0f, 1f) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height((4f * barScale).dp)
+                            .clip(RoundedCornerShape(8.dp)),
+                        color = barColor,
+                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.width(12.dp))
 
