@@ -74,6 +74,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.averycorp.averytask.ui.navigation.AveryTaskRoute
 import com.averycorp.averytask.BuildConfig
 import com.averycorp.averytask.data.preferences.DashboardPreferences
 import com.averycorp.averytask.data.preferences.TabPreferences
@@ -1570,6 +1571,27 @@ fun SettingsScreen(
                     }
                 )
             }
+
+            SectionHeader("AI Features")
+
+            Text(
+                "AI features use Claude to analyze your tasks. Requires internet connection.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+
+            SettingsRowWithSubtitle(
+                title = "Eisenhower Matrix",
+                subtitle = "AI-powered task categorization into urgency/importance quadrants",
+                onClick = { navController.navigate(AveryTaskRoute.EisenhowerMatrix.route) }
+            )
+
+            SettingsRowWithSubtitle(
+                title = "Smart Focus Sessions",
+                subtitle = "AI-planned Pomodoro sessions based on your tasks",
+                onClick = { navController.navigate(AveryTaskRoute.SmartPomodoro.route) }
+            )
 
             HorizontalDivider()
 

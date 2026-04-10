@@ -40,6 +40,12 @@ interface AveryTaskApi {
     @GET("api/v1/sync/pull")
     suspend fun syncPull(@Query("since") since: String? = null): SyncPullResponse
 
+    @POST("api/v1/ai/eisenhower")
+    suspend fun categorizeEisenhower(@Body request: EisenhowerRequest): EisenhowerResponse
+
+    @POST("api/v1/ai/pomodoro-plan")
+    suspend fun planPomodoro(@Body request: PomodoroRequest): PomodoroResponse
+
     @GET("api/v1/export/json")
     suspend fun exportJson(): ResponseBody
 

@@ -552,6 +552,10 @@ fun TaskListScreen(
                                     text = { Text("Timeline") },
                                     onClick = { showViewMenu = false; navController.navigate(AveryTaskRoute.Timeline.route) }
                                 )
+                                DropdownMenuItem(
+                                    text = { Text("Eisenhower Matrix") },
+                                    onClick = { showViewMenu = false; navController.navigate(AveryTaskRoute.EisenhowerMatrix.route) }
+                                )
                             }
                         }
                         IconButton(onClick = { navController.navigate(AveryTaskRoute.TagManagement.route) }) {
@@ -1811,6 +1815,10 @@ private fun TaskItem(
             }
 
             PriorityDot(task.priority)
+            if (task.eisenhowerQuadrant != null) {
+                Spacer(modifier = Modifier.width(3.dp))
+                EisenhowerBadge(task.eisenhowerQuadrant)
+            }
             Spacer(modifier = Modifier.width(8.dp))
         }
     }
@@ -1835,6 +1843,32 @@ private fun PriorityDot(priority: Int) {
             .clip(CircleShape)
             .background(LocalPriorityColors.current.forLevel(priority))
     )
+}
+
+@Composable
+private fun EisenhowerBadge(quadrant: String) {
+    val (color, label) = when (quadrant) {
+        "Q1" -> Color(0xFFEF4444) to "1"
+        "Q2" -> Color(0xFF3B82F6) to "2"
+        "Q3" -> Color(0xFFF59E0B) to "3"
+        "Q4" -> Color(0xFF6B7280) to "4"
+        else -> return
+    }
+    Box(
+        modifier = Modifier
+            .size(14.dp)
+            .clip(CircleShape)
+            .background(color.copy(alpha = 0.2f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            label,
+            fontSize = 8.sp,
+            color = color,
+            fontWeight = FontWeight.Bold,
+            lineHeight = 8.sp
+        )
+    }
 }
 
 @Composable
