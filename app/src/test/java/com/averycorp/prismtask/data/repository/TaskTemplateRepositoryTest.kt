@@ -539,6 +539,7 @@ class TaskTemplateRepositoryTest {
         override suspend fun batchDeleteTaskTagsQuery(taskIds: List<Long>, tagId: Long) = unsupported()
         override suspend fun updateEisenhowerQuadrant(id: Long, quadrant: String?, reason: String?, updatedAt: Long) = unsupported()
         override fun getCategorizedTasks(): Flow<List<TaskEntity>> = unsupported()
+        override suspend fun updatePlannedDateAndSortOrder(id: Long, plannedDate: Long, sortOrder: Int, now: Long) = unsupported()
     }
 
     /** In-memory fake of [TagDao]. Records all cross-ref inserts so tests can assert on them. */

@@ -1,6 +1,8 @@
 package com.averycorp.prismtask.domain
 
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
+import com.averycorp.prismtask.data.remote.api.DailyBriefingRequest
+import com.averycorp.prismtask.data.remote.api.DailyBriefingResponse
 import com.averycorp.prismtask.data.remote.api.EisenhowerRequest
 import com.averycorp.prismtask.data.remote.api.EisenhowerResponse
 import com.averycorp.prismtask.data.remote.api.ImportResponse
@@ -10,6 +12,10 @@ import com.averycorp.prismtask.data.remote.api.ParsedTaskResponse
 import com.averycorp.prismtask.data.remote.api.PomodoroRequest
 import com.averycorp.prismtask.data.remote.api.PomodoroResponse
 import com.averycorp.prismtask.data.remote.api.RefreshRequest
+import com.averycorp.prismtask.data.remote.api.TimeBlockRequest
+import com.averycorp.prismtask.data.remote.api.TimeBlockResponse
+import com.averycorp.prismtask.data.remote.api.WeeklyPlanRequest
+import com.averycorp.prismtask.data.remote.api.WeeklyPlanResponse
 import com.averycorp.prismtask.data.remote.api.RegisterRequest
 import com.averycorp.prismtask.data.remote.api.TokenResponse
 import com.averycorp.prismtask.data.remote.api.VersionResponse
@@ -56,6 +62,12 @@ class NaturalLanguageParserTest {
         override suspend fun categorizeEisenhower(request: EisenhowerRequest): EisenhowerResponse =
             error("not used in offline parser tests")
         override suspend fun planPomodoro(request: PomodoroRequest): PomodoroResponse =
+            error("not used in offline parser tests")
+        override suspend fun getDailyBriefing(request: DailyBriefingRequest): DailyBriefingResponse =
+            error("not used in offline parser tests")
+        override suspend fun getWeeklyPlan(request: WeeklyPlanRequest): WeeklyPlanResponse =
+            error("not used in offline parser tests")
+        override suspend fun getTimeBlock(request: TimeBlockRequest): TimeBlockResponse =
             error("not used in offline parser tests")
     }
 
