@@ -133,7 +133,6 @@ import com.averycorp.averytask.ui.components.MoveToProjectSheet
 import com.averycorp.averytask.ui.components.QuickAddBar
 import com.averycorp.averytask.ui.components.QuickReschedulePopup
 import com.averycorp.averytask.ui.components.SubtaskSection
-import com.averycorp.averytask.ui.components.TaskContextMenuSheet
 import com.averycorp.averytask.ui.components.computeInitialTagStates
 import com.averycorp.averytask.ui.navigation.AveryTaskRoute
 import com.averycorp.averytask.ui.screens.addedittask.AddEditTaskSheetHost
@@ -196,11 +195,8 @@ fun TaskListScreen(
     var pasteContent by remember { mutableStateOf("") }
     var editorSheet by remember { mutableStateOf<TaskEditorSheetState?>(null) }
     var reschedulePopupTask by remember { mutableStateOf<TaskEntity?>(null) }
-    // Long-press context menu + move-to-project sheet. The context menu is
-    // opened by a long-press on any task card and, when the user picks "Move
-    // To Project", hands off to moveToProjectSheetTask which drives the
-    // bottom sheet. Confirmation for cascading subtasks is kept separate.
-    var contextMenuTask by remember { mutableStateOf<TaskEntity?>(null) }
+    // Move-to-project sheet, triggered from the 3-dot overflow menu on each
+    // task card. Confirmation for cascading subtasks is kept separate.
     var moveToProjectSheetTask by remember { mutableStateOf<TaskEntity?>(null) }
     var cascadeConfirmState by remember {
         mutableStateOf<Pair<TaskEntity, Long?>?>(null)
@@ -412,7 +408,7 @@ fun TaskListScreen(
     }
 
     // Bulk reschedule popup for multi-select — reuses the same
-    // QuickReschedulePopup component as the long-press flow.
+    // QuickReschedulePopup component as the single-task overflow menu flow.
     if (showBatchReschedulePopup) {
         QuickReschedulePopup(
             hasDueDate = true,
@@ -762,6 +758,8 @@ fun TaskListScreen(
                                 expandedTaskIds = expandedTaskIds,
                                 focusSubtaskForId = focusSubtaskForId,
                                 onTaskClick = { id -> editorSheet = TaskEditorSheetState(taskId = id) },
+                                onReschedule = { pressed -> reschedulePopupTask = pressed },
+                                onMoveToProject = { pressed -> moveToProjectSheetTask = pressed },
                                 viewModel = viewModel,
                                 isMultiSelectMode = isMultiSelectMode,
                                 selectedTaskIds = selectedTaskIds,
@@ -800,7 +798,8 @@ fun TaskListScreen(
                                     expandedTaskIds = expandedTaskIds,
                                     focusSubtaskForId = focusSubtaskForId,
                                     onTaskClick = { id -> editorSheet = TaskEditorSheetState(taskId = id) },
-                                    onTaskLongPress = { pressed -> contextMenuTask = pressed },
+                                    onReschedule = { pressed -> reschedulePopupTask = pressed },
+                                    onMoveToProject = { pressed -> moveToProjectSheetTask = pressed },
                                     onDropTask = { droppedTaskId ->
                                         viewModel.onMoveToProject(droppedTaskId, projectId)
                                     },
@@ -838,7 +837,8 @@ fun TaskListScreen(
                                     expandedTaskIds = expandedTaskIds,
                                     focusSubtaskForId = focusSubtaskForId,
                                     onTaskClick = { id -> editorSheet = TaskEditorSheetState(taskId = id) },
-                                    onTaskLongPress = { pressed -> contextMenuTask = pressed },
+                                    onReschedule = { pressed -> reschedulePopupTask = pressed },
+                                    onMoveToProject = { pressed -> moveToProjectSheetTask = pressed },
                                     viewModel = viewModel,
                                     isMultiSelectMode = isMultiSelectMode,
                                     selectedTaskIds = selectedTaskIds,
@@ -859,7 +859,8 @@ fun TaskListScreen(
                                 expandedTaskIds = expandedTaskIds,
                                 focusSubtaskForId = focusSubtaskForId,
                                 onTaskClick = { id -> editorSheet = TaskEditorSheetState(taskId = id) },
-                                onTaskLongPress = { pressed -> contextMenuTask = pressed },
+                                onReschedule = { pressed -> reschedulePopupTask = pressed },
+                                onMoveToProject = { pressed -> moveToProjectSheetTask = pressed },
                                 viewModel = viewModel,
                                 isMultiSelectMode = isMultiSelectMode,
                                 selectedTaskIds = selectedTaskIds,
@@ -899,21 +900,6 @@ fun TaskListScreen(
             },
             onPlanForToday = {
                 viewModel.onPlanForToday(task.id)
-            }
-        )
-    }
-
-    contextMenuTask?.let { task ->
-        TaskContextMenuSheet(
-            taskTitle = task.title,
-            onDismiss = { contextMenuTask = null },
-            onReschedule = {
-                contextMenuTask = null
-                reschedulePopupTask = task
-            },
-            onMoveToProject = {
-                contextMenuTask = null
-                moveToProjectSheetTask = task
             }
         )
     }
@@ -973,6 +959,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.reorderableTaskItemWi
     expandedTaskIds: Set<Long>,
     focusSubtaskForId: Long?,
     onTaskClick: (Long) -> Unit,
+    onReschedule: (TaskEntity) -> Unit,
+    onMoveToProject: (TaskEntity) -> Unit,
     viewModel: TaskListViewModel,
     isMultiSelectMode: Boolean,
     selectedTaskIds: Set<Long>,
@@ -1004,6 +992,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.reorderableTaskItemWi
                     isMultiSelectMode = true,
                     onToggleComplete = { viewModel.onToggleTaskSelection(task.id) },
                     onClick = { viewModel.onToggleTaskSelection(task.id) },
+                    onLongClick = { viewModel.onToggleTaskSelection(task.id) },
                     onAddSubtaskClick = {}
                 )
             } else {
@@ -1075,7 +1064,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks(
     expandedTaskIds: Set<Long>,
     focusSubtaskForId: Long?,
     onTaskClick: (Long) -> Unit,
-    onTaskLongPress: (TaskEntity) -> Unit,
+    onReschedule: (TaskEntity) -> Unit,
+    onMoveToProject: (TaskEntity) -> Unit,
     viewModel: TaskListViewModel,
     isMultiSelectMode: Boolean,
     selectedTaskIds: Set<Long>,
@@ -1100,6 +1090,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks(
                 isMultiSelectMode = true,
                 onToggleComplete = { viewModel.onToggleTaskSelection(task.id) },
                 onClick = { viewModel.onToggleTaskSelection(task.id) },
+                onLongClick = { viewModel.onToggleTaskSelection(task.id) },
                 onAddSubtaskClick = {}
             )
         } else {
@@ -1162,7 +1153,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks(
                     attachmentCount = attachmentCount,
                     onToggleComplete = { viewModel.onToggleComplete(task.id, task.isCompleted) },
                     onClick = { onTaskClick(task.id) },
-                    onLongClick = { onTaskLongPress(task) },
+                    onLongClick = { viewModel.onEnterMultiSelect(task.id) },
                     onAddSubtaskClick = {
                         onExpandChange(expandedTaskIds + task.id)
                         onFocusChange(task.id)
@@ -1355,7 +1346,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.draggableTaskItemWith
     expandedTaskIds: Set<Long>,
     focusSubtaskForId: Long?,
     onTaskClick: (Long) -> Unit,
-    onTaskLongPress: (TaskEntity) -> Unit,
+    onReschedule: (TaskEntity) -> Unit,
+    onMoveToProject: (TaskEntity) -> Unit,
     onDropTask: (Long) -> Unit,
     viewModel: TaskListViewModel,
     isMultiSelectMode: Boolean,
@@ -1446,6 +1438,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.draggableTaskItemWith
                 isMultiSelectMode = true,
                 onToggleComplete = { viewModel.onToggleTaskSelection(task.id) },
                 onClick = { viewModel.onToggleTaskSelection(task.id) },
+                onLongClick = { viewModel.onToggleTaskSelection(task.id) },
                 onAddSubtaskClick = {},
                 showDragHandle = true,
                 dragHandleModifier = dragHandleDragModifier,
@@ -1460,7 +1453,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.draggableTaskItemWith
                 attachmentCount = attachmentCount,
                 onToggleComplete = { viewModel.onToggleComplete(task.id, task.isCompleted) },
                 onClick = { onTaskClick(task.id) },
-                onLongClick = { onTaskLongPress(task) },
+                onLongClick = { viewModel.onEnterMultiSelect(task.id) },
                 onAddSubtaskClick = {
                     onExpandChange(expandedTaskIds + task.id)
                     onFocusChange(task.id)
@@ -1592,7 +1585,10 @@ private fun TaskItem(
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
     onAddSubtaskClick: () -> Unit,
+    onReschedule: (() -> Unit)? = null,
+    onMoveToProject: (() -> Unit)? = null,
     onDuplicate: (() -> Unit)? = null,
+    onDelete: (() -> Unit)? = null,
     showDragHandle: Boolean = false,
     dragHandleModifier: Modifier = Modifier,
     modifier: Modifier = Modifier
@@ -1600,6 +1596,7 @@ private fun TaskItem(
     var showOverflowMenu by remember { mutableStateOf(false) }
     val isOverdue = isTaskOverdue(task)
     val borderColor = if (isOverdue) OverdueRed else Color.Transparent
+    val hasOverflowActions = !isMultiSelectMode && (onReschedule != null || onMoveToProject != null || onDuplicate != null || onDelete != null)
 
     Card(
         modifier = modifier
@@ -1756,7 +1753,7 @@ private fun TaskItem(
                 )
             }
 
-            if (onDuplicate != null) {
+            if (hasOverflowActions) {
                 Box {
                     IconButton(
                         onClick = { showOverflowMenu = true },
@@ -1773,13 +1770,42 @@ private fun TaskItem(
                         expanded = showOverflowMenu,
                         onDismissRequest = { showOverflowMenu = false }
                     ) {
-                        DropdownMenuItem(
-                            text = { Text("\uD83D\uDCCB  Duplicate") },
-                            onClick = {
-                                showOverflowMenu = false
-                                onDuplicate()
-                            }
-                        )
+                        if (onReschedule != null) {
+                            DropdownMenuItem(
+                                text = { Text("\uD83D\uDCC5  Reschedule") },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    onReschedule()
+                                }
+                            )
+                        }
+                        if (onMoveToProject != null) {
+                            DropdownMenuItem(
+                                text = { Text("\uD83D\uDCC1  Move To Project") },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    onMoveToProject()
+                                }
+                            )
+                        }
+                        if (onDuplicate != null) {
+                            DropdownMenuItem(
+                                text = { Text("\uD83D\uDCCB  Duplicate") },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    onDuplicate()
+                                }
+                            )
+                        }
+                        if (onDelete != null) {
+                            DropdownMenuItem(
+                                text = { Text("\uD83D\uDDD1\uFE0F  Delete") },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    onDelete()
+                                }
+                            )
+                        }
                     }
                 }
             }

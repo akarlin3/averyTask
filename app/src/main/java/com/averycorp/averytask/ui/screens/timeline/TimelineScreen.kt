@@ -23,11 +23,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -62,7 +65,6 @@ import androidx.navigation.NavController
 import com.averycorp.averytask.data.local.entity.TaskEntity
 import com.averycorp.averytask.ui.components.MoveToProjectSheet
 import com.averycorp.averytask.ui.components.QuickReschedulePopup
-import com.averycorp.averytask.ui.components.TaskContextMenuSheet
 import com.averycorp.averytask.ui.navigation.AveryTaskRoute
 import com.averycorp.averytask.ui.screens.addedittask.AddEditTaskSheetHost
 import com.averycorp.averytask.ui.theme.LocalPriorityColors
@@ -93,7 +95,6 @@ fun TimelineScreen(
     var editorSheetTaskId by remember { mutableStateOf<Long?>(null) }
     var showEditorSheet by remember { mutableStateOf(false) }
     var reschedulePopupTask by remember { mutableStateOf<TaskEntity?>(null) }
-    var contextMenuTask by remember { mutableStateOf<TaskEntity?>(null) }
     var moveToProjectSheetTask by remember { mutableStateOf<TaskEntity?>(null) }
     var cascadeConfirmState by remember { mutableStateOf<Pair<TaskEntity, Long?>?>(null) }
     val projects by viewModel.projects.collectAsStateWithLifecycle()
@@ -221,6 +222,7 @@ fun TimelineScreen(
                     val durationMinutes = ((block.endTime - block.startTime) / 60000f).coerceAtLeast(15f)
                     val yOffset = (minutesFromStart / 60f * HOUR_HEIGHT.value).dp
                     val blockHeight = (durationMinutes / 60f * HOUR_HEIGHT.value).dp
+                    var showBlockMenu by remember(block.taskId) { mutableStateOf(false) }
 
                     Card(
                         modifier = Modifier
@@ -236,10 +238,8 @@ fun TimelineScreen(
                                     }
                                 },
                                 onLongClick = {
-                                    block.taskId?.let { id ->
-                                        viewModel.loadTaskForPopup(id) { task ->
-                                            contextMenuTask = task
-                                        }
+                                    if (block.taskId != null) {
+                                        showBlockMenu = true
                                     }
                                 }
                             ),
@@ -248,24 +248,67 @@ fun TimelineScreen(
                             containerColor = LocalPriorityColors.current.forLevel(block.priority).copy(alpha = 0.2f)
                         )
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .width(3.dp)
-                                    .height(blockHeight - 8.dp)
-                                    .clip(RoundedCornerShape(2.dp))
-                                    .background(LocalPriorityColors.current.forLevel(block.priority))
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                text = block.title,
-                                style = MaterialTheme.typography.bodySmall,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                        Box {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .width(3.dp)
+                                        .height(blockHeight - 8.dp)
+                                        .clip(RoundedCornerShape(2.dp))
+                                        .background(LocalPriorityColors.current.forLevel(block.priority))
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = block.title,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showBlockMenu,
+                                onDismissRequest = { showBlockMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("\uD83D\uDCC5  Reschedule") },
+                                    onClick = {
+                                        showBlockMenu = false
+                                        block.taskId?.let { id ->
+                                            viewModel.loadTaskForPopup(id) { task ->
+                                                reschedulePopupTask = task
+                                            }
+                                        }
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("\uD83D\uDCC1  Move To Project") },
+                                    onClick = {
+                                        showBlockMenu = false
+                                        block.taskId?.let { id ->
+                                            viewModel.loadTaskForPopup(id) { task ->
+                                                moveToProjectSheetTask = task
+                                            }
+                                        }
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("\uD83D\uDCCB  Duplicate") },
+                                    onClick = {
+                                        showBlockMenu = false
+                                        block.taskId?.let { viewModel.onDuplicateTask(it) }
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("\uD83D\uDDD1\uFE0F  Delete") },
+                                    onClick = {
+                                        showBlockMenu = false
+                                        block.taskId?.let { viewModel.onDeleteTaskWithUndo(it) }
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -284,13 +327,11 @@ fun TimelineScreen(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     unscheduledTasks.take(5).forEach { task ->
+                        var showTaskMenu by remember(task.id) { mutableStateOf(false) }
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .combinedClickable(
-                                    onClick = { scheduleDialogTask = task },
-                                    onLongClick = { contextMenuTask = task }
-                                ),
+                                .clickable { scheduleDialogTask = task },
                             shape = RoundedCornerShape(8.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
                         ) {
@@ -320,6 +361,52 @@ fun TimelineScreen(
                                     modifier = Modifier.size(16.dp),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
+                                Box {
+                                    IconButton(
+                                        onClick = { showTaskMenu = true },
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.MoreVert,
+                                            contentDescription = "More Actions",
+                                            modifier = Modifier.size(16.dp),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                        )
+                                    }
+                                    DropdownMenu(
+                                        expanded = showTaskMenu,
+                                        onDismissRequest = { showTaskMenu = false }
+                                    ) {
+                                        DropdownMenuItem(
+                                            text = { Text("\uD83D\uDCC5  Reschedule") },
+                                            onClick = {
+                                                showTaskMenu = false
+                                                reschedulePopupTask = task
+                                            }
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text("\uD83D\uDCC1  Move To Project") },
+                                            onClick = {
+                                                showTaskMenu = false
+                                                moveToProjectSheetTask = task
+                                            }
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text("\uD83D\uDCCB  Duplicate") },
+                                            onClick = {
+                                                showTaskMenu = false
+                                                viewModel.onDuplicateTask(task.id)
+                                            }
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text("\uD83D\uDDD1\uFE0F  Delete") },
+                                            onClick = {
+                                                showTaskMenu = false
+                                                viewModel.onDeleteTaskWithUndo(task.id)
+                                            }
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -376,21 +463,6 @@ fun TimelineScreen(
             onDismiss = { reschedulePopupTask = null },
             onReschedule = { newDate -> viewModel.onRescheduleTask(task.id, newDate) },
             onPlanForToday = { viewModel.onPlanTaskForToday(task.id) }
-        )
-    }
-
-    contextMenuTask?.let { task ->
-        TaskContextMenuSheet(
-            taskTitle = task.title,
-            onDismiss = { contextMenuTask = null },
-            onReschedule = {
-                contextMenuTask = null
-                reschedulePopupTask = task
-            },
-            onMoveToProject = {
-                contextMenuTask = null
-                moveToProjectSheetTask = task
-            }
         )
     }
 

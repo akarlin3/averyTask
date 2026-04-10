@@ -33,6 +33,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -94,7 +97,6 @@ import androidx.compose.material3.AlertDialog
 import com.averycorp.averytask.ui.components.MoveToProjectSheet
 import com.averycorp.averytask.ui.components.QuickAddBar
 import com.averycorp.averytask.ui.components.QuickReschedulePopup
-import com.averycorp.averytask.ui.components.TaskContextMenuSheet
 import com.averycorp.averytask.ui.navigation.AveryTaskRoute
 import com.averycorp.averytask.ui.screens.addedittask.AddEditTaskSheetHost
 import com.averycorp.averytask.ui.theme.LocalPriorityColors
@@ -145,7 +147,6 @@ fun TodayScreen(
     var editorSheetTaskId by remember { mutableStateOf<Long?>(null) }
     var showEditorSheet by remember { mutableStateOf(false) }
     var reschedulePopupTask by remember { mutableStateOf<TaskEntity?>(null) }
-    var contextMenuTask by remember { mutableStateOf<TaskEntity?>(null) }
     var moveToProjectSheetTask by remember { mutableStateOf<TaskEntity?>(null) }
     var cascadeConfirmState by remember { mutableStateOf<Pair<TaskEntity, Long?>?>(null) }
     val taskCountByProject by viewModel.taskCountByProject.collectAsStateWithLifecycle()
@@ -215,7 +216,10 @@ fun TodayScreen(
                                         editorSheetTaskId = task.id
                                         showEditorSheet = true
                                     },
-                                    onLongPress = { contextMenuTask = task }
+                                    onReschedule = { reschedulePopupTask = task },
+                                    onMoveToProject = { moveToProjectSheetTask = task },
+                                    onDuplicate = { viewModel.onDuplicateTask(task.id) },
+                                    onDelete = { viewModel.onDeleteTaskWithUndo(task.id) }
                                 )
                             }
                         }
@@ -245,7 +249,10 @@ fun TodayScreen(
                                         editorSheetTaskId = task.id
                                         showEditorSheet = true
                                     },
-                                    onLongPress = { contextMenuTask = task }
+                                    onReschedule = { reschedulePopupTask = task },
+                                    onMoveToProject = { moveToProjectSheetTask = task },
+                                    onDuplicate = { viewModel.onDuplicateTask(task.id) },
+                                    onDelete = { viewModel.onDeleteTaskWithUndo(task.id) }
                                 )
                             }
                         }
@@ -301,7 +308,10 @@ fun TodayScreen(
                                         editorSheetTaskId = task.id
                                         showEditorSheet = true
                                     },
-                                    onLongPress = { contextMenuTask = task }
+                                    onReschedule = { reschedulePopupTask = task },
+                                    onMoveToProject = { moveToProjectSheetTask = task },
+                                    onDuplicate = { viewModel.onDuplicateTask(task.id) },
+                                    onDelete = { viewModel.onDeleteTaskWithUndo(task.id) }
                                 )
                             }
                         }
@@ -395,21 +405,6 @@ fun TodayScreen(
             onDismiss = { reschedulePopupTask = null },
             onReschedule = { newDate -> viewModel.onRescheduleTask(task.id, newDate) },
             onPlanForToday = { viewModel.onPlanTaskForToday(task.id) }
-        )
-    }
-
-    contextMenuTask?.let { task ->
-        TaskContextMenuSheet(
-            taskTitle = task.title,
-            onDismiss = { contextMenuTask = null },
-            onReschedule = {
-                contextMenuTask = null
-                reschedulePopupTask = task
-            },
-            onMoveToProject = {
-                contextMenuTask = null
-                moveToProjectSheetTask = task
-            }
         )
     }
 
@@ -953,8 +948,12 @@ private fun SwipeableTaskItem(
     isPlanned: Boolean = false,
     onComplete: () -> Unit,
     onClick: () -> Unit,
-    onLongPress: () -> Unit = {}
+    onReschedule: () -> Unit = {},
+    onMoveToProject: () -> Unit = {},
+    onDuplicate: () -> Unit = {},
+    onDelete: () -> Unit = {}
 ) {
+    var showOverflowMenu by remember { mutableStateOf(false) }
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
             if (value == SwipeToDismissBoxValue.StartToEnd) {
@@ -983,10 +982,7 @@ private fun SwipeableTaskItem(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .combinedClickable(
-                    onClick = onClick,
-                    onLongClick = onLongPress
-                ),
+                .clickable(onClick = onClick),
             shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(
                 containerColor = if (isOverdue)
@@ -1059,6 +1055,52 @@ private fun SwipeableTaskItem(
                                 color = tagColor
                             )
                         }
+                    }
+                }
+                Box {
+                    IconButton(
+                        onClick = { showOverflowMenu = true },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.MoreVert,
+                            contentDescription = "More Actions",
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = showOverflowMenu,
+                        onDismissRequest = { showOverflowMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("\uD83D\uDCC5  Reschedule") },
+                            onClick = {
+                                showOverflowMenu = false
+                                onReschedule()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("\uD83D\uDCC1  Move To Project") },
+                            onClick = {
+                                showOverflowMenu = false
+                                onMoveToProject()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("\uD83D\uDCCB  Duplicate") },
+                            onClick = {
+                                showOverflowMenu = false
+                                onDuplicate()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("\uD83D\uDDD1\uFE0F  Delete") },
+                            onClick = {
+                                showOverflowMenu = false
+                                onDelete()
+                            }
+                        )
                     }
                 }
             }
