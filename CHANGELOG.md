@@ -38,6 +38,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added 26 unit tests: `LifeCategoryClassifierTest` (11), `BalanceTrackerTest`
   (10), `NaturalLanguageParserTest` life-category additions (5).
 
+### Added — Medication Refill Tracking (V10 phase 1)
+- New `medication_refills` Room table (migration 34 → 35) storing per-
+  medication pill counts, dosage, pharmacy info, and reminder lead time.
+- `MedicationRefillEntity`, `MedicationRefillDao` with upsert/observe/
+  get-by-name queries.
+- `RefillCalculator` pure-function helper with `forecast`, `applyDailyDose`,
+  `applyRefill`, and `adherenceRate`. Forecasts produce a `RefillForecast`
+  with `daysRemaining`, `refillDateMillis`, `reminderDateMillis`, and a
+  `RefillUrgency` bucket (HEALTHY / UPCOMING / URGENT / OUT_OF_STOCK).
+- 16 new unit tests covering: 30 pills @ 1/day, 60 pills @ 2/day, 60 pills
+  @ 2-per-dose, refill-date anchoring, 3-day reminder offset, all four
+  urgency buckets, daily dose decrement (including multi-dose and the
+  zero floor), refill reset semantics, and adherence math.
+
+Scoped for follow-up: UI surface in MedicationScreen for entering
+pill counts, pharmacy fields, NLP "refill X in N days" parsing, the
+adherence analytics screen, and wiring the refill reminder into
+MedicationReminderScheduler.
+
 ### Added — Mood & Energy Tracking Foundation (V7 phase 1)
 - New `mood_energy_logs` table (Room migration 33 → 34) with
   `(date, time_of_day)` unique index so morning and evening check-ins

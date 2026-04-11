@@ -520,6 +520,28 @@ val MIGRATION_32_33 = object : Migration(32, 33) {
     }
 }
 
+// v1.4.0 V10: add medication_refills table (pill count + refill tracking)
+val MIGRATION_34_35 = object : Migration(34, 35) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS `medication_refills` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `medication_name` TEXT NOT NULL,
+                `pill_count` INTEGER NOT NULL,
+                `pills_per_dose` INTEGER NOT NULL DEFAULT 1,
+                `doses_per_day` INTEGER NOT NULL DEFAULT 1,
+                `last_refill_date` INTEGER,
+                `pharmacy_name` TEXT,
+                `pharmacy_phone` TEXT,
+                `reminder_days_before` INTEGER NOT NULL DEFAULT 3,
+                `created_at` INTEGER NOT NULL,
+                `updated_at` INTEGER NOT NULL
+            )"""
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_medication_refills_medication_name` ON `medication_refills` (`medication_name`)")
+    }
+}
+
 // v1.4.0 V7: add mood_energy_logs table (mood + energy daily check-ins)
 val MIGRATION_33_34 = object : Migration(33, 34) {
     override fun migrate(db: SupportSQLiteDatabase) {
@@ -573,4 +595,5 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_31_32,
     MIGRATION_32_33,
     MIGRATION_33_34,
+    MIGRATION_34_35,
 )
