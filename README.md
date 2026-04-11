@@ -10,32 +10,43 @@
 [![Android CI](https://github.com/akarlin3/prismTask/actions/workflows/android-ci.yml/badge.svg)](https://github.com/akarlin3/prismTask/actions/workflows/android-ci.yml)
 [![Backend CI](https://github.com/akarlin3/prismTask/actions/workflows/ci.yml/badge.svg)](https://github.com/akarlin3/prismTask/actions/workflows/ci.yml)
 
-A native Android task manager with a Python API backend featuring AI-powered natural language processing. Built with Kotlin/Jetpack Compose for the client and FastAPI/PostgreSQL for the server.
+A native Android task manager with a Python API backend featuring AI-powered natural language processing, voice input, full accessibility support, deep customization, productivity analytics, and first-class integrations with Gmail, Slack, and Google Calendar. Built with Kotlin/Jetpack Compose for the client and FastAPI/PostgreSQL for the server.
 
 ## Download
 
 <!-- TODO: Replace with actual Play Store link once published -->
 [<img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="80">](https://play.google.com/store/apps/details?id=com.averycorp.prismtask)
 
-## Free vs Pro
+## Free vs Pro vs Premium
 
-| Feature | Free | Pro ($3.99/mo) |
-|---------|------|----------------|
-| Task management, projects, tags, subtasks | Yes | Yes |
-| Habit tracking with streaks & analytics | Yes | Yes |
-| Task templates (6 built-in + custom) | Yes | Yes |
-| Google Calendar sync | Yes | Yes |
-| Home screen widgets | Yes | Yes |
-| NLP quick-add (local parser) | Yes | Yes |
-| All views (Today, Tasks, Week, Month, Timeline, Eisenhower) | Yes | Yes |
-| Drag-to-reorder, bulk edit, quick reschedule | Yes | Yes |
-| JSON/CSV export/import | Yes | Yes |
-| AI Eisenhower auto-categorization | -- | Yes |
-| AI Smart Pomodoro focus planning | -- | Yes |
-| AI NLP task parsing (backend) | -- | Yes |
-| Cloud sync across devices | -- | Yes |
-| Collaboration (shared projects) | -- | Yes |
-| Google Drive backup/restore | -- | Yes |
+PrismTask v1.3.0 introduces a three-tier pricing model.
+
+| Feature | Free | Pro ($3.99/mo) | Premium ($7.99/mo) |
+|---------|------|----------------|--------------------|
+| Task management, projects, tags, subtasks | Yes | Yes | Yes |
+| Habit tracking with streaks & analytics | Yes | Yes | Yes |
+| Task templates (built-in + local) | Yes | Yes | Yes |
+| Google Calendar sync | Yes | Yes | Yes |
+| All 7 home screen widgets with per-instance config | Yes | Yes | Yes |
+| Voice input, accessibility, customization | Yes | Yes | Yes |
+| NLP quick-add (local parser) | Yes | Yes | Yes |
+| All views (Today, Tasks, Week, Month, Timeline, Eisenhower) | Yes | Yes | Yes |
+| Drag-to-reorder, bulk edit, quick reschedule | Yes | Yes | Yes |
+| JSON/CSV export/import | Yes | Yes | Yes |
+| Cloud sync across devices (tasks + templates) | -- | Yes | Yes |
+| AI Eisenhower auto-categorization | -- | Yes | Yes |
+| AI Smart Pomodoro focus planning | -- | Yes | Yes |
+| Basic analytics & time tracking | -- | Yes | Yes |
+| Smart defaults engine | -- | Yes | Yes |
+| Notification profiles & quiet hours | -- | Yes | Yes |
+| Unlimited saved filters, custom templates | -- | Yes | Yes |
+| AI daily briefing + weekly planner + time blocking | -- | -- | Yes |
+| Collaboration (shared projects) | -- | -- | Yes |
+| Integrations: Gmail, Slack, Webhooks/Zapier | -- | -- | Yes |
+| Full analytics dashboard (burndown, heatmap, correlation) | -- | -- | Yes |
+| Google Drive backup/restore | -- | -- | Yes |
+
+Debug builds expose a tier override in Settings for local development.
 
 ## Screenshots
 
@@ -121,10 +132,55 @@ A native Android task manager with a Python API backend featuring AI-powered nat
 - Offline queue with pending action tracking and retry logic
 - Real-time snapshot listeners for cross-device updates
 
-### Home Screen Widgets
+### Voice Input & Accessibility
+- **Speech-to-Task** -- Dictate tasks via Android SpeechRecognizer; NLP parser extracts dates/priorities/tags from voice
+- **Voice Commands** -- Hands-free completion, rescheduling, navigation via `VoiceCommandParser`
+- **Hands-Free Mode** -- Continuous-listening mode for a spoken task session
+- **Text-to-Speech** -- Readback of the Today list, individual tasks, and daily briefings
+- **TalkBack/Screen Reader** -- Semantic labels throughout all screens
+- **Font Scaling & High Contrast** -- Respects system accessibility settings and offers a built-in high-contrast mode
+- **Keyboard Navigation** -- Full focus traversal for all interactive elements
+- **Reduced Motion** -- Opt-out of decorative animations
+
+### Customization & Personalization
+- Centralized `UserPreferencesDataStore` for all customization settings
+- Configurable swipe actions (7 options per direction) and flagged-task filter
+- Custom accent color picker (hex input + recent colors), compact mode, card corner radius
+- Toggleable task card metadata fields (12 fields) + minimal card style
+- User-configurable urgency scoring weights with live preview
+- Configurable task defaults + smart defaults engine
+- Custom NLP shortcuts/aliases with quick-add suggestion chips
+- Saved filter presets with quick-apply chips
+- Reorderable, toggleable long-press context menu
+- Customizable Today-screen section order and visibility
+- Advanced recurrence: weekday, biweekly, custom month days, after-completion
+- Notification profiles with multi-reminder bundles, escalation, quiet hours, daily digest
+- Project and habit template systems with built-in templates
+
+### Analytics & Time Tracking (Pro)
+- Productivity dashboard with daily/weekly/monthly views
+- Task completion burndown charts
+- Habit-productivity correlation analysis
+- Per-task time tracking with start/stop logging
+- Heatmap visualization for activity patterns
+- Time-tracked badge on task cards (configurable)
+
+### Integrations (Premium)
+- **Gmail** -- Auto-create tasks from starred emails
+- **Slack** -- Create tasks from Slack messages
+- **Google Calendar prep tasks** -- Auto-generate prep tasks before meetings
+- **Webhook/Zapier endpoint** -- Bring external automations into PrismTask
+- **Suggestion inbox** -- Review and accept/reject auto-created tasks before they land in the task list
+
+### Home Screen Widgets (7 total)
 - **Today Widget** -- Combined progress count + top task names + habit completion count
 - **Habit Streak Widget** -- Up to 6 habits with icons and completion status
 - **Quick-Add Widget** -- Minimal tap-to-launch bar for fast task creation
+- **Calendar Widget** -- Upcoming events with PrismTask task overlays
+- **Productivity Widget** -- At-a-glance burndown and completion stats
+- **Timer Widget** -- Start, pause, and check the Pomodoro timer from the home screen
+- **Upcoming Widget** -- Next N tasks across today and tomorrow
+- Per-instance configuration activities with background opacity and section toggles
 - Built with Glance for Compose
 
 ### Data Management
@@ -172,8 +228,10 @@ A native Android task manager with a Python API backend featuring AI-powered nat
 | Auth | Credential Manager + Google Identity | 1.3.0 / 1.1.1 |
 | Drag-to-Reorder | sh.calvin.reorderable | 2.4.3 |
 | Widgets | Glance for Compose | 1.1.0 |
+| Billing | Google Play Billing | 7.1.1 |
 | Serialization | Gson | 2.11.0 |
-| Async | Kotlin Coroutines | 1.10.2 |
+| Async | Kotlin Coroutines | 1.9.0 |
+| Testing | JUnit, coroutines-test, Turbine, MockK, Robolectric, Hilt Testing | 4.13.2 / 1.9.0 / 1.1.0 / 1.13.13 / 4.13 / 2.59.2 |
 | Build | Gradle (Kotlin DSL) | 8.13 |
 
 **Target:** Android 8.0+ (API 26) through Android 15 (API 35)
@@ -245,7 +303,7 @@ docker compose up -d
 # Release build (R8 minification + resource shrinking)
 ./gradlew assembleRelease
 
-# Run unit tests (225 tests)
+# Run unit tests (~490 tests)
 ./gradlew testDebugUnitTest
 
 # Run instrumentation tests (requires device/emulator)
@@ -262,8 +320,8 @@ Single-activity MVVM with Hilt dependency injection:
 - **UI layer**: Jetpack Compose screens with Material 3, connected to ViewModels via `hiltViewModel()`
 - **ViewModel layer**: Exposes `StateFlow` from repositories via `stateIn(WhileSubscribed)`, handles user actions in `viewModelScope`
 - **Repository layer**: Single source of truth wrapping Room DAOs with business logic (recurrence completion, date grouping, streak calculation, duplicate prevention)
-- **Data layer**: Room database (v24, 18 entities) with reactive `Flow` queries, Firebase Firestore for cloud sync, DataStore for preferences
-- **Domain layer**: Pure use-case objects -- RecurrenceEngine, NaturalLanguageParser, UrgencyScorer, StreakCalculator, SuggestionEngine, ParsedTaskResolver
+- **Data layer**: Room database with reactive `Flow` queries, Firebase Firestore + FastAPI backend for cloud sync, DataStore for preferences (centralized via `UserPreferencesDataStore`)
+- **Domain layer**: Pure use-case objects -- RecurrenceEngine, NaturalLanguageParser, ParsedTaskResolver, UrgencyScorer (with configurable weights), StreakCalculator, SuggestionEngine, SmartDefaultsEngine, NlpShortcutExpander, QuietHoursDeferrer, VoiceInputManager, VoiceCommandParser, TextToSpeechManager, ProFeatureGate (three-tier)
 - **Notifications**: AlarmManager + BroadcastReceiver for task reminders, WorkManager for weekly habit summaries
 - **Widgets**: Glance for Compose with direct Room queries via WidgetDataProvider
 
@@ -282,42 +340,21 @@ SQLite    Firestore
 
 ## Test Coverage
 
-**225 unit tests** across 20 test files:
+**~654 tests total** across the repo:
 
-| Test File | Tests | Covers |
-|-----------|-------|--------|
-| NaturalLanguageParserTest | 38 | Tags, projects, priority, dates, times, recurrence, edge cases |
-| AppUpdaterTest | 24 | GitHub API parsing, version comparison, download, install triggers |
-| StreakCalculatorTest | 21 | Current/longest streak, completion rate, weekly, by-day, multi-target |
-| RecurrenceEngineTest | 18 | Daily/weekly/monthly/yearly, intervals, skip weekends, end conditions |
-| TaskFilterTest | 13 | Filter activation, counting, defaults, all 7 filter types |
-| SyncMapperTest | 13 | Round-trip for tasks, projects, tags, habits, completions, defaults |
-| TaskTemplateRepositoryTest | 11 | Template CRUD, create-from-template, built-in seeding, usage tracking |
-| UrgencyScorerTest | 10 | Due date, priority, age, subtasks, urgency levels, clamping |
-| EntityJsonMergerTest | 9 | Merge vs. replace import paths for tasks, projects, habits |
-| SuggestionEngineTest | 8 | Keyword extraction, stop words, short words, casing, empty input |
-| RecurrenceConverterTest | 8 | JSON round-trip, invalid input, partial data, all recurrence types |
-| DateShortcutsTest | 7 | Quick reschedule date calculations (today, tomorrow, next week, etc.) |
-| DuplicateTaskTest | 7 | Task duplication with/without subtasks, field copying, ID isolation |
-| HabitRepositoryHelpersTest | 7 | Date normalization, week boundaries, idempotency |
-| DataExporterTest | 7 | CSV escaping: commas, quotes, newlines, combined, empty |
-| SortPreferencesTest | 6 | Per-screen sort mode persistence, defaults, screen isolation |
-| MoveToProjectTest | 5 | Move task between projects, null project, batch move |
-| ProFeatureGateTest | 5 | Pro status gating, feature constants, billing state flow |
-| TemplateSeederTest | 4 | Built-in template seeding, idempotency, field validation |
-| ProStatusCacheTest | 4 | Subscription states, cache expiration, offline Pro status |
+| Suite | Count | Scope |
+|-------|-------|-------|
+| Unit tests (`app/src/test/`) | ~490 | Parsers, recurrence engine, urgency scorer + weights, streak calculator, sync mapper, repositories (Task, Habit, Project, Tag, Template, Coaching, ReminderProfile, SavedFilter), use cases (ParsedTaskResolver, ChecklistParser, TodoListParser, VoiceCommandParser, SmartDefaults, NlpShortcutExpander, QuietHoursDeferrer, AdvancedRecurrence, TimeBlock, WeeklyPlanner, DailyBriefing, Eisenhower, SmartPomodoro, BookableHabit), data import/export (DataImporter, DataExporter, EntityJsonMerger), DataStore preferences, notification/reminder scheduling, ViewModels (Today, AddEditTask, TaskList, HabitList, Eisenhower, SmartPomodoro, Onboarding), widget data + config defaults, accessibility, theming, calendar manager |
+| Instrumentation tests (`app/src/androidTest/`) | ~100 | Room DAO tests (Task, Project, Habit, Tag), recurrence integration, and smoke suites for navigation, QoL, editor, templates, Today, data export/import, views, search/archive, tags/projects, settings, recurrence, multi-select, habits, and offline edge cases |
+| Backend tests (`backend/tests/`) | ~60+ | Router tests (dashboard, export, search, app_update, projects), service tests (recurrence, urgency, NLP edge cases), and integration workflows / stress tests |
 
-**15 instrumentation tests** across 3 test files:
+## Accessibility
 
-| Test File | Tests | Covers |
-|-----------|-------|--------|
-| TaskDaoTest | 7 | CRUD, completion, project/subtask queries, date queries |
-| ProjectDaoTest | 4 | CRUD, task count aggregation |
-| RecurrenceIntegrationTest | 4 | Recurring task completion flow, max occurrences |
+PrismTask is built to be usable by everyone. All screens are fully navigable with TalkBack and other screen readers, interactive elements expose semantic labels and roles, and text size scales with the system font-scale setting. A built-in high-contrast mode and a reduced-motion toggle let you opt out of decorative animations. Hardware-keyboard focus traversal is supported across every screen, and the Voice Input and Text-to-Speech features provide hands-free task capture and readback. If you hit an accessibility gap, please open an issue — it will be treated as a bug.
 
 ## Database
 
-Room database `averytask.db` at version 24 with 18 entities:
+Room database with full task, habit, template, self-care, leisure, schoolwork, calendar-sync, sync-metadata, reminder-profile, saved-filter, NLP-shortcut, project-template, habit-template, and attachment entities. Migrations are grouped in `data/local/database/Migrations.kt`. Representative tables:
 
 | Table | Purpose |
 |-------|---------|
@@ -339,8 +376,12 @@ Room database `averytask.db` at version 24 with 18 entities:
 | `self_care_logs` | Self-care activity logs |
 | `self_care_steps` | Self-care routine step tracking |
 | `task_templates` | Reusable task blueprints with category, icon, and usage stats |
-
-Migrations: 1→24 covering tags, notes/attachments, planned date, usage logs, duration/sync, habits, leisure, schoolwork, self-care, calendar sync, task templates, sort order, and more.
+| `project_templates` | Reusable project blueprints |
+| `habit_templates` | Reusable habit blueprints |
+| `habit_logs` | Bookable habit logs with booking state |
+| `nlp_shortcuts` | User-defined NLP aliases |
+| `saved_filters` | Saved filter presets for quick-apply |
+| `reminder_profiles` | Multi-reminder notification bundles |
 
 ## Project Structure
 
@@ -351,22 +392,31 @@ prismTask/
 │       ├── MainActivity.kt                 # Single-activity entry point
 │       ├── PrismTaskApplication.kt         # @HiltAndroidApp
 │       ├── data/
-│       │   ├── local/                      # Room entities (18), DAOs (13), database, converters
-│       │   ├── remote/                     # Firebase auth, sync service, entity mappers
-│       │   ├── export/                     # JSON/CSV export and JSON import
-│       │   ├── preferences/                # DataStore: theme, archive, dashboard, sort, templates
-│       │   └── repository/                 # Task, Project, Tag, Habit, Attachment, TaskTemplate
-│       ├── di/                             # Hilt DatabaseModule
+│       │   ├── billing/                    # Google Play Billing (three-tier)
+│       │   ├── calendar/                   # Device calendar manager + preferences
+│       │   ├── export/                     # JSON/CSV export, import, entity merger
+│       │   ├── local/                      # Room entities, DAOs, grouped migrations
+│       │   ├── preferences/                # DataStore (+ centralized UserPreferencesDataStore)
+│       │   ├── remote/                     # Firebase, Drive, calendar, backend sync (api/, mapper/, sync/)
+│       │   ├── repository/                 # All repositories (task, habit, template, saved filter, ...)
+│       │   └── seed/                       # Built-in content seeders
+│       ├── di/                             # Hilt modules (Database, Billing, ...)
 │       ├── domain/
-│       │   ├── model/                      # RecurrenceRule, TaskFilter
-│       │   └── usecase/                    # RecurrenceEngine, NLP Parser, UrgencyScorer,
-│       │                                     StreakCalculator, SuggestionEngine, ParsedTaskResolver
-│       ├── notifications/                  # Reminders, receivers, weekly summary worker
-│       ├── widget/                         # Glance widgets: Today, HabitStreak, QuickAdd
+│       │   ├── model/                      # RecurrenceRule, TaskFilter, TodayLayoutResolver, ...
+│       │   └── usecase/                    # RecurrenceEngine, NLP parser, UrgencyScorer, voice,
+│       │                                     smart defaults, quiet hours, shortcut expander
+│       ├── notifications/                  # Reminders, boot, weekly/evening summary, briefings
+│       ├── widget/                         # 7 Glance widgets + config datastore
+│       ├── workers/                        # WorkManager background workers
 │       └── ui/
-│           ├── components/                 # Reusable composables (10+)
-│           ├── navigation/                 # NavGraph with 5-tab bottom nav
-│           ├── screens/                    # 19 screen packages (incl. templates)
+│           ├── a11y/                       # Accessibility helpers
+│           ├── components/                 # Reusable composables (+ settings/)
+│           ├── navigation/                 # NavGraph, feature route groups
+│           ├── screens/                    # Today, Tasks (+ components/), AddEdit (+ tabs/),
+│           │                                 Settings (+ sections/), habits, templates,
+│           │                                 leisure, medication, self-care, schoolwork,
+│           │                                 Eisenhower, pomodoro, planner, briefing, chat,
+│           │                                 coaching, timer, onboarding, ...
 │           └── theme/                      # Color, Theme, Type, PriorityColors
 └── backend/                                # FastAPI backend (Python 3.12)
     ├── app/                                # FastAPI application

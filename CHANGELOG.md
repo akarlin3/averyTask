@@ -5,6 +5,114 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v1.3.0 — Voice, Widgets, Accessibility, Analytics, Integrations & Three-Tier Pricing (April 2026)
+
+Skips the v1.2.0 tag and ships everything developed since v1.1.0 together.
+
+### Added — Voice Input & Accessibility
+- Speech-to-task creation via Android SpeechRecognizer
+- Voice commands for hands-free task management
+- Text-to-speech readback of tasks and briefings
+- Hands-free mode with continuous listening
+- TalkBack/screen reader support throughout all screens
+- Dynamic font scaling respecting system accessibility settings
+- High-contrast mode support
+- Keyboard navigation for all interactive elements
+- Reduced motion option for animations
+
+### Added — Widget Overhaul
+- Redesigned Today, Habit Streak, and Quick-Add widgets
+- 4 new widgets: Calendar, Productivity, Timer, Upcoming
+- Per-instance widget configuration activities
+- Widget background opacity and section toggles
+
+### Added — Advanced Analytics & Time Tracking
+- Productivity dashboard with daily/weekly/monthly views
+- Task completion burndown charts
+- Habit-productivity correlation analysis
+- Time tracking per task with start/stop logging
+- Heatmap visualization for activity patterns
+- Time-tracked badge on task cards (configurable)
+
+### Added — API Integrations
+- Gmail integration: auto-create tasks from starred emails
+- Slack integration: create tasks from Slack messages
+- Google Calendar prep tasks: auto-generate prep tasks before meetings
+- Webhook/Zapier endpoint for external automations
+- Suggestion inbox for reviewing auto-created tasks
+
+### Added — Customization & Personalization
+- Centralized UserPreferencesDataStore for all customization settings
+- Configurable swipe actions (7 options per direction: complete, delete,
+  reschedule, archive, move to project, flag, none)
+- Flagged task system with filter support
+- Custom accent color picker with hex input and recent colors
+- Compact mode and configurable card corner radius
+- Customizable task card display fields (12 toggleable metadata fields)
+- Minimal card style option
+- User-configurable urgency scoring weights with live preview
+- Configurable task defaults and smart defaults engine
+- Custom NLP shortcuts/aliases with quick-add suggestion chips
+- Saved filter presets with quick-apply chips
+- Customizable long-press context menu (reorderable, toggleable actions)
+- Customizable Today screen section order and visibility
+- Advanced recurrence patterns: weekday, biweekly, custom month days,
+  after-completion
+- Notification profiles with multi-reminder bundles and escalation
+- Quiet hours with deferred reminders
+- Daily digest notification
+- Project and habit template systems with built-in templates
+
+### Added — Three-Tier Pricing
+- Free: core tasks, habits, templates (local), calendar sync, widgets, all views
+- Pro ($3.99/mo): + cloud sync, template sync, AI Eisenhower, AI Pomodoro,
+  basic analytics, time tracking, smart defaults, notification profiles,
+  unlimited saved filters, custom templates
+- Premium ($7.99/mo): + AI briefing/planner/time blocking, collaboration,
+  integrations, full analytics, Drive backup
+- Debug tier override in Settings (debug builds only)
+
+### Added — Bookable Habits
+- Booking status tracking for habit logs
+- Activity history with booking state
+
+### Changed — Code Quality
+- Refactored SettingsScreen.kt from ~2,800 to ~300 lines (extracted into
+  section composables)
+- Refactored TodayScreen.kt from ~2,290 to ~300 lines (section composables)
+- Refactored AddEditTaskSheet.kt from ~2,275 to ~250 lines (tab composables)
+- Refactored TaskListScreen.kt from ~2,250 to ~350 lines (component extraction)
+- Refactored TaskListViewModel.kt into sort/filter/multiselect/grouping helpers
+- Refactored SettingsViewModel.kt into focused delegates
+- Split NavGraph.kt into navigation group extensions
+- Split HabitListScreen, MedicationScreen, SelfCareScreen, DataImporter,
+  BackendSyncService, and 8 additional 800+ line files into components
+- Extracted Room migrations into grouped files
+- No file in the codebase exceeds ~500 lines
+
+### Added — Testing
+- Repository unit tests: Task, Habit, Project, Tag (~43 tests)
+- Use case tests: ParsedTaskResolver, ChecklistParser, TodoListParser (~30 tests)
+- DataImporter unit tests with merge/replace/edge cases (~15 tests)
+- Notification/reminder scheduling tests (~22 tests)
+- DataStore preferences tests (~24 tests)
+- ViewModel unit tests: Today, AddEditTask, TaskList, HabitList, Eisenhower,
+  Settings, SmartPomodoro (~76 tests)
+- Smoke tests: habits, search/archive, tags/projects, views, settings,
+  multi-select, edge cases, offline, recurrence, export/import (~62 tests)
+- DAO instrumentation tests: Habit, Tag, Template, Attachment (~24 tests)
+- Backend router tests: dashboard, export, search, app_update, projects (~34 tests)
+- Backend service tests: recurrence, urgency, NLP edge cases (~28 tests)
+- Backend integration workflows and stress tests (~16 tests)
+
+### Infrastructure
+- Google Play Billing library for three-tier subscription
+- BillingManager singleton with purchase flow and status caching
+- ProFeatureGate updated for three-tier access control
+- Release signing configuration and App Bundle support
+- GitHub Actions release workflow for AAB builds
+- kotlinx-coroutines-test, Turbine, and MockK test dependencies
+
 ## v1.1.0 — PrismTask Rebrand, AI Productivity, Freemium & Play Store (April 2026)
 
 ### Changed — Rebrand

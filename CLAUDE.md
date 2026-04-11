@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**PrismTask** (`com.averycorp.prismtask`) is a native Android todo list app built with Kotlin and Jetpack Compose. v1.1.0 includes full task management, projects, subtasks, tags, recurrence, reminders, notifications, NLP quick-add, Today focus screen (compact header, collapsible sections), tabbed task editor (Details/Schedule/Organize), week/month/timeline views, urgency scoring, smart suggestions, drag-to-reorder with custom sort, quick reschedule, duplicate task, bulk edit (priority/date/tags/project), task templates with 6 built-ins and NLP shortcuts, Firebase cloud sync, Google Sign-In, JSON/CSV data export/import, Google Drive backup/restore, habit tracking with streaks/analytics, home screen widgets, app self-update, and a FastAPI web backend with Claude Haiku-powered NLP parsing.
+**PrismTask** (`com.averycorp.prismtask`) is a native Android todo list app built with Kotlin and Jetpack Compose. v1.3.0 includes full task management, projects, subtasks, tags, recurrence, reminders, notifications, NLP quick-add, voice input (speech-to-task, voice commands, TTS, hands-free mode), accessibility (TalkBack, font scaling, high-contrast, keyboard nav, reduced motion), Today focus screen (compact header, collapsible sections, customizable layout), tabbed task editor (Details/Schedule/Organize), week/month/timeline views, urgency scoring with user-configurable weights, smart suggestions, drag-to-reorder with custom sort, quick reschedule, duplicate task, bulk edit (priority/date/tags/project), configurable swipe actions, flagged tasks, task templates with built-ins and NLP shortcuts, project and habit templates, saved filter presets, advanced recurrence (weekday/biweekly/custom month days/after-completion), notification profiles with quiet hours and daily digest, three-tier pricing (Free/Pro/Premium) with Google Play Billing, Firebase cloud sync, Google Sign-In, JSON/CSV data export/import, Google Drive backup/restore, habit tracking with streaks/analytics, bookable habits, productivity dashboard with burndown charts and heatmap, time tracking per task, 7 home-screen widgets (Today, Habit Streak, Quick-Add, Calendar, Productivity, Timer, Upcoming) with per-instance config, Gmail/Slack/Calendar/Zapier integrations, app self-update, and a FastAPI web backend with Claude Haiku-powered NLP parsing.
 
 ## Tech Stack
 
@@ -16,6 +16,8 @@
 - **Auth**: Credential Manager + Google Identity
 - **Drag-to-Reorder**: sh.calvin.reorderable 2.4.3
 - **Widgets**: Glance for Compose 1.1.0
+- **Billing**: Google Play Billing 7.1.1
+- **Testing**: JUnit 4.13.2, kotlinx-coroutines-test 1.9.0, Turbine 1.1.0, MockK 1.13.13, Robolectric 4.13, Hilt Testing 2.59.2
 - **Build**: Gradle 8.13 with Kotlin DSL
 - **Min SDK**: 26 (Android 8.0) / **Target SDK**: 35 (Android 15)
 
@@ -26,160 +28,122 @@ app/src/main/java/com/averycorp/prismtask/
 ├── MainActivity.kt                     # Single-activity entry point, notification permission
 ├── PrismTaskApplication.kt             # @HiltAndroidApp
 ├── data/
+│   ├── billing/
+│   │   └── BillingManager.kt           # Google Play Billing: three-tier purchase flow, restore, cached status
+│   ├── calendar/
+│   │   ├── CalendarManager.kt          # Device calendar provider wrapper
+│   │   └── CalendarSyncPreferences.kt
+│   ├── export/
+│   │   ├── DataExporter.kt             # Full JSON export (all entities + config) + CSV
+│   │   ├── DataImporter.kt             # Full JSON import with merge/replace
+│   │   └── EntityJsonMerger.kt         # Entity-level merge helper
 │   ├── local/
 │   │   ├── converter/
 │   │   │   └── RecurrenceConverter.kt  # Gson JSON ↔ RecurrenceRule
-│   │   ├── dao/
-│   │   │   ├── TaskDao.kt             # Room DAO with Flow queries (today, overdue, planned)
-│   │   │   ├── ProjectDao.kt          # Room DAO with task count join
-│   │   │   ├── TagDao.kt              # Tag CRUD + task-tag relations
-│   │   │   ├── AttachmentDao.kt       # Attachment CRUD
-│   │   │   ├── UsageLogDao.kt         # Usage analytics for smart suggestions
-│   │   │   ├── HabitDao.kt            # Habit CRUD + active/archive filtering
-│   │   │   ├── HabitCompletionDao.kt  # Habit completions: date queries, range, toggle
-│   │   │   └── TaskTemplateDao.kt     # Template CRUD + category/search queries
+│   │   ├── dao/                       # Room DAOs
+│   │   │   ├── TaskDao.kt, ProjectDao.kt, TagDao.kt, AttachmentDao.kt
+│   │   │   ├── UsageLogDao.kt, SyncMetadataDao.kt, CalendarSyncDao.kt
+│   │   │   ├── HabitDao.kt, HabitCompletionDao.kt, HabitLogDao.kt
+│   │   │   ├── HabitTemplateDao.kt, TaskTemplateDao.kt, ProjectTemplateDao.kt
+│   │   │   ├── NlpShortcutDao.kt, SavedFilterDao.kt, ReminderProfileDao.kt
+│   │   │   ├── SelfCareDao.kt, LeisureDao.kt, SchoolworkDao.kt
 │   │   ├── database/
-│   │   │   └── PrismTaskDatabase.kt    # Room DB (v24, migrations 1→24)
-│   │   └── entity/
-│   │       ├── TaskEntity.kt          # Tasks table with plannedDate, FKs, indices
-│   │       ├── ProjectEntity.kt       # Projects table
-│   │       ├── TagEntity.kt           # Tags table
-│   │       ├── TaskTagCrossRef.kt     # Task-tag junction table
-│   │       ├── TaskWithTags.kt        # Room relation
-│   │       ├── AttachmentEntity.kt    # File attachments
-│   │       ├── UsageLogEntity.kt      # Usage logs for suggestion engine
-│   │       ├── SyncMetadataEntity.kt  # Cloud sync local↔remote ID mapping
-│   │       ├── CalendarSyncEntity.kt  # Task↔Google Calendar event mapping
-│   │       ├── HabitEntity.kt         # Habits: name, frequency, color, icon, category
-│   │       ├── HabitCompletionEntity.kt # Habit completions with FK to habits
-│   │       └── TaskTemplateEntity.kt  # Task templates: title, fields, category, usage stats
+│   │   │   ├── PrismTaskDatabase.kt    # Room DB with migrations
+│   │   │   └── Migrations.kt           # Grouped migration definitions
+│   │   └── entity/                     # Room entities
+│   │       ├── TaskEntity.kt, ProjectEntity.kt, TagEntity.kt
+│   │       ├── TaskTagCrossRef.kt, TaskWithTags.kt, AttachmentEntity.kt
+│   │       ├── UsageLogEntity.kt, SyncMetadataEntity.kt, CalendarSyncEntity.kt
+│   │       ├── HabitEntity.kt, HabitCompletionEntity.kt, HabitLogEntity.kt (bookable)
+│   │       ├── HabitTemplateEntity.kt, TaskTemplateEntity.kt, ProjectTemplateEntity.kt
+│   │       ├── NlpShortcutEntity.kt, SavedFilterEntity.kt, ReminderProfileEntity.kt
+│   │       ├── SelfCareLogEntity.kt, SelfCareStepEntity.kt, StudyLogEntity.kt
+│   │       ├── LeisureLogEntity.kt, CourseEntity.kt, AssignmentEntity.kt, CourseCompletionEntity.kt
+│   ├── preferences/                    # DataStore preferences
+│   │   ├── UserPreferencesDataStore.kt # Centralized customization settings
+│   │   ├── ThemePreferences.kt, ArchivePreferences.kt, SortPreferences.kt
+│   │   ├── DashboardPreferences.kt, ProStatusPreferences.kt, HabitListPreferences.kt
+│   │   ├── TaskBehaviorPreferences.kt, TemplatePreferences.kt, TimerPreferences.kt
+│   │   ├── VoicePreferences.kt, A11yPreferences.kt, OnboardingPreferences.kt
+│   │   ├── TabPreferences.kt, LeisurePreferences.kt, MedicationPreferences.kt
+│   │   ├── CalendarPreferences.kt, BackendSyncPreferences.kt, CoachingPreferences.kt
+│   │   ├── ApiPreferences.kt, AuthTokenPreferences.kt
 │   ├── remote/
-│   │   ├── AuthManager.kt            # Firebase Auth + Google Sign-In
-│   │   ├── GoogleDriveService.kt     # Google Drive backup/restore (export + import JSON)
-│   │   ├── SyncService.kt            # Firestore push/pull/real-time sync
-│   │   └── mapper/
-│   │       └── SyncMapper.kt         # Entity ↔ Firestore document mapping
-│   ├── export/
-│   │   ├── DataExporter.kt           # Full JSON export (tasks, habits, self-care, leisure, schoolwork, config) + CSV
-│   │   └── DataImporter.kt           # Full JSON import with merge/replace (all data types + config restore)
-│   ├── billing/
-│   │   └── BillingManager.kt          # Google Play Billing: purchase flow, restore, status caching
-│   ├── repository/
-│   │   ├── TaskRepository.kt          # Task CRUD, recurrence completion, date grouping
-│   │   ├── ProjectRepository.kt       # Project CRUD
-│   │   ├── TagRepository.kt           # Tag CRUD + task assignment
-│   │   ├── AttachmentRepository.kt    # Attachment CRUD
-│   │   ├── HabitRepository.kt         # Habit CRUD, completions, streak calc, HabitWithStatus
-│   │   └── TaskTemplateRepository.kt  # Template CRUD, create-from-template, built-in seeding
-│   └── preferences/
-│       ├── ThemePreferences.kt        # Theme mode + accent color DataStore
-│       ├── ArchivePreferences.kt      # Auto-archive settings
-│       ├── SortPreferences.kt         # Per-screen sort mode memory (DataStore-persisted)
-│       ├── DashboardPreferences.kt    # Dashboard section order + visibility
-│       └── ProStatusPreferences.kt    # Pro subscription status cache for offline access
+│   │   ├── AuthManager.kt              # Firebase Auth + Google Sign-In
+│   │   ├── GoogleDriveService.kt       # Drive backup/restore
+│   │   ├── SyncService.kt              # Firestore push/pull/real-time
+│   │   ├── CalendarSyncService.kt      # Google Calendar two-way sync
+│   │   ├── ClaudeParserService.kt      # Backend NLP parse HTTP client
+│   │   ├── AppUpdater.kt, UpdateChecker.kt, SyncTracker.kt
+│   │   ├── api/                        # Retrofit backend client
+│   │   │   ├── ApiClient.kt, ApiModels.kt, PrismTaskApi.kt
+│   │   ├── mapper/
+│   │   │   └── SyncMapper.kt           # Entity ↔ Firestore docs
+│   │   └── sync/                       # Backend sync split
+│   │       ├── BackendSyncService.kt, BackendSyncMappers.kt, SyncModels.kt
+│   ├── repository/                     # All repositories
+│   │   ├── TaskRepository.kt, ProjectRepository.kt, TagRepository.kt, AttachmentRepository.kt
+│   │   ├── HabitRepository.kt, HabitTemplateRepository.kt, TaskTemplateRepository.kt
+│   │   ├── ProjectTemplateRepository.kt, SavedFilterRepository.kt, NlpShortcutRepository.kt
+│   │   ├── ReminderProfileRepository.kt, ChatRepository.kt, CoachingRepository.kt
+│   │   ├── SelfCareRepository.kt, LeisureRepository.kt, SchoolworkRepository.kt
+│   └── seed/                           # Built-in content seeders
 ├── di/
-│   ├── DatabaseModule.kt              # Hilt module: Room DB, DAOs (incl. Habit DAOs)
-│   └── BillingModule.kt               # Hilt module: Google Play Billing
+│   ├── DatabaseModule.kt, BillingModule.kt (+ additional Hilt modules)
 ├── domain/
 │   ├── model/
-│   │   ├── RecurrenceRule.kt          # RecurrenceRule data class + RecurrenceType enum
-│   │   └── TaskFilter.kt             # Filter model for task list
+│   │   ├── RecurrenceRule.kt, TaskFilter.kt
+│   │   ├── TodayLayoutResolver.kt, TaskCardDisplayConfig.kt, TaskMenuAction.kt
 │   └── usecase/
-│       ├── RecurrenceEngine.kt        # Next-date calculation for all recurrence types
-│       ├── NaturalLanguageParser.kt   # NLP parser: extracts dates, tags, priority from text
-│       ├── ParsedTaskResolver.kt      # Resolves parsed NLP data against existing entities
-│       ├── UrgencyScorer.kt           # Urgency scoring (0-1) based on due date, priority, age
-│       ├── SuggestionEngine.kt        # Smart tag/project suggestions based on usage patterns
-│       ├── StreakCalculator.kt        # Habit streak calculation (current, longest, rates, by-day)
-│       └── ProFeatureGate.kt         # Pro subscription feature access control
+│       ├── RecurrenceEngine.kt, NaturalLanguageParser.kt, ParsedTaskResolver.kt
+│       ├── UrgencyScorer.kt, SuggestionEngine.kt, StreakCalculator.kt
+│       ├── ProFeatureGate.kt           # Three-tier access control
+│       ├── VoiceInputManager.kt, VoiceCommandParser.kt, TextToSpeechManager.kt
+│       ├── SmartDefaultsEngine.kt, NlpShortcutExpander.kt, QuietHoursDeferrer.kt
+│       ├── ChecklistParser.kt, TodoListParser.kt, DateShortcuts.kt
 ├── notifications/
-│   ├── NotificationHelper.kt          # Channel creation, notification builder
-│   ├── ReminderScheduler.kt           # AlarmManager scheduling
-│   ├── ReminderBroadcastReceiver.kt   # Fires notification on alarm
-│   ├── CompleteTaskReceiver.kt        # Marks task complete from notification action
-│   ├── BootReceiver.kt               # Reschedules reminders after reboot
-│   ├── WeeklyHabitSummary.kt         # Weekly habit summary generator + notification
-│   └── WeeklySummaryWorker.kt        # WorkManager worker for weekly summary
-├── widget/
-│   ├── TodayWidget.kt                # Glance today widget with progress + task list
-│   ├── HabitStreakWidget.kt           # Glance habit streak widget
-│   ├── QuickAddWidget.kt             # Glance quick-add widget
-│   ├── WidgetDataProvider.kt          # Room queries for widget data
-│   └── WidgetUpdateManager.kt         # Triggers widget updates
+│   ├── NotificationHelper.kt, ReminderScheduler.kt, ReminderBroadcastReceiver.kt
+│   ├── CompleteTaskReceiver.kt, BootReceiver.kt
+│   ├── WeeklyHabitSummary.kt, WeeklySummaryWorker.kt
+│   ├── BriefingNotificationWorker.kt, EveningSummaryWorker.kt, ReengagementWorker.kt
+│   ├── MedicationReminderScheduler.kt, MedicationReminderReceiver.kt
+│   ├── MedStepReminderReceiver.kt, LogMedicationReceiver.kt
+├── widget/                             # 7 Glance widgets with per-instance config
+│   ├── TodayWidget.kt, HabitStreakWidget.kt, QuickAddWidget.kt
+│   ├── CalendarWidget.kt, ProductivityWidget.kt, TimerWidget.kt, UpcomingWidget.kt
+│   ├── WidgetActions.kt, WidgetConfigDataStore.kt
+│   ├── WidgetDataProvider.kt, WidgetUpdateManager.kt
+├── workers/                            # Background WorkManager workers
+├── util/, utils/                       # Shared helpers
 └── ui/
-    ├── components/
-    │   ├── SubtaskSection.kt          # Expandable subtask list with inline add
-    │   ├── RecurrenceSelector.kt      # Recurrence config dialog
-    │   ├── EmptyState.kt             # Reusable empty state composable
-    │   ├── FilterPanel.kt            # Advanced filter bottom sheet
-    │   ├── HighlightedText.kt        # Search result highlighting
-    │   ├── TagSelector.kt            # Tag selection component
-    │   ├── QuickAddBar.kt            # NLP-powered quick task creation bar
-    │   ├── QuickAddViewModel.kt      # Quick-add logic: parse → resolve → create
-    │   ├── ProBadge.kt               # "PRO" badge for gated features
-    │   ├── ProUpgradePrompt.kt       # Upgrade prompt card for Pro features
-    │   ├── StreakBadge.kt            # Fire emoji streak badge with pulse animation
-    │   ├── ContributionGrid.kt       # GitHub-style 12-week completion grid
-    │   ├── WeeklyProgressDots.kt     # 7-dot Mon-Sun weekly progress indicator
-    │   └── QuickReschedulePopup.kt   # Long-press date shortcut popup (Today/Tomorrow/Next Week/Pick)
+    ├── a11y/                           # Accessibility helpers (TalkBack, font scaling, contrast)
+    ├── components/                     # Shared composables
+    │   ├── SubtaskSection.kt, RecurrenceSelector.kt, EmptyState.kt, FilterPanel.kt
+    │   ├── HighlightedText.kt, TagSelector.kt, QuickAddBar.kt, QuickAddViewModel.kt
+    │   ├── ProBadge.kt, ProUpgradePrompt.kt, StreakBadge.kt
+    │   ├── ContributionGrid.kt, WeeklyProgressDots.kt, QuickReschedulePopup.kt
+    │   └── settings/                   # Shared settings-screen composables
     ├── navigation/
-    │   └── NavGraph.kt               # NavHost with bottom nav (Today, Tasks, Projects, Settings)
+    │   ├── NavGraph.kt                 # Top-level NavHost
+    │   └── FeatureRoutes.kt            # Feature group route definitions
     ├── screens/
-    │   ├── auth/
-    │   │   ├── AuthScreen.kt         # Google Sign-In screen
-    │   │   └── AuthViewModel.kt      # Auth state management
-    │   ├── today/
-    │   │   ├── TodayScreen.kt        # Today focus: progress ring, overdue, planned, completed
-    │   │   └── TodayViewModel.kt     # Today state, plan-for-today, rollover
-    │   ├── tasklist/
-    │   │   ├── TaskListScreen.kt      # Main screen: grouped/list views, swipe, filter, multi-select
-    │   │   └── TaskListViewModel.kt   # Sort (incl. urgency), filter, group, subtask map, undo
-    │   ├── addedittask/
-    │   │   ├── AddEditTaskScreen.kt   # Task form with date/time/priority/recurrence/reminder
-    │   │   └── AddEditTaskViewModel.kt
-    │   ├── projects/
-    │   │   ├── ProjectListScreen.kt
-    │   │   ├── ProjectListViewModel.kt
-    │   │   ├── AddEditProjectScreen.kt
-    │   │   └── AddEditProjectViewModel.kt
-    │   ├── weekview/
-    │   │   ├── WeekViewScreen.kt      # 7-day column view with task cards
-    │   │   └── WeekViewModel.kt       # Week navigation, task grouping by day
-    │   ├── monthview/
-    │   │   ├── MonthViewScreen.kt     # Calendar grid with density dots, day detail
-    │   │   └── MonthViewModel.kt      # Month navigation, day info aggregation
-    │   ├── timeline/
-    │   │   ├── TimelineScreen.kt      # Daily timeline with scheduled blocks
-    │   │   └── TimelineViewModel.kt   # Timeline state, scheduling
-    │   ├── search/
-    │   │   ├── SearchScreen.kt
-    │   │   └── SearchViewModel.kt
-    │   ├── archive/
-    │   │   ├── ArchiveScreen.kt
-    │   │   └── ArchiveViewModel.kt
-    │   ├── settings/
-    │   │   ├── SettingsScreen.kt
-    │   │   └── SettingsViewModel.kt
-    │   ├── habits/
-    │   │   ├── HabitListScreen.kt        # Habit list with streak badges, checkboxes, dots
-    │   │   ├── HabitListViewModel.kt     # Habit list state + toggle/delete/reorder
-    │   │   ├── AddEditHabitScreen.kt     # Habit form: icon, color, frequency, category
-    │   │   ├── AddEditHabitViewModel.kt  # Habit creation/editing
-    │   │   ├── HabitAnalyticsScreen.kt   # Stats, contribution grid, charts
-    │   │   └── HabitAnalyticsViewModel.kt # Analytics state computation
-    │   ├── tags/
-    │   │   ├── TagManagementScreen.kt
-    │   │   └── TagManagementViewModel.kt
-    │   └── templates/
-    │       ├── TemplateListScreen.kt         # Template list with categories and quick-use
-    │       ├── TemplateListViewModel.kt      # Template list state + quick-use/delete
-    │       ├── AddEditTemplateScreen.kt      # Template form: fields, icon, category
-    │       └── AddEditTemplateViewModel.kt   # Template creation/editing
+    │   ├── auth/, today/, tasklist/, addedittask/, projects/
+    │   ├── weekview/, monthview/, timeline/, search/, archive/
+    │   ├── tags/, templates/, habits/, settings/
+    │   ├── today/components/           # PlanForTodaySheet + TodayComponents
+    │   ├── tasklist/components/        # Extracted task list components
+    │   ├── addedittask/tabs/           # DetailsTab, ScheduleTab, OrganizeTab
+    │   ├── settings/sections/          # 22 extracted settings sections (Accessibility,
+    │   │                               #   SwipeActions, Voice, TaskDefaults, DebugTier,
+    │   │                               #   Subscription, Appearance, AI, etc.)
+    │   ├── habits/components/, templates/components/
+    │   ├── leisure/, leisure/components/
+    │   ├── selfcare/, selfcare/components/
+    │   ├── medication/, medication/components/
+    │   ├── schoolwork/, briefing/, chat/, coaching/
+    │   ├── eisenhower/, pomodoro/, planner/, timer/, onboarding/
     └── theme/
-        ├── Color.kt                   # Material 3 color tokens
-        ├── Theme.kt                   # Dynamic color theme (dark mode forced)
-        ├── Type.kt                    # Typography scale
-        └── PriorityColors.kt         # Centralized priority color definitions
+        ├── Color.kt, Theme.kt, Type.kt, PriorityColors.kt
 ```
 
 ## Architecture
@@ -202,14 +166,21 @@ app/src/main/java/com/averycorp/prismtask/
 - **Timeline**: Daily view with scheduled time blocks, duration management, current time indicator
 - **Export/Import**: JSON full backup (tasks, habits, habit completions, self-care logs/steps, leisure logs, courses, assignments, course completions, all preferences/config) + CSV tasks export; JSON import with merge/replace modes; Google Drive backup/restore via Drive API v3
 - **Habits**: Habit tracking with daily/weekly frequency, streaks, analytics, contribution grid, weekly summary notification
-- **Widgets**: Glance-based home screen widgets (Today, Habit Streaks, Quick-Add)
-- **Dashboard**: Customizable Today section order via DashboardPreferences DataStore
-- **Task Templates**: Reusable blueprints with backend sync and NLP shortcut (`/templatename`)
-- **Tabbed Editor**: Bottom sheet with Details/Schedule/Organize tabs
+- **Widgets**: 7 Glance-based home screen widgets (Today, Habit Streak, Quick-Add, Calendar, Productivity, Timer, Upcoming) with per-instance configuration
+- **Dashboard**: Customizable Today section order and visibility via DashboardPreferences DataStore
+- **Task Templates**: Reusable blueprints with backend sync and NLP shortcut (`/templatename`); also project and habit templates
+- **Tabbed Editor**: Bottom sheet with Details/Schedule/Organize tabs (extracted into `addedittask/tabs/`)
 - **Sort Memory**: Per-screen sort preferences via DataStore
 - **Drag-to-Reorder**: Custom sort mode with persistent task order
-- **Freemium**: ProFeatureGate checks BillingManager.isProUser StateFlow; free users get core features, Pro unlocks AI, cloud sync, collaboration
-- **Billing**: Google Play Billing via BillingManager singleton; Pro status cached in DataStore for offline access
+- **Three-Tier Pricing**: ProFeatureGate checks BillingManager tier (Free/Pro $3.99/Premium $7.99); Free gets core features, Pro unlocks AI Eisenhower/Pomodoro + cloud sync + analytics, Premium adds briefing/planner/integrations/collaboration
+- **Billing**: Google Play Billing via BillingManager singleton; tier cached in DataStore for offline access; debug tier override in Settings
+- **Voice Input**: `VoiceInputManager` wraps Android SpeechRecognizer for dictation and continuous hands-free mode; `VoiceCommandParser` parses command grammar; `TextToSpeechManager` reads tasks and briefings
+- **Accessibility**: `ui/a11y/` helpers expose TalkBack labels, dynamic font scaling, high-contrast mode, keyboard focus traversal, and reduced-motion animation gates
+- **Customization**: `UserPreferencesDataStore` centralizes configurable swipe actions, urgency weights, task card fields, accent colors, card corner radius, compact mode, NLP shortcuts, saved filters, context menu ordering, and Today-screen layout
+- **Notification Profiles**: `ReminderProfileRepository` supports multi-reminder bundles with escalation; `QuietHoursDeferrer` defers notifications during quiet hours; daily digest notification
+- **Analytics**: Productivity dashboard with daily/weekly/monthly views, burndown charts, habit-productivity correlation, heatmap visualization, per-task time tracking
+- **Integrations**: Gmail starred-email sync, Slack message-to-task, Google Calendar prep-task generation, webhook/Zapier endpoint; a suggestion inbox reviews auto-created tasks
+- **Bookable Habits**: Habit logs carry booking state via `HabitLogEntity` for activity history
 
 ## Build Commands
 
@@ -251,5 +222,7 @@ app/src/main/java/com/averycorp/prismtask/
 - `app/proguard-rules.pro` — Keep rules for Room, Gson, domain models
 - `app/src/main/AndroidManifest.xml` — Activity, receivers, permissions
 - `app/google-services.json` — Firebase config (placeholder — replace with actual)
-- `app/src/test/` — 225 unit tests: NaturalLanguageParser (38), AppUpdater (24), StreakCalculator (21), RecurrenceEngine (18), TaskFilter (13), SyncMapper (13), TaskTemplateRepository (11), UrgencyScorer (10), EntityJsonMerger (9), SuggestionEngine (8), RecurrenceConverter (8), DateShortcuts (7), DuplicateTask (7), HabitRepositoryHelpers (7), DataExporter (7), SortPreferences (6), ProFeatureGate (5), MoveToProject (5), TemplateSeeder (4), ProStatusCache (4)
-- `app/src/androidTest/` — DAO + recurrence integration tests
+- `app/src/test/` — ~490 unit tests spanning NaturalLanguageParser, AppUpdater, StreakCalculator, RecurrenceEngine, TaskFilter, SyncMapper, TaskTemplateRepository, UrgencyScorer (+ weights), EntityJsonMerger, SuggestionEngine, RecurrenceConverter, DateShortcuts, DuplicateTask, HabitRepositoryHelpers, DataExporter, DataImporter, SortPreferences, ProFeatureGate, MoveToProject, TemplateSeeder, ProStatusCache, repository tests (Task, Habit, Project, Tag, Coaching, ReminderProfile, SavedFilter, MedLogReconcile), use case tests (ParsedTaskResolver, ChecklistParser, TodoListParser, VoiceCommandParser, SmartDefaults, NlpShortcutExpander, QuietHoursDeferrer, AdvancedRecurrence, TimeBlock, WeeklyPlanner, DailyBriefing, Eisenhower, SmartPomodoro, BookableHabit), DataStore preferences tests (ThemePreferences, ThemePreferencesRecentColors, UserPreferencesDataStore, DashboardPreferences, ArchivePreferences, SortPreferences), notification/reminder scheduling tests, ViewModel tests (Today, AddEditTask, TaskList, HabitList, Eisenhower, Onboarding, SmartPomodoro), TaskCardDisplayConfig/TaskMenuAction/TodayLayoutResolver model tests, widget data and config-defaults tests, accessibility and theme tests, calendar manager + sync preferences tests
+- `app/src/androidTest/` — ~100 instrumentation tests: Task/Project/Habit/Tag DAO tests, recurrence integration, and smoke suites for Navigation, QoL features, Task editor, Templates, Today screen, Data export/import, Views, Search/archive, Tags/projects, Settings, Recurrence, Multi-select/bulk edit, Habits, and Offline edge cases
+- `backend/tests/` — ~60+ pytest suites for dashboard, export, search, app_update, projects routers; recurrence/urgency/NLP edge-case services; and end-to-end integration workflows and stress tests
+- **Total:** ~654 tests across the repo
