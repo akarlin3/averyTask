@@ -38,6 +38,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added 26 unit tests: `LifeCategoryClassifierTest` (11), `BalanceTrackerTest`
   (10), `NaturalLanguageParserTest` life-category additions (5).
 
+### Added — Conversation → Tasks Extractor (V9 phase 1)
+- New `ConversationTaskExtractor` domain use case: offline regex-based
+  action-item extraction for pasted Claude/ChatGPT/email/meeting text.
+  Detects TODO/Action item markers, "I'll", "I will", "I should",
+  "I need to", "I have to", "Let's", "Can you", "Could you", and
+  imperative markdown bullet lines. Ordered by confidence 0.50–0.95.
+- `ExtractedTask` data class with title + confidence + optional
+  source label / suggested priority / due date / project — the
+  Premium AI path can fill in the latter three fields, the offline
+  regex path only sets the title.
+- Input guards: max 10,000 chars, title range 3–120 chars. Duplicates
+  are deduped by lowercase comparison so "TODO: fix the bug" and
+  "I should fix the bug" collapse into one candidate.
+- Title post-processing: trim trailing punctuation, title-case the
+  first letter, preserve internal casing.
+- 14 new unit tests covering empty/oversized input, each major
+  pattern, dedup semantics, multi-pattern ordering by confidence,
+  short-title rejection, no-match handling, and source propagation.
+
+Scoped for follow-up: the Paste Conversation screen, Android share
+intent receiver, Claude Haiku backend `/api/v1/tasks/extract-from-text`
+endpoint, and the review-before-create UI.
+
 ### Added — Energy-Aware Pomodoro Planner (V11 phase 1)
 - New `EnergyAwarePomodoro` use case that adapts the classic Pomodoro
   work/break lengths based on the user's logged energy level (1–5):
