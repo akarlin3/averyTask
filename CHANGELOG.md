@@ -38,6 +38,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added 26 unit tests: `LifeCategoryClassifierTest` (11), `BalanceTrackerTest`
   (10), `NaturalLanguageParserTest` life-category additions (5).
 
+### Added — Boundary Rules (V3 phase 1)
+- `BoundaryRule` runtime model with rule type (BLOCK_CATEGORY,
+  SUGGEST_CATEGORY, REMIND), target `LifeCategory`, start/end times,
+  active days, and enabled flag. Windows can straddle midnight
+  (22:00 → 06:00 is a valid night-shift rule).
+- `BoundaryEnforcer` evaluates a rule list against a (category, now)
+  pair and returns `BoundaryDecision.Allow`, `Block(rule, reason)`,
+  or `Suggest(rule, category)`. BLOCK rules win over SUGGEST rules
+  so the user's explicit "no" overrides a soft category nudge.
+- Two built-in rules seeded on first use: Evening Wind-Down
+  (block WORK 20:00 weekdays) and Weekend Rest (suggest SELF_CARE
+  all-day Sat/Sun).
+- `BoundaryRuleParser.parse` — small regex-based NLP for phrases
+  like "No work after 7pm on weekdays", "Block work after 20:00",
+  and "No self-care after 10pm every day". Returns null for
+  anything that doesn't match so the UI falls back to the manual
+  rule editor.
+- 11 new unit tests covering BLOCK during/outside window, category
+  mismatch, disabled rules, SUGGEST path, BLOCK precedence over
+  SUGGEST, the midnight-straddle window, and all three parser
+  forms plus the no-match case.
+
+The shared `WeeklyReviewAggregator` added in the V6 commit above
+already delivers the V3 weekly-balance-report data layer. The full
+WeeklyBalanceReportScreen UI + boundary_rules Room table (with DAO,
+repository, and seeded migration) are scoped for a follow-up commit
+so this change stays focused on the enforcement algorithm.
+
 ### Added — Clinical Report Generator (V8 phase 1)
 - New `ClinicalReportGenerator` use case that produces a structured
   `ClinicalReport` with six toggleable sections (Overview, Medication,
