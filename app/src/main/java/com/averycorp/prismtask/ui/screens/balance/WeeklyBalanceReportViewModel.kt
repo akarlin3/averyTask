@@ -59,11 +59,31 @@ class WeeklyBalanceReportViewModel @Inject constructor(
             val balance = balanceTracker.compute(tasks, config, now = reference)
             val workRatio = balance.currentRatios[com.averycorp.prismtask.domain.model.LifeCategory.WORK] ?: 0f
             val burnout = burnoutScorer.computeFromTasks(tasks, workRatio, prefs.workTarget / 100f, now = reference)
+
+            // v1.4.0 V3 phase 3: 4-week sparkline trend per tracked
+            // category. Each entry is oldest → newest. An empty week
+            // contributes 0f for every category.
+            val weekMillis = 7L * 24 * 60 * 60 * 1000
+            val fourWeek = mutableMapOf<com.averycorp.prismtask.domain.model.LifeCategory, MutableList<Float>>()
+            com.averycorp.prismtask.domain.model.LifeCategory.TRACKED.forEach {
+                fourWeek[it] = mutableListOf()
+            }
+            for (i in 3 downTo 0) {
+                val weekRef = reference - i.toLong() * weekMillis
+                val weekStats = aggregator.aggregate(tasks, weekRef)
+                val totalInWeek = weekStats.byCategory.values.sum().coerceAtLeast(1)
+                com.averycorp.prismtask.domain.model.LifeCategory.TRACKED.forEach { cat ->
+                    val count = weekStats.byCategory[cat] ?: 0
+                    fourWeek[cat]!!.add(count.toFloat() / totalInWeek.toFloat())
+                }
+            }
+
             _state.value = WeeklyBalanceReportState(
                 stats = stats,
                 balance = balance,
                 burnoutScore = burnout.score,
-                reference = reference
+                reference = reference,
+                fourWeekTrend = fourWeek.mapValues { it.value.toList() }
             )
         }
     }
@@ -81,5 +101,7 @@ data class WeeklyBalanceReportState(
     val stats: WeeklyReviewStats? = null,
     val balance: BalanceState = BalanceState.EMPTY,
     val burnoutScore: Int = 0,
-    val reference: Long = System.currentTimeMillis()
+    val reference: Long = System.currentTimeMillis(),
+    /** 4-week rolling ratio trend per category. Each list is oldest → newest. */
+    val fourWeekTrend: Map<com.averycorp.prismtask.domain.model.LifeCategory, List<Float>> = emptyMap()
 )

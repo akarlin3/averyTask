@@ -6,8 +6,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -164,6 +166,25 @@ fun WeeklyBalanceReportScreen(
                 }
             }
 
+            // 4-week trend sparklines.
+            if (state.fourWeekTrend.isNotEmpty() && state.fourWeekTrend.values.any { it.isNotEmpty() }) {
+                Text(
+                    "4-Week Trend",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+                LifeCategory.TRACKED.forEach { category ->
+                    val values = state.fourWeekTrend[category].orEmpty()
+                    if (values.any { it > 0f }) {
+                        SparklineRow(
+                            label = LifeCategory.label(category),
+                            values = values,
+                            color = LifeCategoryColor.forCategory(category)
+                        )
+                    }
+                }
+            }
+
             // Carry forward section.
             if (stats.carryForward.isNotEmpty()) {
                 Text("Carry Forward", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
@@ -181,6 +202,51 @@ fun WeeklyBalanceReportScreen(
                 }
             }
         }
+    }
+}
+
+/**
+ * Tiny 4-point bar-chart style sparkline for one life category's weekly
+ * ratio trend. Each value is 0..1 (share of that week's tasks).
+ */
+@Composable
+private fun SparklineRow(label: String, values: List<Float>, color: androidx.compose.ui.graphics.Color) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.width(80.dp)
+        )
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .height(28.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.Bottom
+        ) {
+            values.forEach { value ->
+                val heightRatio = value.coerceIn(0f, 1f)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(fraction = heightRatio.coerceAtLeast(0.1f))
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(color.copy(alpha = 0.35f + heightRatio * 0.65f))
+                )
+            }
+        }
+        Spacer(modifier = Modifier.width(8.dp))
+        val latest = (values.lastOrNull() ?: 0f) * 100f
+        Text(
+            text = "${latest.toInt()}%",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
