@@ -38,6 +38,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added 26 unit tests: `LifeCategoryClassifierTest` (11), `BalanceTrackerTest`
   (10), `NaturalLanguageParserTest` life-category additions (5).
 
+### Added — Mood & Energy Tracking Foundation (V7 phase 1)
+- New `mood_energy_logs` table (Room migration 33 → 34) with
+  `(date, time_of_day)` unique index so morning and evening check-ins
+  can coexist on the same calendar date.
+- `MoodEnergyLogEntity`, `MoodEnergyLogDao`, and `MoodEnergyRepository`
+  including an `upsertForDate` helper that replaces an existing entry
+  for the same slot instead of creating duplicates.
+- `MoodCorrelationEngine` computes Pearson correlation between mood or
+  energy and six supported factors (total tasks, work tasks, self-care,
+  habit rate, medication adherence, burnout score). Requires at least
+  7 daily observations before reporting; below that, returns empty so
+  the UI can show a "not enough data" state.
+- `CorrelationFactor`, `CorrelationResult`, and `CorrelationStrength`
+  domain types plus a `plainEnglish()` helper for the UI.
+- `averageByDay` helper folds morning + evening entries into one
+  numeric tuple per day so correlation input stays clean.
+- 11 new unit tests in `MoodCorrelationEngineTest` (empty data, 7-day
+  floor, perfect +/- correlations, flat series zero, sort order,
+  day-averaging, strength buckets).
+
+Scoped for follow-up: mood/energy check-in UI (widget + today prompt),
+analytics screen with trend lines, morning check-in integration, and
+burnout-scorer mood factor.
+
 ### Added — Burnout Score & Overload Alert (V2 phase 1)
 - New `BurnoutScorer` use case that computes a 0–100 composite score from
   six weighted inputs (work-ratio overshoot, overdue tasks, skipped

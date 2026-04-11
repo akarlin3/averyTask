@@ -8,6 +8,7 @@ import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.dao.HabitLogDao
 import com.averycorp.prismtask.data.local.dao.LeisureDao
+import com.averycorp.prismtask.data.local.dao.MoodEnergyLogDao
 import com.averycorp.prismtask.data.local.dao.HabitTemplateDao
 import com.averycorp.prismtask.data.local.dao.NlpShortcutDao
 import com.averycorp.prismtask.data.local.dao.ProjectTemplateDao
@@ -108,6 +109,9 @@ object DatabaseModule {
 
     @Provides
     fun provideHabitTemplateDao(database: PrismTaskDatabase): HabitTemplateDao = database.habitTemplateDao()
+
+    @Provides
+    fun provideMoodEnergyLogDao(database: PrismTaskDatabase): MoodEnergyLogDao = database.moodEnergyLogDao()
 }
 
 /**

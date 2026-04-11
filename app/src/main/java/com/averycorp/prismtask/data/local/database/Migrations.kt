@@ -520,6 +520,25 @@ val MIGRATION_32_33 = object : Migration(32, 33) {
     }
 }
 
+// v1.4.0 V7: add mood_energy_logs table (mood + energy daily check-ins)
+val MIGRATION_33_34 = object : Migration(33, 34) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS `mood_energy_logs` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `date` INTEGER NOT NULL,
+                `mood` INTEGER NOT NULL,
+                `energy` INTEGER NOT NULL,
+                `notes` TEXT,
+                `time_of_day` TEXT NOT NULL DEFAULT 'morning',
+                `created_at` INTEGER NOT NULL
+            )"""
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_mood_energy_logs_date` ON `mood_energy_logs` (`date`)")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_mood_energy_logs_date_time_of_day` ON `mood_energy_logs` (`date`, `time_of_day`)")
+    }
+}
+
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
@@ -553,4 +572,5 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_30_31,
     MIGRATION_31_32,
     MIGRATION_32_33,
+    MIGRATION_33_34,
 )
