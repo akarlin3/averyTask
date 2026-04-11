@@ -38,6 +38,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import com.averycorp.prismtask.ui.components.CircularCheckbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -809,6 +811,112 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            HorizontalDivider()
+
+            // ========== SWIPE ACTIONS ==========
+            SectionHeader("Swipe Actions")
+
+            Text(
+                text = "Customize what happens when you swipe a task card.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+
+            val swipeActionOptions = listOf(
+                com.averycorp.prismtask.domain.model.SwipeAction.COMPLETE to "Complete",
+                com.averycorp.prismtask.domain.model.SwipeAction.DELETE to "Delete",
+                com.averycorp.prismtask.domain.model.SwipeAction.RESCHEDULE to "Reschedule",
+                com.averycorp.prismtask.domain.model.SwipeAction.ARCHIVE to "Archive",
+                com.averycorp.prismtask.domain.model.SwipeAction.MOVE_TO_PROJECT to "Move to Project",
+                com.averycorp.prismtask.domain.model.SwipeAction.FLAG to "Flag",
+                com.averycorp.prismtask.domain.model.SwipeAction.NONE to "None (disabled)"
+            )
+
+            var swipeRightExpanded by remember { mutableStateOf(false) }
+            var swipeLeftExpanded by remember { mutableStateOf(false) }
+
+            Box(modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(
+                    onClick = { swipeRightExpanded = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    val style = com.averycorp.prismtask.ui.components.swipeActionStyle(swipePrefs.right)
+                    Box(
+                        modifier = Modifier
+                            .size(16.dp)
+                            .clip(CircleShape)
+                            .background(style.backgroundColor)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Swipe Right: ${swipeActionOptions.first { it.first == swipePrefs.right }.second}")
+                }
+                DropdownMenu(
+                    expanded = swipeRightExpanded,
+                    onDismissRequest = { swipeRightExpanded = false }
+                ) {
+                    swipeActionOptions.forEach { (action, label) ->
+                        DropdownMenuItem(
+                            text = { Text(label) },
+                            leadingIcon = {
+                                Box(
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clip(CircleShape)
+                                        .background(com.averycorp.prismtask.ui.components.swipeActionStyle(action).backgroundColor)
+                                )
+                            },
+                            onClick = {
+                                viewModel.setSwipeRight(action)
+                                swipeRightExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Box(modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(
+                    onClick = { swipeLeftExpanded = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    val style = com.averycorp.prismtask.ui.components.swipeActionStyle(swipePrefs.left)
+                    Box(
+                        modifier = Modifier
+                            .size(16.dp)
+                            .clip(CircleShape)
+                            .background(style.backgroundColor)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Swipe Left: ${swipeActionOptions.first { it.first == swipePrefs.left }.second}")
+                }
+                DropdownMenu(
+                    expanded = swipeLeftExpanded,
+                    onDismissRequest = { swipeLeftExpanded = false }
+                ) {
+                    swipeActionOptions.forEach { (action, label) ->
+                        DropdownMenuItem(
+                            text = { Text(label) },
+                            leadingIcon = {
+                                Box(
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clip(CircleShape)
+                                        .background(com.averycorp.prismtask.ui.components.swipeActionStyle(action).backgroundColor)
+                                )
+                            },
+                            onClick = {
+                                viewModel.setSwipeLeft(action)
+                                swipeLeftExpanded = false
+                            }
+                        )
+                    }
                 }
             }
 

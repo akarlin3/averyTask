@@ -40,7 +40,7 @@ import com.averycorp.prismtask.data.local.entity.UsageLogEntity
 
 @Database(
     entities = [TaskEntity::class, ProjectEntity::class, TagEntity::class, TaskTagCrossRef::class, AttachmentEntity::class, UsageLogEntity::class, SyncMetadataEntity::class, CalendarSyncEntity::class, HabitEntity::class, HabitCompletionEntity::class, HabitLogEntity::class, LeisureLogEntity::class, CourseEntity::class, AssignmentEntity::class, StudyLogEntity::class, CourseCompletionEntity::class, SelfCareLogEntity::class, SelfCareStepEntity::class, TaskTemplateEntity::class],
-    version = 27,
+    version = 28,
     exportSchema = false
 )
 abstract class PrismTaskDatabase : RoomDatabase() {
@@ -429,6 +429,13 @@ abstract class PrismTaskDatabase : RoomDatabase() {
         val MIGRATION_26_27 = object : Migration(26, 27) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE habits ADD COLUMN show_streak INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        // v1.3.0 P4: add is_flagged column to tasks (default 0)
+        val MIGRATION_27_28 = object : Migration(27, 28) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE tasks ADD COLUMN is_flagged INTEGER NOT NULL DEFAULT 0")
             }
         }
 
