@@ -140,6 +140,8 @@ fun SettingsScreen(
     val priorityColorMedium by viewModel.priorityColorMedium.collectAsStateWithLifecycle()
     val priorityColorHigh by viewModel.priorityColorHigh.collectAsStateWithLifecycle()
     val priorityColorUrgent by viewModel.priorityColorUrgent.collectAsStateWithLifecycle()
+    val appearancePrefs by viewModel.appearancePrefs.collectAsStateWithLifecycle()
+    val swipePrefs by viewModel.swipePrefs.collectAsStateWithLifecycle()
     val autoArchiveDays by viewModel.autoArchiveDays.collectAsStateWithLifecycle()
     val claudeApiKey by viewModel.claudeApiKey.collectAsStateWithLifecycle()
     val archivedCount by viewModel.archivedCount.collectAsStateWithLifecycle()
@@ -661,6 +663,75 @@ fun SettingsScreen(
                     TextButton(onClick = { viewModel.resetColorOverrides() }) {
                         Text("Reset All Color Overrides", color = MaterialTheme.colorScheme.error)
                     }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            HorizontalDivider()
+
+            // ========== DISPLAY ==========
+            SectionHeader("Display")
+
+            SettingsToggleRow(
+                title = "Compact Mode",
+                subtitle = "Reduce vertical padding throughout the app",
+                checked = appearancePrefs.compactMode,
+                onCheckedChange = { viewModel.setCompactMode(it) }
+            )
+
+            SettingsToggleRow(
+                title = "Card Borders",
+                subtitle = "Show outlines around task and project cards",
+                checked = appearancePrefs.showTaskCardBorders,
+                onCheckedChange = { viewModel.setShowCardBorders(it) }
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Card Corner Radius: ${appearancePrefs.cardCornerRadius}dp",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+            Slider(
+                value = appearancePrefs.cardCornerRadius.toFloat(),
+                onValueChange = { viewModel.setCardCornerRadius(it.toInt()) },
+                valueRange = 0f..24f,
+                steps = 23,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            )
+
+            // Live preview card
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                shape = RoundedCornerShape(appearancePrefs.cardCornerRadius.dp),
+                border = if (appearancePrefs.showTaskCardBorders)
+                    androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                else null
+            ) {
+                Column(
+                    modifier = Modifier.padding(
+                        horizontal = 16.dp,
+                        vertical = if (appearancePrefs.compactMode) 8.dp else 16.dp
+                    )
+                ) {
+                    Text(
+                        "Sample Task",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    if (!appearancePrefs.compactMode) {
+                        Spacer(Modifier.height(4.dp))
+                    }
+                    Text(
+                        "Preview of your card styling",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
 

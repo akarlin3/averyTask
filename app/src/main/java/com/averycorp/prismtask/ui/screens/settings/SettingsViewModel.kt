@@ -101,8 +101,58 @@ class SettingsViewModel @Inject constructor(
     private val calendarSyncPreferences: CalendarSyncPreferences,
     private val billingManager: BillingManager,
     private val voicePreferences: VoicePreferences,
-    private val a11yPreferences: A11yPreferences
+    private val a11yPreferences: A11yPreferences,
+    private val userPreferencesDataStore: com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 ) : ViewModel() {
+
+    // --- v1.3.0 User Preferences ---
+    val appearancePrefs: StateFlow<com.averycorp.prismtask.data.preferences.AppearancePrefs> =
+        userPreferencesDataStore.appearanceFlow
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.averycorp.prismtask.data.preferences.AppearancePrefs())
+
+    val swipePrefs: StateFlow<com.averycorp.prismtask.data.preferences.SwipePrefs> =
+        userPreferencesDataStore.swipeFlow
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.averycorp.prismtask.data.preferences.SwipePrefs())
+
+    val taskDefaultPrefs: StateFlow<com.averycorp.prismtask.data.preferences.TaskDefaults> =
+        userPreferencesDataStore.taskDefaultsFlow
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.averycorp.prismtask.data.preferences.TaskDefaults())
+
+    val quickAddPrefs: StateFlow<com.averycorp.prismtask.data.preferences.QuickAddPrefs> =
+        userPreferencesDataStore.quickAddFlow
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.averycorp.prismtask.data.preferences.QuickAddPrefs())
+
+    fun setCompactMode(enabled: Boolean) {
+        viewModelScope.launch { userPreferencesDataStore.setCompactMode(enabled) }
+    }
+
+    fun setShowCardBorders(enabled: Boolean) {
+        viewModelScope.launch { userPreferencesDataStore.setShowCardBorders(enabled) }
+    }
+
+    fun setCardCornerRadius(radius: Int) {
+        viewModelScope.launch { userPreferencesDataStore.setCardCornerRadius(radius) }
+    }
+
+    fun setSwipeRight(action: com.averycorp.prismtask.domain.model.SwipeAction) {
+        viewModelScope.launch { userPreferencesDataStore.setSwipeRight(action) }
+    }
+
+    fun setSwipeLeft(action: com.averycorp.prismtask.domain.model.SwipeAction) {
+        viewModelScope.launch { userPreferencesDataStore.setSwipeLeft(action) }
+    }
+
+    fun setTaskDefaults(defaults: com.averycorp.prismtask.data.preferences.TaskDefaults) {
+        viewModelScope.launch { userPreferencesDataStore.setTaskDefaults(defaults) }
+    }
+
+    fun setSmartDefaultsEnabled(enabled: Boolean) {
+        viewModelScope.launch { userPreferencesDataStore.setSmartDefaultsEnabled(enabled) }
+    }
+
+    fun setQuickAddPrefs(prefs: com.averycorp.prismtask.data.preferences.QuickAddPrefs) {
+        viewModelScope.launch { userPreferencesDataStore.setQuickAdd(prefs) }
+    }
 
     // --- Voice Input ---
     val voiceInputEnabled: StateFlow<Boolean> = voicePreferences.getVoiceInputEnabled()
