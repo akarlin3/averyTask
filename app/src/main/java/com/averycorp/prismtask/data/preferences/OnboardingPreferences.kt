@@ -38,4 +38,12 @@ class OnboardingPreferences @Inject constructor(
             prefs[ONBOARDING_COMPLETED_AT] = System.currentTimeMillis()
         }
     }
+
+    /** Debug-only: clear the onboarding flag so the tutorial plays again. */
+    suspend fun resetOnboarding() {
+        context.onboardingDataStore.edit { prefs ->
+            prefs.remove(HAS_COMPLETED_ONBOARDING)
+            prefs.remove(ONBOARDING_COMPLETED_AT)
+        }
+    }
 }

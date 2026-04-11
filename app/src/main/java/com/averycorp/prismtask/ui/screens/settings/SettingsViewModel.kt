@@ -33,6 +33,7 @@ import com.averycorp.prismtask.data.preferences.UrgencyWeights
 import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import com.averycorp.prismtask.data.preferences.HabitListPreferences
 import com.averycorp.prismtask.data.preferences.LeisurePreferences
+import com.averycorp.prismtask.data.preferences.OnboardingPreferences
 import com.averycorp.prismtask.data.remote.AppUpdater
 import com.averycorp.prismtask.data.remote.AuthManager
 import com.averycorp.prismtask.data.remote.CalendarSyncService
@@ -95,7 +96,8 @@ class SettingsViewModel @Inject constructor(
     private val billingManager: BillingManager,
     private val voicePreferences: VoicePreferences,
     private val a11yPreferences: A11yPreferences,
-    private val userPreferencesDataStore: com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
+    private val userPreferencesDataStore: com.averycorp.prismtask.data.preferences.UserPreferencesDataStore,
+    private val onboardingPreferences: OnboardingPreferences
 ) : ViewModel() {
 
     // --- v1.3.0 User Preferences ---
@@ -771,5 +773,22 @@ class SettingsViewModel @Inject constructor(
     /** Debug-only: clear the tier override and revert to the real billing state. */
     fun clearDebugTier() {
         billingManager.clearDebugTier()
+    }
+
+    /**
+     * Debug-only: reset the onboarding flag so the tutorial will be shown
+     * again as if the app was just installed. The caller is responsible for
+     * navigating to the Onboarding route after this completes.
+     */
+    fun resetOnboarding(onDone: () -> Unit = {}) {
+        viewModelScope.launch {
+            try {
+                onboardingPreferences.resetOnboarding()
+                _messages.emit("Tutorial Reset \u2014 Showing Now")
+                onDone()
+            } catch (e: Exception) {
+                _messages.emit("Could not reset tutorial: ${e.message}")
+            }
+        }
     }
 }

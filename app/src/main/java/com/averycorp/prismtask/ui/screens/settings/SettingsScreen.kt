@@ -48,6 +48,7 @@ import com.averycorp.prismtask.ui.screens.settings.sections.BackendSyncSection
 import com.averycorp.prismtask.ui.screens.settings.sections.BackupExportSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DashboardSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DataSection
+import com.averycorp.prismtask.ui.screens.settings.sections.DebugOnboardingSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DebugTierSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DeviceCalendarSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DisplaySection
@@ -506,6 +507,16 @@ fun SettingsScreen(
                         debugTierOverride = debugTierOverride,
                         onSetDebugTier = viewModel::setDebugTier,
                         onClearDebugTier = viewModel::clearDebugTier
+                    )
+
+                    DebugOnboardingSection(
+                        onShowTutorial = {
+                            viewModel.resetOnboarding {
+                                navController.navigate(PrismTaskRoute.Onboarding.route) {
+                                    popUpTo(PrismTaskRoute.MainTabs.route) { inclusive = true }
+                                }
+                            }
+                        }
                     )
                 }
 
