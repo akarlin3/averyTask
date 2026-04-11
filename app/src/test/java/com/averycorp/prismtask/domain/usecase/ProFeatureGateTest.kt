@@ -39,7 +39,8 @@ class ProFeatureGateTest {
                 ProFeatureGate.AI_COACHING, ProFeatureGate.AI_TASK_BREAKDOWN -> isPro()
 
                 ProFeatureGate.AI_BRIEFING, ProFeatureGate.AI_WEEKLY_PLAN,
-                ProFeatureGate.AI_TIME_BLOCK, ProFeatureGate.COLLABORATION,
+                ProFeatureGate.AI_TIME_BLOCK, ProFeatureGate.AI_CONVERSATIONAL,
+                ProFeatureGate.COLLABORATION,
                 ProFeatureGate.INTEGRATIONS, ProFeatureGate.ANALYTICS_FULL,
                 ProFeatureGate.ANALYTICS_CORRELATIONS,
                 ProFeatureGate.DRIVE_BACKUP,
@@ -169,7 +170,8 @@ class ProFeatureGateTest {
         // Premium-tier features
         val premiumFeatures = listOf(
             ProFeatureGate.AI_BRIEFING, ProFeatureGate.AI_WEEKLY_PLAN,
-            ProFeatureGate.AI_TIME_BLOCK, ProFeatureGate.COLLABORATION,
+            ProFeatureGate.AI_TIME_BLOCK, ProFeatureGate.AI_CONVERSATIONAL,
+            ProFeatureGate.COLLABORATION,
             ProFeatureGate.INTEGRATIONS, ProFeatureGate.ANALYTICS_FULL,
             ProFeatureGate.ANALYTICS_CORRELATIONS, ProFeatureGate.DRIVE_BACKUP,
             ProFeatureGate.AI_DAILY_PLANNING, ProFeatureGate.AI_REENGAGEMENT,
@@ -190,6 +192,7 @@ class ProFeatureGateTest {
             ProFeatureGate.AI_NLP, ProFeatureGate.ANALYTICS_BASIC,
             ProFeatureGate.TIME_TRACKING, ProFeatureGate.AI_BRIEFING,
             ProFeatureGate.AI_WEEKLY_PLAN, ProFeatureGate.AI_TIME_BLOCK,
+            ProFeatureGate.AI_CONVERSATIONAL,
             ProFeatureGate.COLLABORATION, ProFeatureGate.INTEGRATIONS,
             ProFeatureGate.ANALYTICS_FULL, ProFeatureGate.ANALYTICS_CORRELATIONS,
             ProFeatureGate.DRIVE_BACKUP,
@@ -197,6 +200,7 @@ class ProFeatureGateTest {
             ProFeatureGate.AI_DAILY_PLANNING, ProFeatureGate.AI_REENGAGEMENT,
             ProFeatureGate.AI_WEEKLY_INSIGHTS
         )
+        assertEquals("All 16 feature constants should be unique", 16, constants.size)
         assertEquals("All 20 feature constants should be unique", 20, constants.size)
     }
 

@@ -25,6 +25,7 @@ class ProFeatureGate @Inject constructor(
 
             // Premium features (Premium only)
             AI_BRIEFING, AI_WEEKLY_PLAN, AI_TIME_BLOCK,
+            AI_CONVERSATIONAL,
             COLLABORATION, INTEGRATIONS, ANALYTICS_FULL,
             ANALYTICS_CORRELATIONS, DRIVE_BACKUP,
             AI_REENGAGEMENT -> isPremium()
@@ -44,6 +45,7 @@ class ProFeatureGate @Inject constructor(
             AI_EVENING_SUMMARY -> UserTier.PRO
 
             AI_BRIEFING, AI_WEEKLY_PLAN, AI_TIME_BLOCK,
+            AI_CONVERSATIONAL,
             COLLABORATION, INTEGRATIONS, ANALYTICS_FULL,
             ANALYTICS_CORRELATIONS, DRIVE_BACKUP,
             AI_REENGAGEMENT -> UserTier.PREMIUM
@@ -75,6 +77,7 @@ class ProFeatureGate @Inject constructor(
         const val ANALYTICS_FULL = "analytics_full"
         const val ANALYTICS_CORRELATIONS = "analytics_correlations"
         const val DRIVE_BACKUP = "drive_backup"
+        const val AI_CONVERSATIONAL = "ai_conversational"
 
         // Premium tier — AI coaching
         const val AI_DAILY_PLANNING = "ai_daily_planning"     // Trigger 3 (energy-adaptive)
