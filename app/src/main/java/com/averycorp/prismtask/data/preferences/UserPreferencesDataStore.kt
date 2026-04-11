@@ -98,6 +98,9 @@ class UserPreferencesDataStore(
         val KEY_QUICK_ADD_CONFIRM = booleanPreferencesKey("quick_add_show_confirmation")
         val KEY_QUICK_ADD_AUTO_PROJECT = booleanPreferencesKey("quick_add_auto_assign_project")
 
+        // Task menu actions config (JSON-encoded)
+        val KEY_TASK_MENU_ACTIONS = stringPreferencesKey("task_menu_actions_json")
+
         private const val DEFAULT_PROJECT_NULL_SENTINEL: Long = -1L
     }
 
@@ -136,6 +139,30 @@ class UserPreferencesDataStore(
             showConfirmation = prefs[KEY_QUICK_ADD_CONFIRM] ?: true,
             autoAssignProject = prefs[KEY_QUICK_ADD_AUTO_PROJECT] ?: false
         )
+    }
+
+    val taskMenuActionsFlow: Flow<List<com.averycorp.prismtask.domain.model.TaskMenuAction>> =
+        dataStore.data.map { prefs ->
+            val json = prefs[KEY_TASK_MENU_ACTIONS]
+            if (json.isNullOrBlank()) {
+                com.averycorp.prismtask.domain.model.TaskMenuAction.defaults()
+            } else {
+                try {
+                    val listType = com.google.gson.reflect.TypeToken
+                        .getParameterized(List::class.java, com.averycorp.prismtask.domain.model.TaskMenuAction::class.java)
+                        .type
+                    val parsed: List<com.averycorp.prismtask.domain.model.TaskMenuAction> =
+                        com.google.gson.Gson().fromJson(json, listType)
+                    com.averycorp.prismtask.domain.model.TaskMenuAction.mergeWithDefaults(parsed)
+                } catch (_: Exception) {
+                    com.averycorp.prismtask.domain.model.TaskMenuAction.defaults()
+                }
+            }
+        }
+
+    suspend fun setTaskMenuActions(actions: List<com.averycorp.prismtask.domain.model.TaskMenuAction>) {
+        val json = com.google.gson.Gson().toJson(actions)
+        dataStore.edit { it[KEY_TASK_MENU_ACTIONS] = json }
     }
 
     /** Combined flow emitting the full preferences bundle. */
