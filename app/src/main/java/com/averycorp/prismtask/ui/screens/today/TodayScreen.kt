@@ -3,13 +3,8 @@ package com.averycorp.prismtask.ui.screens.today
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.ui.draw.scale
 import androidx.compose.animation.core.tween
@@ -88,10 +83,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -126,7 +118,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private val OverdueRed = Color(0xFFD93025)
+private val NeutralGray = Color(0xFF9E9E9E)
 private val CompletedGreen = Color(0xFF4CAF50)
 
 private const val SECTION_OVERDUE = "overdue"
@@ -253,8 +245,8 @@ fun TodayScreen(
                 item(key = "day_clear") {
                     RichEmptyState(
                         icon = "\u2600\uFE0F",
-                        title = "Your Day Is Clear",
-                        description = "No tasks scheduled for today. Plan ahead or enjoy the free time!",
+                        title = "Nothing Planned for Today",
+                        description = "That's fine \u2014 rest is productive too.",
                         actionLabel = "Plan Your Day",
                         onAction = { viewModel.onShowPlanSheet() },
                         secondaryActionLabel = "Create a Task",
@@ -335,12 +327,15 @@ fun TodayScreen(
                 }
             }
 
-            // Overdue (special urgent treatment)
+            // From earlier (rolled-over tasks, neutral treatment)
             if (SECTION_OVERDUE !in hiddenSections && overdueTasks.isNotEmpty()) {
                 val expanded = SECTION_OVERDUE !in collapsedSections
                 item(key = "section_overdue") {
-                    OverdueSectionContainer(
+                    CollapsibleSection(
+                        emoji = "\uD83D\uDCC2",
+                        title = "From Earlier",
                         count = overdueTasks.size,
+                        accentColor = NeutralGray,
                         expanded = expanded,
                         onToggle = { viewModel.onToggleSectionCollapsed(SECTION_OVERDUE) }
                     ) {
@@ -349,7 +344,7 @@ fun TodayScreen(
                                 SwipeableTaskItem(
                                     task = task,
                                     tags = taskTagsMap[task.id].orEmpty(),
-                                    isOverdue = true,
+                                    isOverdue = false,
                                     onComplete = { viewModel.onCompleteWithUndo(task.id) },
                                     onClick = {
                                         editorSheetTaskId = task.id
@@ -358,7 +353,13 @@ fun TodayScreen(
                                     onReschedule = { reschedulePopupTask = task },
                                     onMoveToProject = { moveToProjectSheetTask = task },
                                     onDuplicate = { viewModel.onDuplicateTask(task.id) },
-                                    onDelete = { viewModel.onDeleteTaskWithUndo(task.id) }
+                                    onDelete = { viewModel.onDeleteTaskWithUndo(task.id) },
+                                    onMoveToTomorrow = {
+                                        viewModel.onRescheduleTask(task.id, com.averycorp.prismtask.domain.usecase.DateShortcuts.tomorrow(System.currentTimeMillis()))
+                                        viewModel.showSnackbar("Moved to tomorrow", "Undo") {
+                                            viewModel.onRescheduleTask(task.id, task.dueDate)
+                                        }
+                                    }
                                 )
                             }
                         }
@@ -391,7 +392,13 @@ fun TodayScreen(
                                     onReschedule = { reschedulePopupTask = task },
                                     onMoveToProject = { moveToProjectSheetTask = task },
                                     onDuplicate = { viewModel.onDuplicateTask(task.id) },
-                                    onDelete = { viewModel.onDeleteTaskWithUndo(task.id) }
+                                    onDelete = { viewModel.onDeleteTaskWithUndo(task.id) },
+                                    onMoveToTomorrow = {
+                                        viewModel.onRescheduleTask(task.id, com.averycorp.prismtask.domain.usecase.DateShortcuts.tomorrow(System.currentTimeMillis()))
+                                        viewModel.showSnackbar("Moved to tomorrow", "Undo") {
+                                            viewModel.onRescheduleTask(task.id, task.dueDate)
+                                        }
+                                    }
                                 )
                             }
                         }
@@ -408,7 +415,7 @@ fun TodayScreen(
                         emoji = "\uD83D\uDCAA",
                         title = "Habits",
                         count = todayHabits.size,
-                        countLabel = "$habitCompletedCount/${todayHabits.size}",
+                        countLabel = "$habitCompletedCount done",
                         accentColor = MaterialTheme.colorScheme.tertiary,
                         expanded = expanded,
                         onToggle = { viewModel.onToggleSectionCollapsed(SECTION_HABITS) }
@@ -520,7 +527,13 @@ fun TodayScreen(
                                     onReschedule = { reschedulePopupTask = task },
                                     onMoveToProject = { moveToProjectSheetTask = task },
                                     onDuplicate = { viewModel.onDuplicateTask(task.id) },
-                                    onDelete = { viewModel.onDeleteTaskWithUndo(task.id) }
+                                    onDelete = { viewModel.onDeleteTaskWithUndo(task.id) },
+                                    onMoveToTomorrow = {
+                                        viewModel.onRescheduleTask(task.id, com.averycorp.prismtask.domain.usecase.DateShortcuts.tomorrow(System.currentTimeMillis()))
+                                        viewModel.showSnackbar("Moved to tomorrow", "Undo") {
+                                            viewModel.onRescheduleTask(task.id, task.dueDate)
+                                        }
+                                    }
                                 )
                             }
                         }
@@ -797,9 +810,9 @@ private fun CompactProgressHeader(
                             strokeWidth = 4.dp
                         )
                         Text(
-                            text = "${(animatedProgress * 100).toInt()}%",
+                            text = "$completed",
                             style = MaterialTheme.typography.labelSmall,
-                            fontSize = 9.sp,
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = if (progress >= 1f) CompletedGreen else MaterialTheme.colorScheme.onSurface
                         )
@@ -807,9 +820,8 @@ private fun CompactProgressHeader(
                     Spacer(modifier = Modifier.weight(1f))
                 }
                 "percentage" -> {
-                    val pct = if (total > 0) (animatedProgress * 100).toInt() else 0
                     Text(
-                        text = "$pct%",
+                        text = "$completed done",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         color = if (progress >= 1f) CompletedGreen else MaterialTheme.colorScheme.primary
@@ -832,7 +844,7 @@ private fun CompactProgressHeader(
             Spacer(modifier = Modifier.width(12.dp))
 
             Text(
-                text = "$completed/$total",
+                text = "$completed done",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
                 color = if (progress >= 1f) CompletedGreen else MaterialTheme.colorScheme.onSurface
@@ -852,11 +864,7 @@ private fun AllCaughtUpCard(
     habitTotal: Int,
     onPlanTomorrow: () -> Unit
 ) {
-    val subtitle = if (habitTotal > 0) {
-        "You completed $taskCount task${if (taskCount != 1) "s" else ""} and $habitCount habit${if (habitCount != 1) "s" else ""} today"
-    } else {
-        "You completed $taskCount task${if (taskCount != 1) "s" else ""} today"
-    }
+    val subtitle = "Everything's done. Seriously, go do something fun."
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -933,56 +941,6 @@ private fun CollapsibleSection(
     }
 }
 
-/**
- * The Overdue section gets special urgency treatment: red tinted background,
- * left red accent bar, and a red count badge.
- */
-@Composable
-private fun OverdueSectionContainer(
-    count: Int,
-    expanded: Boolean,
-    onToggle: () -> Unit,
-    content: @Composable () -> Unit
-) {
-    val barWidthDp = 4.dp
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f))
-            .drawBehind {
-                // Left red accent bar drawn at draw-time so it always matches
-                // the (animated) measured height.
-                drawRect(
-                    color = OverdueRed,
-                    topLeft = Offset.Zero,
-                    size = Size(barWidthDp.toPx(), size.height)
-                )
-            }
-            .padding(start = barWidthDp + 10.dp, end = 10.dp, top = 6.dp, bottom = 6.dp)
-            .animateContentSize(animationSpec = tween(280))
-    ) {
-        SectionHeaderRow(
-            emoji = "\uD83D\uDEA8",
-            title = "Overdue",
-            count = count,
-            countLabel = null,
-            accentColor = OverdueRed,
-            expanded = expanded,
-            onToggle = onToggle,
-            badgeStyle = BadgeStyle.RED_CIRCLE,
-            prominentWhenCollapsed = true
-        )
-        if (expanded) {
-            Spacer(modifier = Modifier.height(6.dp))
-            content()
-            Spacer(modifier = Modifier.height(4.dp))
-        }
-    }
-}
-
-private enum class BadgeStyle { DEFAULT, RED_CIRCLE }
-
 @Composable
 private fun SectionHeaderRow(
     emoji: String,
@@ -991,9 +949,7 @@ private fun SectionHeaderRow(
     countLabel: String?,
     accentColor: Color,
     expanded: Boolean,
-    onToggle: () -> Unit,
-    badgeStyle: BadgeStyle = BadgeStyle.DEFAULT,
-    prominentWhenCollapsed: Boolean = false
+    onToggle: () -> Unit
 ) {
     val chevronRotation by animateFloatAsState(
         targetValue = if (expanded) 0f else -90f,
@@ -1019,51 +975,18 @@ private fun SectionHeaderRow(
         Spacer(modifier = Modifier.width(8.dp))
 
         // Count badge
-        when (badgeStyle) {
-            BadgeStyle.RED_CIRCLE -> {
-                val prominent = prominentWhenCollapsed && !expanded && count > 0
-                val pulseTransition = rememberInfiniteTransition(label = "overdue_pulse")
-                val pulseScale by pulseTransition.animateFloat(
-                    initialValue = 1f,
-                    targetValue = 1.08f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(1000, easing = FastOutSlowInEasing),
-                        repeatMode = RepeatMode.Reverse
-                    ),
-                    label = "badge_pulse"
-                )
-                Box(
-                    modifier = Modifier
-                        .size(if (prominent) 24.dp else 20.dp)
-                        .scale(if (count > 0) pulseScale else 1f)
-                        .clip(CircleShape)
-                        .background(OverdueRed),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "$count",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        fontSize = if (prominent) 13.sp else 11.sp
-                    )
-                }
-            }
-            BadgeStyle.DEFAULT -> {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(accentColor.copy(alpha = 0.16f))
-                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = countLabel ?: "$count",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = accentColor
-                    )
-                }
-            }
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(10.dp))
+                .background(accentColor.copy(alpha = 0.16f))
+                .padding(horizontal = 8.dp, vertical = 2.dp)
+        ) {
+            Text(
+                text = countLabel ?: "$count",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = accentColor
+            )
         }
 
         Spacer(modifier = Modifier.weight(1f))
@@ -1315,17 +1238,27 @@ private fun SwipeableTaskItem(
     onReschedule: () -> Unit = {},
     onMoveToProject: () -> Unit = {},
     onDuplicate: () -> Unit = {},
-    onDelete: () -> Unit = {}
+    onDelete: () -> Unit = {},
+    onMoveToTomorrow: () -> Unit = {}
 ) {
     var showOverflowMenu by remember { mutableStateOf(false) }
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val tomorrowBlue = Color(0xFF5C8CC7)
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
-            if (value == SwipeToDismissBoxValue.StartToEnd) {
-                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
-                onComplete()
-                true
-            } else false
+            when (value) {
+                SwipeToDismissBoxValue.StartToEnd -> {
+                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                    onComplete()
+                    true
+                }
+                SwipeToDismissBoxValue.EndToStart -> {
+                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                    onMoveToTomorrow()
+                    true
+                }
+                SwipeToDismissBoxValue.Settled -> false
+            }
         }
     )
 
@@ -1339,23 +1272,55 @@ private fun SwipeableTaskItem(
     SwipeToDismissBox(
         state = dismissState,
         backgroundContent = {
+            val direction = dismissState.dismissDirection
+            val backgroundColor = when (direction) {
+                SwipeToDismissBoxValue.StartToEnd -> CompletedGreen
+                SwipeToDismissBoxValue.EndToStart -> tomorrowBlue
+                else -> Color.Transparent
+            }
+            val icon = when (direction) {
+                SwipeToDismissBoxValue.StartToEnd -> Icons.Default.Check
+                SwipeToDismissBoxValue.EndToStart -> Icons.Default.ArrowForward
+                else -> Icons.Default.Check
+            }
+            val alignment = when (direction) {
+                SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
+                else -> Alignment.CenterEnd
+            }
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(CompletedGreen)
+                    .background(backgroundColor)
                     .padding(horizontal = 20.dp),
-                contentAlignment = Alignment.CenterStart
+                contentAlignment = alignment
             ) {
-                Icon(
-                    Icons.Default.Check,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.scale(iconScale)
-                )
+                if (direction == SwipeToDismissBoxValue.EndToStart) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Tomorrow",
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            icon,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.scale(iconScale)
+                        )
+                    }
+                } else {
+                    Icon(
+                        icon,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.scale(iconScale)
+                    )
+                }
             }
-        },
-        enableDismissFromEndToStart = false
+        }
     ) {
         Card(
             modifier = Modifier
@@ -1363,10 +1328,7 @@ private fun SwipeableTaskItem(
                 .clickable(onClick = onClick),
             shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(
-                containerColor = if (isOverdue)
-                    OverdueRed.copy(alpha = 0.06f)
-                else
-                    MaterialTheme.colorScheme.surfaceContainerLow
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
             )
         ) {
             Row(
@@ -1405,7 +1367,7 @@ private fun SwipeableTaskItem(
                             Text(
                                 text = fmt.format(Date(task.dueDate)),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = OverdueRed
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                         if (isPlanned && task.dueDate != null) {
@@ -1797,13 +1759,13 @@ private fun PlanForTodaySheet(
                         }
                     }
 
-                    // Overdue group with "Plan All" shortcut
+                    // From Earlier group with "Plan All" shortcut
                     if (filteredOverdue.isNotEmpty()) {
                         item(key = "hdr_overdue") {
                             PlanGroupHeader(
-                                title = "Overdue",
+                                title = "From Earlier",
                                 count = filteredOverdue.size,
-                                color = OverdueRed,
+                                color = NeutralGray,
                                 expanded = overdueExpanded,
                                 onToggle = { overdueExpanded = !overdueExpanded },
                                 trailing = {
@@ -1817,7 +1779,7 @@ private fun PlanForTodaySheet(
                                         Text(
                                             "Plan All",
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = OverdueRed
+                                            color = MaterialTheme.colorScheme.primary
                                         )
                                     }
                                 }
@@ -2056,7 +2018,6 @@ private fun SheetTaskCard(
     val containerColor = when {
         isSelected -> MaterialTheme.colorScheme.primaryContainer
         isPlanned -> MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
-        isOverdue -> OverdueRed.copy(alpha = 0.06f)
         else -> MaterialTheme.colorScheme.surfaceContainerLow
     }
     Card(
@@ -2105,7 +2066,7 @@ private fun SheetTaskCard(
                 Text(
                     text = dateFormat.format(Date(task.dueDate)),
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (isOverdue) OverdueRed else MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             if (project != null) {
