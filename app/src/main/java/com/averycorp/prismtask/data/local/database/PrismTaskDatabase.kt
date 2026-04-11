@@ -9,7 +9,9 @@ import com.averycorp.prismtask.data.local.dao.CalendarSyncDao
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.dao.HabitLogDao
+import com.averycorp.prismtask.data.local.dao.HabitTemplateDao
 import com.averycorp.prismtask.data.local.dao.NlpShortcutDao
+import com.averycorp.prismtask.data.local.dao.ProjectTemplateDao
 import com.averycorp.prismtask.data.local.dao.ReminderProfileDao
 import com.averycorp.prismtask.data.local.dao.SavedFilterDao
 import com.averycorp.prismtask.data.local.dao.LeisureDao
@@ -27,6 +29,8 @@ import com.averycorp.prismtask.data.local.entity.CourseCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.HabitLogEntity
+import com.averycorp.prismtask.data.local.entity.HabitTemplateEntity
+import com.averycorp.prismtask.data.local.entity.ProjectTemplateEntity
 import com.averycorp.prismtask.data.local.entity.AssignmentEntity
 import com.averycorp.prismtask.data.local.entity.CourseEntity
 import com.averycorp.prismtask.data.local.entity.LeisureLogEntity
@@ -45,8 +49,8 @@ import com.averycorp.prismtask.data.local.entity.TaskTemplateEntity
 import com.averycorp.prismtask.data.local.entity.UsageLogEntity
 
 @Database(
-    entities = [TaskEntity::class, ProjectEntity::class, TagEntity::class, TaskTagCrossRef::class, AttachmentEntity::class, UsageLogEntity::class, SyncMetadataEntity::class, CalendarSyncEntity::class, HabitEntity::class, HabitCompletionEntity::class, HabitLogEntity::class, LeisureLogEntity::class, CourseEntity::class, AssignmentEntity::class, StudyLogEntity::class, CourseCompletionEntity::class, SelfCareLogEntity::class, SelfCareStepEntity::class, TaskTemplateEntity::class, NlpShortcutEntity::class, SavedFilterEntity::class, ReminderProfileEntity::class],
-    version = 31,
+    entities = [TaskEntity::class, ProjectEntity::class, TagEntity::class, TaskTagCrossRef::class, AttachmentEntity::class, UsageLogEntity::class, SyncMetadataEntity::class, CalendarSyncEntity::class, HabitEntity::class, HabitCompletionEntity::class, HabitLogEntity::class, LeisureLogEntity::class, CourseEntity::class, AssignmentEntity::class, StudyLogEntity::class, CourseCompletionEntity::class, SelfCareLogEntity::class, SelfCareStepEntity::class, TaskTemplateEntity::class, NlpShortcutEntity::class, SavedFilterEntity::class, ReminderProfileEntity::class, ProjectTemplateEntity::class, HabitTemplateEntity::class],
+    version = 32,
     exportSchema = false
 )
 abstract class PrismTaskDatabase : RoomDatabase() {
@@ -67,6 +71,8 @@ abstract class PrismTaskDatabase : RoomDatabase() {
     abstract fun nlpShortcutDao(): NlpShortcutDao
     abstract fun savedFilterDao(): SavedFilterDao
     abstract fun reminderProfileDao(): ReminderProfileDao
+    abstract fun projectTemplateDao(): ProjectTemplateDao
+    abstract fun habitTemplateDao(): HabitTemplateDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -491,6 +497,44 @@ abstract class PrismTaskDatabase : RoomDatabase() {
                         `escalation` INTEGER NOT NULL DEFAULT 0,
                         `escalation_interval_minutes` INTEGER,
                         `is_built_in` INTEGER NOT NULL DEFAULT 0,
+                        `created_at` INTEGER NOT NULL
+                    )"""
+                )
+            }
+        }
+
+        // v1.3.0 P15: add project_templates + habit_templates tables
+        val MIGRATION_31_32 = object : Migration(31, 32) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `project_templates` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `description` TEXT,
+                        `color` TEXT,
+                        `icon_emoji` TEXT,
+                        `category` TEXT,
+                        `task_templates_json` TEXT NOT NULL,
+                        `is_built_in` INTEGER NOT NULL DEFAULT 0,
+                        `usage_count` INTEGER NOT NULL DEFAULT 0,
+                        `last_used_at` INTEGER,
+                        `created_at` INTEGER NOT NULL
+                    )"""
+                )
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `habit_templates` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `description` TEXT,
+                        `icon_emoji` TEXT,
+                        `color` TEXT,
+                        `category` TEXT,
+                        `frequency` TEXT NOT NULL,
+                        `target_count` INTEGER NOT NULL DEFAULT 1,
+                        `active_days_csv` TEXT NOT NULL,
+                        `is_built_in` INTEGER NOT NULL DEFAULT 0,
+                        `usage_count` INTEGER NOT NULL DEFAULT 0,
+                        `last_used_at` INTEGER,
                         `created_at` INTEGER NOT NULL
                     )"""
                 )
