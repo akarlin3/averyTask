@@ -38,6 +38,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added 26 unit tests: `LifeCategoryClassifierTest` (11), `BalanceTrackerTest`
   (10), `NaturalLanguageParserTest` life-category additions (5).
 
+### Added — Weekly Review Aggregator (V6 + V3 shared core)
+- New `WeeklyReviewAggregator` use case: pure-function weekly stats
+  rollup shared by the Weekly Balance Report (V3) and the AI Weekly
+  Review (V6) so the two features can never drift.
+- `WeeklyReviewStats` data class: `weekStart`, `weekEnd`, `completed`,
+  `slipped`, `rescheduled`, `byCategory` map, `carryForward` task list,
+  plus derived `total` and `completionRate` properties.
+- Configurable week-start day (Monday default per ISO-8601, Sunday
+  supported for US convention) so it plugs into the existing
+  `StartOfWeek` user preference without extra translation.
+- Categorizes completions by `LifeCategory` (V1) so the AI Weekly
+  Review prompt can say "Work dominated Tue–Thu" from raw stats.
+- Approximates rescheduled tasks via `updatedAt > createdAt` with a
+  due date pushed past the week's end. Exact tracking would need a
+  separate reschedule log — noted as a follow-up.
+- 10 new unit tests covering empty input, in-window vs out-of-window
+  completions, open-but-due-this-week slippage, archived exclusion,
+  reschedule detection, completion rate math, Monday start-of-week
+  normalization, 7-day end offset, and uncategorized-task handling.
+
+Scoped for follow-up: the actual `WeeklyBalanceReportScreen` UI with
+the donut chart and 4-week sparklines (V3), the AI Weekly Review
+screen with Claude-generated wins/misses/suggestions (V6), the
+Sunday evening notification, and the `weekly_reviews` Room table
+for historical review storage.
+
 ### Added — Conversation → Tasks Extractor (V9 phase 1)
 - New `ConversationTaskExtractor` domain use case: offline regex-based
   action-item extraction for pasted Claude/ChatGPT/email/meeting text.
