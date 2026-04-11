@@ -294,7 +294,11 @@ fun TodayScreen(
 
             if (workLifeBalancePrefs.showBalanceBar) {
                 item(key = "balance_bar") {
-                    TodayBalanceSection(state = balanceState, burnout = burnoutResult)
+                    TodayBalanceSection(
+                        state = balanceState,
+                        burnout = burnoutResult,
+                        onClick = { navController.navigate(PrismTaskRoute.WeeklyBalanceReport.route) }
+                    )
                 }
             }
 
