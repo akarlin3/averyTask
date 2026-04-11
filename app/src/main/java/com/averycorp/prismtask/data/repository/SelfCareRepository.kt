@@ -621,8 +621,17 @@ class SelfCareRepository @Inject constructor(
             }
         }
 
-        val activeVisible = getVisibleStepsFromEntities(dbSteps, existing.selectedTier, routineType)
-        val allDone = allMedsFullyLogged(resultLogs, activeVisible)
+        // "Done" mirrors the MedicationScreen: every time-of-day block that has
+        // any meds scheduled must have a tier selected. Using the per-block
+        // tier selection here keeps the Today chip, the medication screen
+        // header, and the habit completion in lockstep — otherwise the habit
+        // could be logged as "not done" even though the user had checked off
+        // every block in the UI.
+        val timeGroupsWithMeds = SelfCareRoutines.timesOfDay
+            .map { it.id }
+            .filter { tod -> dbSteps.any { step -> tod in SelfCareRoutines.parseTimeOfDay(step.timeOfDay) } }
+        val allDone = timeGroupsWithMeds.isNotEmpty() &&
+            timeGroupsWithMeds.all { it in tiersByTime.keys }
 
         selfCareDao.updateLog(
             existing.copy(

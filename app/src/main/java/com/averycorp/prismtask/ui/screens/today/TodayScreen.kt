@@ -100,6 +100,9 @@ import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.repository.HabitWithStatus
+import com.averycorp.prismtask.data.repository.LeisureRepository
+import com.averycorp.prismtask.data.repository.SchoolworkRepository
+import com.averycorp.prismtask.data.repository.SelfCareRepository
 import androidx.compose.material3.AlertDialog
 import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.ui.components.EnergyCheckInCard
@@ -452,8 +455,37 @@ fun TodayScreen(
                     ) {
                         HabitChipRow(
                             habits = todayHabits,
-                            onToggle = { hws ->
-                                viewModel.onToggleHabitCompletion(hws.habit.id, hws.isCompletedToday)
+                            onTap = { hws ->
+                                // Mode-task habits (Medication, Morning / Bedtime
+                                // Self-Care, Housework, School, Leisure) each
+                                // own a dedicated detail screen — open that
+                                // instead of toggling, since tapping the chip
+                                // can't express the per-section state those
+                                // flows require. Everything else still toggles
+                                // directly from the chip.
+                                val route = when (hws.habit.name) {
+                                    SelfCareRepository.MEDICATION_HABIT_NAME ->
+                                        PrismTaskRoute.Medication.route
+                                    SelfCareRepository.MORNING_HABIT_NAME ->
+                                        PrismTaskRoute.SelfCare.createRoute("morning")
+                                    SelfCareRepository.BEDTIME_HABIT_NAME ->
+                                        PrismTaskRoute.SelfCare.createRoute("bedtime")
+                                    SelfCareRepository.HOUSEWORK_HABIT_NAME ->
+                                        PrismTaskRoute.SelfCare.createRoute("housework")
+                                    SchoolworkRepository.SCHOOL_HABIT_NAME ->
+                                        PrismTaskRoute.Schoolwork.route
+                                    LeisureRepository.LEISURE_HABIT_NAME ->
+                                        PrismTaskRoute.Leisure.route
+                                    else -> null
+                                }
+                                if (route != null) {
+                                    navController.navigate(route)
+                                } else {
+                                    viewModel.onToggleHabitCompletion(
+                                        hws.habit.id,
+                                        hws.isCompletedToday
+                                    )
+                                }
                             },
                             onSeeAll = onNavigateToHabits
                         )
@@ -1039,7 +1071,7 @@ private fun SectionHeaderRow(
 @Composable
 private fun HabitChipRow(
     habits: List<HabitWithStatus>,
-    onToggle: (HabitWithStatus) -> Unit,
+    onTap: (HabitWithStatus) -> Unit,
     onSeeAll: () -> Unit
 ) {
     LazyRow(
@@ -1050,7 +1082,7 @@ private fun HabitChipRow(
         items(habits, key = { "habit_chip_${it.habit.id}" }) { hws ->
             HabitChip(
                 habitWithStatus = hws,
-                onTap = { onToggle(hws) }
+                onTap = { onTap(hws) }
             )
         }
         item(key = "habit_see_all") {
