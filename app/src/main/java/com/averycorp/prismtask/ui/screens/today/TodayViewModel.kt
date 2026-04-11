@@ -19,6 +19,8 @@ import com.averycorp.prismtask.data.preferences.WorkLifeBalancePrefs
 import com.averycorp.prismtask.domain.usecase.BalanceConfig
 import com.averycorp.prismtask.domain.usecase.BalanceState
 import com.averycorp.prismtask.domain.usecase.BalanceTracker
+import com.averycorp.prismtask.domain.usecase.BurnoutResult
+import com.averycorp.prismtask.domain.usecase.BurnoutScorer
 import com.averycorp.prismtask.data.repository.HabitRepository
 import com.averycorp.prismtask.util.DayBoundary
 import com.averycorp.prismtask.data.repository.HabitWithStatus
@@ -63,6 +65,7 @@ class TodayViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val balanceTracker: BalanceTracker = BalanceTracker()
+    private val burnoutScorer: BurnoutScorer = BurnoutScorer()
 
     /**
      * Work-Life Balance preferences: target ratios, toggles, overload threshold.
@@ -91,6 +94,25 @@ class TodayViewModel @Inject constructor(
             )
             balanceTracker.compute(allTasks, config)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BalanceState.EMPTY)
+
+    /**
+     * Composite burnout score (v1.4.0 V2). Derived from the same task pool +
+     * WLB prefs as the balance state so the UI can render both side-by-side
+     * without a second query.
+     */
+    val burnoutResult: StateFlow<BurnoutResult> =
+        combine(
+            taskRepository.getAllTasks(),
+            workLifeBalancePrefs,
+            balanceState
+        ) { allTasks, prefs, balance ->
+            val workRatio = balance.currentRatios[com.averycorp.prismtask.domain.model.LifeCategory.WORK] ?: 0f
+            burnoutScorer.computeFromTasks(
+                tasks = allTasks,
+                workRatio = workRatio,
+                workTarget = prefs.workTarget / 100f
+            )
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BurnoutResult.EMPTY)
 
     val isPremium: Boolean
         get() = proFeatureGate.isPremium()

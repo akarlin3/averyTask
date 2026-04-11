@@ -73,6 +73,7 @@ import com.averycorp.prismtask.ui.screens.today.components.CompletedTaskItem
 import com.averycorp.prismtask.ui.screens.today.components.FloatingQuickAddBar
 import com.averycorp.prismtask.ui.screens.today.components.HabitChipRow
 import com.averycorp.prismtask.ui.screens.today.components.NeutralGray
+import com.averycorp.prismtask.ui.screens.today.components.OverloadBanner
 import com.averycorp.prismtask.ui.screens.today.components.PlanForTodaySheet
 import com.averycorp.prismtask.ui.screens.today.components.SwipeableTaskItem
 import com.averycorp.prismtask.ui.screens.today.components.TodayBalanceSection
@@ -118,6 +119,8 @@ fun TodayScreen(
     val habitTotalCount by viewModel.habitTotalCount.collectAsStateWithLifecycle()
     val balanceState by viewModel.balanceState.collectAsStateWithLifecycle()
     val workLifeBalancePrefs by viewModel.workLifeBalancePrefs.collectAsStateWithLifecycle()
+    val burnoutResult by viewModel.burnoutResult.collectAsStateWithLifecycle()
+    var overloadBannerDismissed by remember { mutableStateOf(false) }
 
     val coachingUserTier by coachingViewModel.userTier.collectAsStateWithLifecycle()
     val showEnergyCheckIn by coachingViewModel.showEnergyCheckIn.collectAsStateWithLifecycle()
@@ -290,7 +293,23 @@ fun TodayScreen(
 
             if (workLifeBalancePrefs.showBalanceBar) {
                 item(key = "balance_bar") {
-                    TodayBalanceSection(state = balanceState)
+                    TodayBalanceSection(state = balanceState, burnout = burnoutResult)
+                }
+            }
+
+            // Overload alert banner: shows once per day when the user's
+            // work ratio blows past their target + configured threshold
+            // (v1.4.0 V2). Dismiss is local to this screen session.
+            if (balanceState.isOverloaded && !overloadBannerDismissed) {
+                item(key = "overload_banner") {
+                    val workPctNow = ((balanceState.currentRatios[
+                        com.averycorp.prismtask.domain.model.LifeCategory.WORK
+                    ] ?: 0f) * 100f).toInt()
+                    OverloadBanner(
+                        workPct = workPctNow,
+                        targetPct = workLifeBalancePrefs.workTarget,
+                        onDismiss = { overloadBannerDismissed = true }
+                    )
                 }
             }
 

@@ -38,6 +38,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added 26 unit tests: `LifeCategoryClassifierTest` (11), `BalanceTrackerTest`
   (10), `NaturalLanguageParserTest` life-category additions (5).
 
+### Added — Burnout Score & Overload Alert (V2 phase 1)
+- New `BurnoutScorer` use case that computes a 0–100 composite score from
+  six weighted inputs (work-ratio overshoot, overdue tasks, skipped
+  self-care, medication gap, streak breaks, 2-day rest deficit) and maps
+  it to a `BurnoutBand` (BALANCED / MONITOR / CAUTION / HIGH_RISK).
+- `BurnoutInputs` and `BurnoutResult` data classes with per-component
+  contributions so the UI can explain *why* a band was assigned.
+- `BurnoutScorer.computeFromTasks` convenience wrapper that derives the
+  overdue count, skipped-self-care ratio, and rest deficit directly from
+  a TaskEntity list so TodayViewModel can wire it with a single combine.
+- `TodayViewModel.burnoutResult` StateFlow exposes the live score to the
+  Today screen and feeds `TodayBalanceSection`'s new burnout badge chip.
+- `TodayBalanceSection` gains a colored burnout badge next to the
+  "Balance" header showing the numeric score in the band's color.
+- `OverloadBanner` composable: full-width dismissible card that appears
+  on the Today screen when the user's work ratio exceeds their target by
+  the configured threshold. Tapping Dismiss hides it for the session.
+- 12 new unit tests in `BurnoutScorerTest` covering component ceilings,
+  band boundary mapping, all-zero and all-max inputs, and the score
+  clamping invariant.
+
+Note: self-care nudge rotation and the daily overload notification
+(WorkManager worker) are scoped for a follow-up commit.
+
 ### Added — Forgiveness-First Streak System (V5)
 - `ForgivenessConfig` + `StreakResult` data classes exposing `strictStreak`,
   `resilientStreak`, `missesInWindow`, `gracePeriodRemaining`, and the list
