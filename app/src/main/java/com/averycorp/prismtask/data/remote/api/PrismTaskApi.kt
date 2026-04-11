@@ -55,6 +55,9 @@ interface PrismTaskApi {
     @POST("api/v1/ai/time-block")
     suspend fun getTimeBlock(@Body request: TimeBlockRequest): TimeBlockResponse
 
+    @POST("api/v1/ai/coach")
+    suspend fun getCoaching(@Body request: CoachingRequest): CoachingResponse
+
     @GET("api/v1/export/json")
     suspend fun exportJson(): ResponseBody
 
