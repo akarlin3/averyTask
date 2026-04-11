@@ -262,9 +262,11 @@ class HabitRepository @Inject constructor(
 
             combine(
                 habitDao.getActiveHabits(),
-                completionDao.getCompletionsForDate(today)
-            ) { habits, todayCompletions ->
+                completionDao.getCompletionsForDate(today),
+                habitLogDao.getAllLogs()
+            ) { habits, todayCompletions, allLogs ->
             val countByHabit = todayCompletions.groupBy { it.habitId }.mapValues { it.value.size }
+            val logsByHabit = allLogs.groupBy { it.habitId }
             habits.map { habit ->
                 val completions = completionDao.getCompletionsForHabitOnce(habit.id)
                 val target = if (habit.reminderIntervalMillis != null) {
@@ -324,11 +326,11 @@ class HabitRepository @Inject constructor(
                 } else 0
                 val isBooked = habit.trackBooking && bookedTasks > 0
 
-                // Bookable habit: fetch last log date and count
-                val lastLog = if (habit.isBookable) habitLogDao.getLastLog(habit.id) else null
-                val logTotal = if (habit.isBookable) {
-                    habitLogDao.getLogsForHabit(habit.id).first().size
-                } else 0
+                // Bookable habit: fetch last log date and count from the observed logs flow
+                // so that adding/removing a log immediately refreshes the "Last done" display.
+                val habitLogs = if (habit.isBookable) logsByHabit[habit.id].orEmpty() else emptyList()
+                val lastLog = habitLogs.maxByOrNull { it.date }
+                val logTotal = habitLogs.size
 
                 HabitWithStatus(
                     habit = habit,
