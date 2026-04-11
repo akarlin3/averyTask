@@ -429,3 +429,58 @@ Respond ONLY with valid JSON — no markdown, no preamble:
             raise
 
     raise ValueError(f"Failed to parse AI response: {last_error}")
+
+
+def analyze_habit_correlations(daily_data: list[dict]) -> dict:
+    """Call Claude Haiku to analyze correlations between habit completion and task productivity.
+
+    daily_data: list of dicts with keys:
+      - date, habits_completed (list of habit names), task_completion_rate (0-100)
+    """
+    client = _get_client()
+    daily_json = json.dumps(daily_data, default=str, indent=2)
+
+    prompt = f"""Analyze the correlation between habit completion and task productivity.
+
+Data (last 90 days):
+{daily_json}
+
+For each habit, calculate:
+- Task completion rate on days the habit was done vs not done
+- Whether the correlation is positive, negative, or neutral
+- A brief interpretation
+
+Respond ONLY with valid JSON — no markdown, no preamble:
+{{
+  "correlations": [
+    {{"habit": "Exercise", "done_productivity": 82, "not_done_productivity": 65,
+     "correlation": "positive", "interpretation": "You complete 26% more tasks on days you exercise"}}
+  ],
+  "top_insight": "Exercise has the strongest positive impact on your productivity",
+  "recommendation": "Try to exercise before starting work — your most productive days start with movement"
+}}"""
+
+    last_error = None
+    for attempt in range(2):
+        try:
+            message = client.messages.create(
+                model=MODEL,
+                max_tokens=4096,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            content = message.content[0].text
+            result = _parse_ai_json(content)
+            if not isinstance(result, dict):
+                raise ValueError("Expected a JSON object")
+            return result
+        except (json.JSONDecodeError, KeyError, TypeError, IndexError, ValueError) as e:
+            last_error = e
+            logger.error(f"Failed to parse habit correlation response (attempt {attempt + 1}): {e}")
+            if attempt == 0:
+                continue
+            raise ValueError(f"Failed to parse AI response after retry: {e}") from e
+        except Exception as e:
+            logger.error(f"Habit correlation AI error: {type(e).__name__}: {e}")
+            raise
+
+    raise ValueError(f"Failed to parse AI response: {last_error}")

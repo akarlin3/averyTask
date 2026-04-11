@@ -156,6 +156,8 @@ class Task(Base):
     recurrence_json = Column(Text, nullable=True)
     eisenhower_quadrant = Column(String(2), nullable=True)  # Q1, Q2, Q3, Q4
     eisenhower_updated_at = Column(DateTime, nullable=True)
+    estimated_duration = Column(Integer, nullable=True)  # minutes
+    actual_duration = Column(Integer, nullable=True)  # minutes
     sort_order = Column(Integer, default=0)
     depth = Column(Integer, default=0)
     created_at = Column(DateTime, server_default=func.now())
