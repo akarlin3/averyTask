@@ -41,12 +41,25 @@ class SyncMapperTest {
     }
 
     @Test
+    fun task_sourceHabitId_roundTrip() {
+        val task = TaskEntity(
+            id = 1, title = "Habit Task", sourceHabitId = 42L,
+            createdAt = 500L, updatedAt = 600L
+        )
+        val map = SyncMapper.taskToMap(task)
+        assertEquals(42L, map["sourceHabitId"])
+        val restored = SyncMapper.mapToTask(map, 1)
+        assertEquals(42L, restored.sourceHabitId)
+    }
+
+    @Test
     fun task_nullFields_handleGracefully() {
         val map = mapOf<String, Any?>("title" to "Test", "createdAt" to 100L, "updatedAt" to 200L)
         val task = SyncMapper.mapToTask(map)
         assertEquals("Test", task.title)
         assertNull(task.description)
         assertNull(task.dueDate)
+        assertNull(task.sourceHabitId)
         assertEquals(0, task.priority)
     }
 
@@ -131,6 +144,22 @@ class SyncMapperTest {
         val restored = SyncMapper.mapToHabit(map, 1)
         assertEquals(true, restored.isArchived)
         assertEquals(true, restored.createDailyTask)
+    }
+
+    @Test
+    fun habit_showStreak_roundTrip() {
+        val habit = HabitEntity(id = 1, name = "t", showStreak = true, createdAt = 0, updatedAt = 0)
+        val map = SyncMapper.habitToMap(habit)
+        assertEquals(true, map["showStreak"])
+        val restored = SyncMapper.mapToHabit(map, 1)
+        assertEquals(true, restored.showStreak)
+    }
+
+    @Test
+    fun habit_showStreak_defaultsFalse_whenMissing() {
+        val map = mapOf<String, Any?>("name" to "Test")
+        val habit = SyncMapper.mapToHabit(map)
+        assertEquals(false, habit.showStreak)
     }
 
     // --- Habit Completion ---

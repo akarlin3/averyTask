@@ -354,6 +354,11 @@ class BackendSyncService @Inject constructor(
                 hasLogging = data.optBool("has_logging") ?: false,
                 trackBooking = data.optBool("track_booking") ?: false,
                 trackPreviousPeriod = data.optBool("track_previous_period") ?: false,
+                isBookable = data.optBool("is_bookable") ?: false,
+                isBooked = data.optBool("is_booked") ?: false,
+                bookedDate = data.optLong("booked_date"),
+                bookedNote = data.optString("booked_note"),
+                showStreak = data.optBool("show_streak") ?: false,
                 createdAt = data.optLong("created_at") ?: System.currentTimeMillis(),
                 updatedAt = remoteUpdatedAt
             )
