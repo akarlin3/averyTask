@@ -11,11 +11,12 @@ except ImportError:
 
 from app.config import settings
 from app.schemas.nlp import ParsedTask
+from app.services.ai_productivity import get_model
 
 logger = logging.getLogger(__name__)
 
 
-def _build_prompt(text: str, user_projects: list[str], today: date) -> str:
+def _build_prompt(text: str, user_projects: list[str], today: date, use_sonnet: bool = False) -> str:
     projects_str = ", ".join(user_projects) if user_projects else "none"
     return f"""You are a task parser. Given a natural language input, extract structured task information.
 
@@ -30,6 +31,10 @@ Parse the following input and return a JSON object with these fields:
 - "priority": (integer 1-4 or null) 1=Urgent, 2=High, 3=Medium, 4=Low. Infer from urgency words if present
 - "parent_task_suggestion": (string or null) If the input suggests this is a subtask of something, include the parent task description
 - "confidence": (float 0.0-1.0) How confident you are in the overall parse
+{'''- "suggestions": (list of strings or null) Related tasks the user might also want to create based on context. Only include if you can identify genuinely useful follow-up tasks.
+
+Provide more detailed confidence explanations and suggest related tasks
+the user might also want to create.''' if use_sonnet else ''}
 
 Input: "{text}"
 
@@ -37,7 +42,7 @@ Respond with ONLY valid JSON, no other text."""
 
 
 def parse_task_input(
-    text: str, user_projects: list[str], today: date
+    text: str, user_projects: list[str], today: date, tier: str = "FREE"
 ) -> ParsedTask:
     if not text or not text.strip():
         raise ValueError("Input text cannot be empty")
@@ -58,17 +63,20 @@ def parse_task_input(
         raise RuntimeError("anthropic package is not installed")
 
     client = anthropic.Anthropic(api_key=api_key)
-    prompt = _build_prompt(text.strip(), user_projects, today)
-    logger.info(f"Sending prompt to Anthropic: {prompt}")
+    use_sonnet = tier == "ULTRA"
+    prompt = _build_prompt(text.strip(), user_projects, today, use_sonnet=use_sonnet)
+    model = get_model(tier)
+    logger.info(f"Sending prompt to Anthropic (model={model}): {prompt}")
 
     last_error: Exception | None = None
     for attempt in range(2):
         try:
             try:
-                print("NLP: Sending to Anthropic...")
+                print(f"NLP: Sending to Anthropic (model={model})...")
+                max_tokens = 1024 if use_sonnet else 512
                 message = client.messages.create(
-                    model="claude-haiku-4-5-20251001",
-                    max_tokens=512,
+                    model=model,
+                    max_tokens=max_tokens,
                     messages=[{"role": "user", "content": prompt}],
                 )
             except Exception as api_err:
