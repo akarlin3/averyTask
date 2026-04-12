@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
+import { SplashScreen } from '@/components/shared/SplashScreen';
 import type { ReactNode } from 'react';
 
 interface ProtectedRouteProps {
@@ -9,19 +11,20 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const isLoading = useAuthStore((s) => s.isLoading);
+  const [timedOut, setTimedOut] = useState(false);
 
-  if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-[var(--color-bg-primary)]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-[var(--color-border)] border-t-[var(--color-accent)]" />
-          <p className="text-sm text-[var(--color-text-secondary)]">Loading...</p>
-        </div>
-      </div>
-    );
+  // If hydration takes > 3 seconds, redirect to login
+  useEffect(() => {
+    if (!isLoading) return;
+    const timer = setTimeout(() => setTimedOut(true), 3000);
+    return () => clearTimeout(timer);
+  }, [isLoading]);
+
+  if (isLoading && !timedOut) {
+    return <SplashScreen />;
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || timedOut) {
     return <Navigate to="/login" replace />;
   }
 

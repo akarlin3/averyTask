@@ -1,22 +1,17 @@
 import { useState } from 'react';
-import { Sparkles, Moon, Sun, Monitor, LogOut, User } from 'lucide-react';
+import { Moon, Sun, Monitor, LogOut } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useThemeStore } from '@/stores/themeStore';
+import { NLPInput } from '@/components/shared/NLPInput';
+import { Avatar } from '@/components/ui/Avatar';
 import type { ThemeMode } from '@/stores/themeStore';
 
 export function Header() {
-  const [quickAddValue, setQuickAddValue] = useState('');
   const [showUserMenu, setShowUserMenu] = useState(false);
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const themeMode = useThemeStore((s) => s.mode);
   const setMode = useThemeStore((s) => s.setMode);
-
-  const handleQuickAdd = (e: React.FormEvent) => {
-    e.preventDefault();
-    // NLP parse will be implemented in a future phase
-    setQuickAddValue('');
-  };
 
   const themeOptions: { mode: ThemeMode; icon: typeof Sun; label: string }[] = [
     { mode: 'light', icon: Sun, label: 'Light' },
@@ -26,19 +21,13 @@ export function Header() {
 
   return (
     <header className="flex h-14 items-center gap-4 border-b border-[var(--color-border)] bg-[var(--color-bg-primary)] px-4">
-      {/* Quick Add Bar */}
-      <form onSubmit={handleQuickAdd} className="flex flex-1 items-center">
-        <div className="relative flex-1 max-w-2xl">
-          <Sparkles className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-secondary)]" />
-          <input
-            type="text"
-            placeholder="Quick add task... (e.g. 'Buy milk tomorrow !high #shopping')"
-            value={quickAddValue}
-            onChange={(e) => setQuickAddValue(e.target.value)}
-            className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] py-2 pl-10 pr-4 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-secondary)] outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]"
-          />
-        </div>
-      </form>
+      {/* NLP Quick Add Bar */}
+      <NLPInput
+        onTaskCreate={(data) => {
+          // Task creation will be wired in a future phase
+          console.log('Create task:', data);
+        }}
+      />
 
       {/* Theme Toggle */}
       <div className="flex items-center gap-1 rounded-lg border border-[var(--color-border)] p-1">
@@ -63,10 +52,9 @@ export function Header() {
       <div className="relative">
         <button
           onClick={() => setShowUserMenu(!showUserMenu)}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-accent)] text-sm font-medium text-white"
           aria-label="User menu"
         >
-          {user?.name?.[0]?.toUpperCase() || <User className="h-4 w-4" />}
+          <Avatar name={user?.name} src={user?.avatar_url} size="md" />
         </button>
 
         {showUserMenu && (

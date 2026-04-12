@@ -13,6 +13,7 @@ import {
   PanelLeftOpen,
 } from 'lucide-react';
 import { useUIStore } from '@/stores/uiStore';
+import { PrismLogo } from '@/components/shared/PrismLogo';
 
 const NAV_ITEMS = [
   { to: '/', icon: Sun, label: 'Today' },
@@ -37,15 +38,8 @@ export function Sidebar() {
       }`}
     >
       {/* Logo */}
-      <div className="flex h-14 items-center gap-2 border-b border-[var(--color-border)] px-4">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-accent)] text-sm font-bold text-white">
-          P
-        </div>
-        {!collapsed && (
-          <span className="text-lg font-semibold text-[var(--color-text-primary)]">
-            PrismTask
-          </span>
-        )}
+      <div className="flex h-14 items-center border-b border-[var(--color-border)] px-3">
+        <PrismLogo variant={collapsed ? 'icon' : 'full'} size={collapsed ? 28 : 32} />
       </div>
 
       {/* Navigation */}
