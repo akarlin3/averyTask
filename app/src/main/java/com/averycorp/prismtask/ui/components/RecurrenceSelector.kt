@@ -137,7 +137,7 @@ internal fun RecurrenceDialog(
             if (selectedType != null) {
                 Button(onClick = {
                     val rule = RecurrenceRule(
-                        type = selectedType!!,
+                        type = selectedType ?: return@Button,
                         interval = interval.coerceAtLeast(1),
                         daysOfWeek = if (selectedType == RecurrenceType.WEEKLY) daysOfWeek.ifEmpty { listOf(currentDayOfWeek) } else null,
                         dayOfMonth = if (selectedType == RecurrenceType.MONTHLY) dayOfMonth.coerceIn(1, 31) else null,

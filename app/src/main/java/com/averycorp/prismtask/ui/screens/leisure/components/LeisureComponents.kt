@@ -238,7 +238,7 @@ internal fun ActivitySection(
             }
         }
     } else {
-        val selected = options.find { it.id == picked }!!
+        val selected = options.find { it.id == picked } ?: return
         // Selected item with checkbox
         SelectedItem(
             option = selected,

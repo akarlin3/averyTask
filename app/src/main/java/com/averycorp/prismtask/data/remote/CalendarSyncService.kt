@@ -138,12 +138,13 @@ class CalendarSyncService @Inject constructor(
     }
 
     private fun buildEventValues(task: TaskEntity, calendarId: Long): ContentValues {
+        val dueDate = task.dueDate ?: 0L
         val startMillis = if (task.scheduledStartTime != null && task.scheduledStartTime > 0) {
             task.scheduledStartTime
         } else if (task.dueTime != null && task.dueTime > 0) {
-            task.dueDate!! + task.dueTime
+            dueDate + task.dueTime
         } else {
-            task.dueDate!!
+            dueDate
         }
 
         val durationMinutes = task.estimatedDuration ?: 60
@@ -158,8 +159,8 @@ class CalendarSyncService @Inject constructor(
             put(CalendarContract.Events.EVENT_TIMEZONE, TimeZone.getDefault().id)
             if (isAllDay) {
                 put(CalendarContract.Events.ALL_DAY, 1)
-                put(CalendarContract.Events.DTSTART, task.dueDate!!)
-                put(CalendarContract.Events.DTEND, task.dueDate!! + 86_400_000L)
+                put(CalendarContract.Events.DTSTART, dueDate)
+                put(CalendarContract.Events.DTEND, dueDate + 86_400_000L)
             } else {
                 put(CalendarContract.Events.ALL_DAY, 0)
                 put(CalendarContract.Events.DTSTART, startMillis)

@@ -2,6 +2,7 @@ package com.averycorp.prismtask.data.billing
 
 import android.app.Activity
 import android.content.Context
+import android.util.Log
 import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
@@ -69,7 +70,10 @@ class BillingManager @Inject constructor(
 
     private val purchasesUpdatedListener = PurchasesUpdatedListener { billingResult, purchases ->
         if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
-            scope.launch { handlePurchaseUpdate(purchases) }
+            scope.launch {
+                try { handlePurchaseUpdate(purchases) }
+                catch (e: Exception) { Log.e("BillingManager", "Failed to handle purchase update", e) }
+            }
         }
     }
 

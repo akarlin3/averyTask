@@ -44,7 +44,9 @@ class AuthManager @Inject constructor(
     suspend fun signInWithGoogle(idToken: String): Result<FirebaseUser> = try {
         val credential = GoogleAuthProvider.getCredential(idToken, null)
         val result = auth.signInWithCredential(credential).await()
-        Result.success(result.user!!)
+        val user = result.user
+            ?: return Result.failure(IllegalStateException("Sign-in succeeded but user is null"))
+        Result.success(user)
     } catch (e: Exception) {
         Result.failure(e)
     }

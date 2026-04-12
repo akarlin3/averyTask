@@ -18,8 +18,8 @@ class ShakeDetector @Inject constructor(
     @ApplicationContext private val context: Context
 ) : SensorEventListener {
 
-    private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-    private val accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+    private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+    private val accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
 
     private val _shakeEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val shakeEvents: SharedFlow<Unit> = _shakeEvents.asSharedFlow()
@@ -30,14 +30,14 @@ class ShakeDetector @Inject constructor(
     private var isRegistered = false
 
     fun register() {
-        if (isRegistered || accelerometer == null) return
+        if (isRegistered || accelerometer == null || sensorManager == null) return
         sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_UI)
         isRegistered = true
     }
 
     fun unregister() {
         if (!isRegistered) return
-        sensorManager.unregisterListener(this)
+        sensorManager?.unregisterListener(this)
         isRegistered = false
         aboveThresholdCount = 0
     }

@@ -546,7 +546,7 @@ private fun SetupPage(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text((signInState as SignInState.SignedIn).email, style = MaterialTheme.typography.bodySmall)
+                            Text((signInState as? SignInState.SignedIn)?.email ?: "", style = MaterialTheme.typography.bodySmall)
                         }
                     }
                     is SignInState.Loading -> {

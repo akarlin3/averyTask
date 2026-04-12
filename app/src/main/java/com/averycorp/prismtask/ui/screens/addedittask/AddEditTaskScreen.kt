@@ -277,7 +277,7 @@ internal fun AddEditTaskFormFields(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Due: ${formatDateSmart(viewModel.dueDate!!)}",
+                        text = "Due: ${viewModel.dueDate?.let { formatDateSmart(it) } ?: ""}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface
                     )

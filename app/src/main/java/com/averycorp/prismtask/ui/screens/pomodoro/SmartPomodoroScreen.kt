@@ -138,7 +138,7 @@ fun SmartPomodoroScreen(
             }
 
             PomodoroState.SESSION_ACTIVE -> ActiveSessionView(
-                plan = plan!!,
+                plan = plan ?: return@Scaffold,
                 currentSessionIndex = currentSessionIndex,
                 timerSeconds = timerSeconds,
                 isTimerRunning = isTimerRunning,

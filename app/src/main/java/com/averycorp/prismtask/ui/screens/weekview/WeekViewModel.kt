@@ -90,8 +90,8 @@ class WeekViewModel @Inject constructor(
             val date = task.dueDate?.let {
                 java.time.Instant.ofEpochMilli(it).atZone(zone).toLocalDate()
             }
-            if (date != null && map.containsKey(date)) {
-                map[date]!!.add(task)
+            if (date != null) {
+                map[date]?.add(task)
             }
         }
         map.mapValues { (_, dayTasks) -> sortTasks(dayTasks, sort) }

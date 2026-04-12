@@ -144,13 +144,14 @@ class TimelineViewModel @Inject constructor(
     }
 
     val scheduledBlocks: StateFlow<List<TimeBlock>> = dayTasks.map { tasks ->
-        tasks.filter { it.scheduledStartTime != null }.map { task ->
+        tasks.filter { it.scheduledStartTime != null }.mapNotNull { task ->
+            val start = task.scheduledStartTime ?: return@mapNotNull null
             val duration = (task.estimatedDuration ?: 30) * 60 * 1000L
             TimeBlock(
                 id = "task_${task.id}",
                 title = task.title,
-                startTime = task.scheduledStartTime!!,
-                endTime = task.scheduledStartTime + duration,
+                startTime = start,
+                endTime = start + duration,
                 taskId = task.id,
                 priority = task.priority,
                 color = ""

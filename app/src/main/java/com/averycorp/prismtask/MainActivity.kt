@@ -182,9 +182,19 @@ class MainActivity : ComponentActivity() {
                 urgent = parseColorOrDefault(priorityUrgent, PriorityColors().urgent)
             )
 
+            val notificationSnackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
             val notificationPermissionLauncher = rememberLauncherForActivityResult(
                 ActivityResultContracts.RequestPermission()
-            ) { _ -> }
+            ) { granted ->
+                if (!granted) {
+                    kotlinx.coroutines.MainScope().launch {
+                        notificationSnackbarHostState.showSnackbar(
+                            message = "Notifications disabled \u2014 reminders won't work. Enable in Settings.",
+                            duration = androidx.compose.material3.SnackbarDuration.Long
+                        )
+                    }
+                }
+            }
 
             LaunchedEffect(Unit) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -270,6 +280,14 @@ class MainActivity : ComponentActivity() {
                         initialLaunchAction = launchAction,
                         initialSharedText = initialSharedText,
                         hasCompletedOnboarding = hasCompletedOnboarding
+                    )
+
+                    // Notification permission denial snackbar
+                    androidx.compose.material3.SnackbarHost(
+                        hostState = notificationSnackbarHostState,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 80.dp)
                     )
 
                     // Floating feedback button for beta/debug builds

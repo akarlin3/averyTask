@@ -166,7 +166,7 @@ fun TimelineScreen(
 
             // AI schedule stats (when generated)
             if (aiSchedule != null) {
-                val stats = aiSchedule!!.stats
+                val stats = aiSchedule.stats
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()

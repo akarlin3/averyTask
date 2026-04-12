@@ -292,8 +292,8 @@ class NaturalLanguageParser @Inject constructor(
                 if (dow != null) {
                     // "next X" means the occurrence at least 7 days out
                     parsedDate = today.with(TemporalAdjusters.next(dow))
-                    if (parsedDate!!.isBefore(today.plusDays(7))) {
-                        parsedDate = parsedDate!!.plusWeeks(1)
+                    if (parsedDate?.isBefore(today.plusDays(7)) == true) {
+                        parsedDate = parsedDate?.plusWeeks(1)
                     }
                     text = text.removeRange(nextDayMatch.range)
                 }

@@ -269,33 +269,39 @@ class AddEditTaskViewModel @Inject constructor(
             // will replace the snapshot with the true initial values.
             hasInitialized = false
             loadJob = viewModelScope.launch {
-                val task = taskRepository.getTaskById(taskId).firstOrNull()
-                val tagIds = tagRepository.getTagsForTask(taskId).firstOrNull()
-                    ?.map { it.id }
-                    ?.toSet()
-                    ?: emptySet()
-                if (task != null) {
-                    existingTask = task
-                    title = task.title
-                    description = task.description.orEmpty()
-                    dueDate = task.dueDate
-                    dueTime = task.dueTime
-                    priority = task.priority
-                    this@AddEditTaskViewModel.projectId = task.projectId
-                    parentTaskId = task.parentTaskId
-                    recurrenceRule = task.recurrenceRule?.let { RecurrenceConverter.fromJson(it) }
-                    reminderOffset = task.reminderOffset
-                    estimatedDuration = task.estimatedDuration
-                    notes = task.notes.orEmpty()
-                    selectedTagIds = tagIds
-                    val loadedCategory = LifeCategory.fromStorage(task.lifeCategory)
-                    lifeCategory = loadedCategory.takeIf { it != LifeCategory.UNCATEGORIZED }
-                    lifeCategoryManuallySet = lifeCategory != null
-                    snapshotInitialValuesFromTask(task, tagIds)
-                } else {
+                try {
+                    val task = taskRepository.getTaskById(taskId).firstOrNull()
+                    val tagIds = tagRepository.getTagsForTask(taskId).firstOrNull()
+                        ?.map { it.id }
+                        ?.toSet()
+                        ?: emptySet()
+                    if (task != null) {
+                        existingTask = task
+                        title = task.title
+                        description = task.description.orEmpty()
+                        dueDate = task.dueDate
+                        dueTime = task.dueTime
+                        priority = task.priority
+                        this@AddEditTaskViewModel.projectId = task.projectId
+                        parentTaskId = task.parentTaskId
+                        recurrenceRule = task.recurrenceRule?.let { RecurrenceConverter.fromJson(it) }
+                        reminderOffset = task.reminderOffset
+                        estimatedDuration = task.estimatedDuration
+                        notes = task.notes.orEmpty()
+                        selectedTagIds = tagIds
+                        val loadedCategory = LifeCategory.fromStorage(task.lifeCategory)
+                        lifeCategory = loadedCategory.takeIf { it != LifeCategory.UNCATEGORIZED }
+                        lifeCategoryManuallySet = lifeCategory != null
+                        snapshotInitialValuesFromTask(task, tagIds)
+                    } else {
+                        snapshotInitialValuesForCreate(projectId, initialDate)
+                    }
+                } catch (e: Exception) {
+                    Log.e("AddEditTaskVM", "Failed to load task", e)
                     snapshotInitialValuesForCreate(projectId, initialDate)
+                } finally {
+                    hasInitialized = true
                 }
-                hasInitialized = true
             }
         } else {
             snapshotInitialValuesForCreate(projectId, initialDate)
@@ -649,8 +655,10 @@ class AddEditTaskViewModel @Inject constructor(
             }
 
             // Schedule or cancel reminder
-            if (reminderOffset != null && dueDate != null) {
-                reminderScheduler.scheduleReminder(savedId, trimmedTitle, trimmedDesc, dueDate!!, reminderOffset!!)
+            val effectiveDueDate = dueDate
+            val effectiveOffset = reminderOffset
+            if (effectiveDueDate != null && effectiveOffset != null) {
+                reminderScheduler.scheduleReminder(savedId, trimmedTitle, trimmedDesc, effectiveDueDate, effectiveOffset)
             } else {
                 reminderScheduler.cancelReminder(savedId)
             }

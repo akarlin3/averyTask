@@ -163,7 +163,7 @@ fun ChatScreen(
                     Column {
                         Text("AI Coach", style = MaterialTheme.typography.titleMedium)
                         val subtitle = if (contextTask != null) {
-                            "Talking About: ${contextTask!!.title}"
+                            "Talking About: ${contextTask.title}"
                         } else {
                             "General"
                         }
