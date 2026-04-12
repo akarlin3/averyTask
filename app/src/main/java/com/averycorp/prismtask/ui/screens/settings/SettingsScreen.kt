@@ -613,7 +613,10 @@ fun SettingsScreen(
                     onLargeTouchTargetsChange = viewModel::setLargeTouchTargets
                 )
 
-                AboutSection(latestReleaseTag = latestReleaseTag)
+                AboutSection(
+                    latestReleaseTag = latestReleaseTag,
+                    onRefreshWidgets = viewModel::refreshWidgets
+                )
 
                 if (BuildConfig.DEBUG) {
                     DebugTierSection(
