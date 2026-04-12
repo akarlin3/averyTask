@@ -3,11 +3,13 @@ package com.averycorp.prismtask.widget
 import android.content.Context
 import android.content.Intent
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
+import androidx.glance.LocalSize
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
@@ -30,134 +32,44 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import com.averycorp.prismtask.MainActivity
+import java.util.Calendar
 
-/**
- * Quick-Add home screen widget.
- *
- * Search-bar style row with a PrismTask icon on the left, a dimmed
- * "Add a task..." placeholder that launches the quick-add flow, and a
- * trailing mic button that launches the app directly into voice input
- * mode. At 4x2 and above, a second row of template shortcut tiles is
- * shown below the bar.
- */
 class QuickAddWidget : GlanceAppWidget() {
-
-    override val sizeMode = SizeMode.Single
-
+    companion object {
+        private val SMALL = DpSize(200.dp, 40.dp)
+        private val LARGE = DpSize(250.dp, 100.dp)
+        internal val PLACEHOLDERS = listOf("What's on your mind?", "Add a task...", "What needs doing?", "Plan something great...", "Quick capture...")
+    }
+    override val sizeMode = SizeMode.Responsive(setOf(SMALL, LARGE))
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val templates = try {
-            WidgetDataProvider.getTopTemplates(context, limit = 3)
-        } catch (_: Exception) {
-            emptyList()
-        }
-        provideContent {
-            GlanceTheme {
-                QuickAddContent(context, templates)
-            }
-        }
+        val templates = try { WidgetDataProvider.getTopTemplates(context, limit = 3) } catch (_: Exception) { emptyList() }
+        provideContent { val size = LocalSize.current; GlanceTheme { QuickAddContent(context, templates, size) } }
     }
 }
 
 @Composable
-private fun QuickAddContent(
-    context: Context,
-    templates: List<TemplateShortcut>
-) {
-    val addTaskIntent = Intent(context, MainActivity::class.java).apply {
-        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        putExtra(MainActivity.EXTRA_LAUNCH_ACTION, MainActivity.ACTION_QUICK_ADD)
-    }
-    val voiceIntent = Intent(context, MainActivity::class.java).apply {
-        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        putExtra(MainActivity.EXTRA_LAUNCH_ACTION, MainActivity.ACTION_VOICE_INPUT)
-    }
-
-    Column(
-        modifier = GlanceModifier
-            .fillMaxSize()
-            .padding(10.dp)
-            .background(GlanceTheme.colors.background)
-    ) {
-        Row(
-            modifier = GlanceModifier
-                .fillMaxWidth()
-                .cornerRadius(20.dp)
-                .background(GlanceTheme.colors.surfaceVariant)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "\u25C6",
-                style = TextStyle(
-                    fontSize = 16.sp,
-                    color = GlanceTheme.colors.primary
-                )
-            )
+private fun QuickAddContent(context: Context, templates: List<TemplateShortcut>, size: DpSize) {
+    val isLarge = size.height >= 100.dp
+    val dayOfYear = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
+    val placeholder = QuickAddWidget.PLACEHOLDERS[dayOfYear % QuickAddWidget.PLACEHOLDERS.size]
+    val addTaskIntent = Intent(context, MainActivity::class.java).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP; putExtra(MainActivity.EXTRA_LAUNCH_ACTION, MainActivity.ACTION_QUICK_ADD) }
+    val voiceIntent = Intent(context, MainActivity::class.java).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP; putExtra(MainActivity.EXTRA_LAUNCH_ACTION, MainActivity.ACTION_VOICE_INPUT) }
+    Column(modifier = GlanceModifier.fillMaxSize().padding(10.dp).background(GlanceTheme.colors.background)) {
+        Row(modifier = GlanceModifier.fillMaxWidth().cornerRadius(28.dp).background(GlanceTheme.colors.surfaceVariant).padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(text = "\u25C6", style = TextStyle(fontSize = 16.sp, color = GlanceTheme.colors.primary))
             Spacer(modifier = GlanceModifier.width(10.dp))
-            Box(
-                modifier = GlanceModifier
-                    .defaultWeight()
-                    .clickable(actionStartActivity(addTaskIntent))
-            ) {
-                Text(
-                    text = "Add a task...",
-                    style = TextStyle(
-                        fontSize = 14.sp,
-                        color = GlanceTheme.colors.onSurfaceVariant
-                    )
-                )
-            }
+            Box(modifier = GlanceModifier.defaultWeight().clickable(actionStartActivity(addTaskIntent))) { Text(text = placeholder, style = TextStyle(fontSize = 14.sp, color = GlanceTheme.colors.onSurfaceVariant)) }
             Spacer(modifier = GlanceModifier.width(8.dp))
-            Box(
-                modifier = GlanceModifier
-                    .cornerRadius(18.dp)
-                    .background(GlanceTheme.colors.primaryContainer)
-                    .padding(horizontal = 8.dp, vertical = 6.dp)
-                    .clickable(actionStartActivity(voiceIntent))
-            ) {
-                Text(
-                    text = "\uD83C\uDFA4",
-                    style = TextStyle(
-                        fontSize = 16.sp,
-                        color = GlanceTheme.colors.onPrimaryContainer
-                    )
-                )
-            }
+            Box(modifier = GlanceModifier.cornerRadius(18.dp).background(GlanceTheme.colors.primaryContainer).padding(horizontal = 8.dp, vertical = 6.dp).clickable(actionStartActivity(voiceIntent))) { Text(text = "\uD83C\uDFA4", style = TextStyle(fontSize = 16.sp, color = GlanceTheme.colors.onPrimaryContainer)) }
         }
-
-        if (templates.isNotEmpty()) {
+        if (isLarge && templates.isNotEmpty()) {
             Spacer(modifier = GlanceModifier.height(8.dp))
             Row(modifier = GlanceModifier.fillMaxWidth()) {
                 templates.take(3).forEachIndexed { index, tpl ->
                     if (index > 0) Spacer(modifier = GlanceModifier.width(6.dp))
-                    val tplIntent = Intent(context, MainActivity::class.java).apply {
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                        putExtra(MainActivity.EXTRA_LAUNCH_ACTION, MainActivity.ACTION_OPEN_TEMPLATES)
-                    }
-                    Box(
-                        modifier = GlanceModifier
-                            .defaultWeight()
-                            .cornerRadius(12.dp)
-                            .background(GlanceTheme.colors.secondaryContainer)
-                            .padding(vertical = 8.dp)
-                            .clickable(actionStartActivity(tplIntent)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = tpl.icon,
-                                style = TextStyle(fontSize = 16.sp)
-                            )
-                            Text(
-                                text = tpl.name.take(10),
-                                style = TextStyle(
-                                    fontSize = 10.sp,
-                                    color = GlanceTheme.colors.onSecondaryContainer,
-                                    fontWeight = FontWeight.Medium
-                                ),
-                                maxLines = 1
-                            )
-                        }
+                    val tplIntent = Intent(context, MainActivity::class.java).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP; putExtra(MainActivity.EXTRA_LAUNCH_ACTION, MainActivity.ACTION_OPEN_TEMPLATES) }
+                    Box(modifier = GlanceModifier.defaultWeight().cornerRadius(12.dp).background(GlanceTheme.colors.secondaryContainer).padding(vertical = 8.dp).clickable(actionStartActivity(tplIntent)), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) { Text(text = tpl.icon, style = TextStyle(fontSize = 16.sp)); Text(text = tpl.name.take(10), style = TextStyle(fontSize = 10.sp, color = GlanceTheme.colors.onSecondaryContainer, fontWeight = FontWeight.Medium), maxLines = 1) }
                     }
                 }
             }
@@ -165,6 +77,4 @@ private fun QuickAddContent(
     }
 }
 
-class QuickAddWidgetReceiver : GlanceAppWidgetReceiver() {
-    override val glanceAppWidget: GlanceAppWidget = QuickAddWidget()
-}
+class QuickAddWidgetReceiver : GlanceAppWidgetReceiver() { override val glanceAppWidget: GlanceAppWidget = QuickAddWidget() }
