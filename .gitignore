@@ -21,7 +21,9 @@ local.properties
 captures/
 
 # React web app
-web/
+web/node_modules/
+web/dist/
+web/dist-ssr/
 
 # Python
 __pycache__/
