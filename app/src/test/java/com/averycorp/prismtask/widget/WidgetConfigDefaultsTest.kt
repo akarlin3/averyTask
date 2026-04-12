@@ -64,4 +64,59 @@ class WidgetConfigDefaultsTest {
         // This test documents that the cap lives in setHabitStreakConfig.
         assertEquals(8, cfg.selectedHabitIds.size)
     }
+
+    // --- New tests for W11 ---
+
+    @Test
+    fun `today config maxTasks valid range`() {
+        val cfg1 = WidgetConfigDataStore.TodayConfig(maxTasks = 1)
+        assertEquals(1, cfg1.maxTasks)
+        val cfg20 = WidgetConfigDataStore.TodayConfig(maxTasks = 20)
+        assertEquals(20, cfg20.maxTasks)
+    }
+
+    @Test
+    fun `today config opacity valid range`() {
+        val cfg = WidgetConfigDataStore.TodayConfig(backgroundOpacityPercent = 60)
+        assertEquals(60, cfg.backgroundOpacityPercent)
+        val full = WidgetConfigDataStore.TodayConfig(backgroundOpacityPercent = 100)
+        assertEquals(100, full.backgroundOpacityPercent)
+    }
+
+    @Test
+    fun `habit streak config grid layout toggle`() {
+        val row = WidgetConfigDataStore.HabitStreakConfig(layoutGrid = false)
+        assertFalse(row.layoutGrid)
+        val grid = WidgetConfigDataStore.HabitStreakConfig(layoutGrid = true)
+        assertTrue(grid.layoutGrid)
+    }
+
+    @Test
+    fun `quick add config custom placeholder`() {
+        val cfg = WidgetConfigDataStore.QuickAddConfig(placeholder = "What needs doing?")
+        assertEquals("What needs doing?", cfg.placeholder)
+    }
+
+    @Test
+    fun `habit streak config selectedHabitIds round trip`() {
+        val ids = listOf(10L, 20L, 30L)
+        val cfg = WidgetConfigDataStore.HabitStreakConfig(selectedHabitIds = ids)
+        assertEquals(listOf(10L, 20L, 30L), cfg.selectedHabitIds)
+    }
+
+    @Test
+    fun `today config data class copy preserves all fields`() {
+        val original = WidgetConfigDataStore.TodayConfig(
+            showProgress = false,
+            showTaskList = false,
+            showHabitSummary = false,
+            maxTasks = 3,
+            showOverdueBadge = false,
+            backgroundOpacityPercent = 80
+        )
+        val copy = original.copy(maxTasks = 10)
+        assertFalse(copy.showProgress) // preserved
+        assertEquals(10, copy.maxTasks) // updated
+        assertEquals(80, copy.backgroundOpacityPercent) // preserved
+    }
 }
