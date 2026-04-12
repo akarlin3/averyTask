@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { format, isToday } from 'date-fns';
 import {
   DndContext,
@@ -18,7 +18,6 @@ import { QuickCreateInput } from './QuickCreateInput';
 import { useDateNavigation } from '@/hooks/useDateNavigation';
 import { useCalendarTasks } from '@/hooks/useCalendarTasks';
 import { useTaskStore } from '@/stores/taskStore';
-import { useIsMobile } from '@/hooks/useMediaQuery';
 import { Button } from '@/components/ui/Button';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { PRIORITY_CONFIG } from '@/utils/priority';
@@ -127,7 +126,6 @@ function TimeBlock({
   onClick: (task: Task) => void;
 }) {
   const priorityConf = PRIORITY_CONFIG[task.priority];
-  const startMin = timeToMinutes(task.due_time!);
   const duration = task.estimated_duration || 30;
   const top = timeToOffset(task.due_time!);
   const height = Math.max((duration / 60) * HOUR_HEIGHT, 20);
@@ -219,11 +217,9 @@ function PointEvent({
 // --- Droppable Hour Slot ---
 function HourSlot({
   hour,
-  dateStr,
   onClickSlot,
 }: {
   hour: number;
-  dateStr: string;
   onClickSlot: (time: string) => void;
 }) {
   const timeStr = minutesToTime(hour * 60);
@@ -292,7 +288,6 @@ export function TimelineScreen() {
   );
   const { updateTask, setSelectedTask } = useTaskStore();
 
-  const isMobile = useIsMobile();
   const timeGridRef = useRef<HTMLDivElement>(null);
 
   const [quickCreateTime, setQuickCreateTime] = useState<string | null>(null);
@@ -521,7 +516,6 @@ export function TimelineScreen() {
                 <HourSlot
                   key={hour}
                   hour={hour}
-                  dateStr={dateStr}
                   onClickSlot={handleSlotClick}
                 />
               ))}

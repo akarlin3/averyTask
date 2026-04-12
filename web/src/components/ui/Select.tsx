@@ -102,10 +102,12 @@ export function Select(props: SelectProps) {
     }
   }, [isOpen, searchable]);
 
-  // Reset highlight when filtered options change
-  useEffect(() => {
+  // Reset highlight when search changes (derived state pattern)
+  const [prevSearch, setPrevSearch] = useState(search);
+  if (search !== prevSearch) {
+    setPrevSearch(search);
     setHighlightIndex(0);
-  }, [search]);
+  }
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -139,7 +141,7 @@ export function Select(props: SelectProps) {
           break;
       }
     },
-    [isOpen, filteredOptions, highlightIndex],
+    [isOpen, filteredOptions, highlightIndex, handleSelect],
   );
 
   // Scroll highlighted into view
