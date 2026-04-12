@@ -21,7 +21,7 @@ const NAV_ITEMS = [
   { to: '/tasks', icon: CheckSquare, label: 'Tasks' },
   { to: '/projects', icon: FolderKanban, label: 'Projects' },
   { to: '/habits', icon: Activity, label: 'Habits' },
-  { to: '/calendar/week', icon: Calendar, label: 'Calendar' },
+  { to: '/calendar', icon: Calendar, label: 'Calendar' },
   { to: '/eisenhower', icon: LayoutGrid, label: 'Eisenhower' },
   { to: '/pomodoro', icon: Timer, label: 'Pomodoro' },
   { to: '/templates', icon: FileText, label: 'Templates' },

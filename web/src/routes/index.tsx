@@ -21,6 +21,7 @@ import { HabitAnalyticsScreen } from '@/features/habits/HabitAnalyticsScreen';
 import { WeekViewScreen } from '@/features/calendar/WeekViewScreen';
 import { MonthViewScreen } from '@/features/calendar/MonthViewScreen';
 import { TimelineScreen } from '@/features/calendar/TimelineScreen';
+import { CalendarRedirect } from '@/features/calendar/CalendarRedirect';
 import { EisenhowerScreen } from '@/features/eisenhower/EisenhowerScreen';
 import { PomodoroScreen } from '@/features/pomodoro/PomodoroScreen';
 import { TemplateListScreen } from '@/features/templates/TemplateListScreen';
@@ -47,6 +48,7 @@ const routes: RouteObject[] = [
       { path: 'projects/:id', element: <ProjectDetailScreen /> },
       { path: 'habits', element: <HabitListScreen /> },
       { path: 'habits/:id/analytics', element: <HabitAnalyticsScreen /> },
+      { path: 'calendar', element: <CalendarRedirect /> },
       { path: 'calendar/week', element: <WeekViewScreen /> },
       { path: 'calendar/month', element: <MonthViewScreen /> },
       { path: 'calendar/timeline', element: <TimelineScreen /> },
