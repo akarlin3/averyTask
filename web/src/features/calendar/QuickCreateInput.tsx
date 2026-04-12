@@ -15,7 +15,7 @@ interface QuickCreateInputProps {
 
 export function QuickCreateInput({
   date,
-  time,
+  time: _time,
   onCreated,
   onCancel,
   autoFocus = true,

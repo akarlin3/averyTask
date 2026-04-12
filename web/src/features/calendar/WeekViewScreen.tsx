@@ -1,10 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   format,
   addDays,
   startOfWeek,
   isToday,
-  isSameDay,
 } from 'date-fns';
 import {
   DndContext,
@@ -27,9 +26,6 @@ import { useCalendarTasks } from '@/hooks/useCalendarTasks';
 import { useTaskStore } from '@/stores/taskStore';
 import { useIsMobile, useIsTablet } from '@/hooks/useMediaQuery';
 import { Button } from '@/components/ui/Button';
-import { Tooltip } from '@/components/ui/Tooltip';
-import { PRIORITY_CONFIG } from '@/utils/priority';
-import { formatTime } from '@/utils/dates';
 import TaskEditor from '@/features/tasks/TaskEditor';
 import type { Task } from '@/types/task';
 
@@ -237,11 +233,11 @@ function MobileDayView({
 export function WeekViewScreen() {
   const { currentDate, goForward, goBack, goToToday, label, dateRange } =
     useDateNavigation('week');
-  const { getTasksForDate, refetch, isLoading } = useCalendarTasks(
+  const { getTasksForDate, refetch } = useCalendarTasks(
     dateRange.start,
     dateRange.end,
   );
-  const { updateTask, setSelectedTask, selectedTask } = useTaskStore();
+  const { updateTask, setSelectedTask } = useTaskStore();
 
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();

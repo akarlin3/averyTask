@@ -36,12 +36,15 @@ export function QuickReschedule({
     return () => document.removeEventListener('mousedown', handler);
   }, [isOpen, onClose]);
 
-  useEffect(() => {
+  // Reset state when isOpen transitions (derived state pattern)
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
     if (!isOpen) {
       setShowDatePicker(false);
       setCustomDate('');
     }
-  }, [isOpen]);
+  }
 
   if (!isOpen) return null;
 

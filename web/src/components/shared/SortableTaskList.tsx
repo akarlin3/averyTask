@@ -57,7 +57,7 @@ function calculateNewSortOrders(
       ? reordered[newIndex + 1].sort_order
       : prev + 200;
 
-  let newOrder = Math.floor((prev + next) / 2);
+  const newOrder = Math.floor((prev + next) / 2);
 
   // If gap is too small, rebalance all items
   if (newOrder === prev || newOrder === next) {

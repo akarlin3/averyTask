@@ -24,7 +24,7 @@ export function NLPInput({ onTaskCreate, onTemplateUse, className = '' }: NLPInp
   const popoverRef = useRef<HTMLDivElement>(null);
   const templateDropdownRef = useRef<HTMLDivElement>(null);
 
-  const { templates, fetch: fetchTemplates, use: useTemplate } = useTemplateStore();
+  const { templates, fetch: fetchTemplates, use: applyTemplate } = useTemplateStore();
 
   // Fetch templates on mount for autocomplete
   useEffect(() => {
@@ -98,7 +98,7 @@ export function NLPInput({ onTaskCreate, onTemplateUse, className = '' }: NLPInp
       onTemplateUse(template.id);
     } else {
       try {
-        const result = await useTemplate(template.id);
+        const result = await applyTemplate(template.id);
         toast.success(result.message || `Task created from "${template.name}"`);
       } catch {
         toast.error('Failed to use template');
@@ -164,7 +164,7 @@ export function NLPInput({ onTaskCreate, onTemplateUse, className = '' }: NLPInp
     } finally {
       setLoading(false);
     }
-  }, [value, templateSuggestions, selectedTemplateIdx]);
+  }, [value, templateSuggestions, selectedTemplateIdx, handleTemplateSelect]);
 
   const handleConfirm = () => {
     onTaskCreate?.({

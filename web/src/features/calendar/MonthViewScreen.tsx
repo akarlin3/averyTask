@@ -1,8 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   format,
-  startOfMonth,
-  endOfMonth,
   startOfWeek,
   endOfWeek,
   addDays,
@@ -12,7 +10,6 @@ import {
 } from 'date-fns';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { CalendarNav } from './CalendarNav';
-import { CalendarTaskCard } from './CalendarTaskCard';
 import { QuickCreateInput } from './QuickCreateInput';
 import { useDateNavigation } from '@/hooks/useDateNavigation';
 import { useCalendarTasks } from '@/hooks/useCalendarTasks';
@@ -22,7 +19,6 @@ import { Button } from '@/components/ui/Button';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { PRIORITY_CONFIG } from '@/utils/priority';
 import { getPriorityColor } from '@/utils/priority';
-import { DueDateLabel } from '@/components/shared/DueDateLabel';
 import TaskEditor from '@/features/tasks/TaskEditor';
 import type { Task } from '@/types/task';
 
@@ -165,9 +161,9 @@ export function MonthViewScreen() {
   const calendarStart = startOfWeek(dateRange.start, { weekStartsOn: 1 });
   const calendarEnd = endOfWeek(dateRange.end, { weekStartsOn: 1 });
 
-  const { getTasksForDate, getTaskCountForDate, refetch, isLoading } =
+  const { getTasksForDate, refetch } =
     useCalendarTasks(calendarStart, calendarEnd);
-  const { updateTask, setSelectedTask, completeTask, uncompleteTask } =
+  const { setSelectedTask, completeTask, uncompleteTask } =
     useTaskStore();
 
   const isMobile = useIsMobile();
@@ -175,11 +171,17 @@ export function MonthViewScreen() {
   const [quickCreateDate, setQuickCreateDate] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
 
+  // Stabilize deps for useMemo (Date objects are new every render)
+  const calendarStartTime = calendarStart.getTime();
+  const calendarEndTime = calendarEnd.getTime();
+
   // Build calendar grid: 6 rows of 7 days
   const calendarDays = useMemo(() => {
+    const start = new Date(calendarStartTime);
+    const end = new Date(calendarEndTime);
     const days: Date[] = [];
-    let current = calendarStart;
-    while (current <= calendarEnd) {
+    let current = start;
+    while (current <= end) {
       days.push(current);
       current = addDays(current, 1);
     }
@@ -188,7 +190,7 @@ export function MonthViewScreen() {
       days.push(addDays(days[days.length - 1], 1));
     }
     return days;
-  }, [calendarStart.getTime(), calendarEnd.getTime()]);
+  }, [calendarStartTime, calendarEndTime]);
 
   const weeks = useMemo(() => {
     const result: Date[][] = [];
