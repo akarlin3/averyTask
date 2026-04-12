@@ -37,10 +37,7 @@ import com.averycorp.prismtask.data.preferences.OnboardingPreferences
 import com.averycorp.prismtask.data.remote.AuthManager
 import com.averycorp.prismtask.data.remote.CalendarSyncService
 import com.averycorp.prismtask.data.remote.DeviceCalendar
-import com.averycorp.prismtask.data.remote.GoogleDriveService
 import com.averycorp.prismtask.data.remote.SyncService
-import com.averycorp.prismtask.data.remote.api.PrismTaskApi
-import com.averycorp.prismtask.data.remote.sync.BackendSyncService
 import com.averycorp.prismtask.data.repository.TaskRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -59,9 +56,9 @@ import javax.inject.Inject
 
 /**
  * The Settings screen ViewModel. Long-running action handlers for
- * Export/Import and Backend sync have been moved to companion extension
- * files ([SettingsViewModelExportImport], [SettingsViewModelBackendSync])
- * to keep this file focused on state exposure and simple setters.
+ * Export/Import have been moved to a companion extension file
+ * ([SettingsViewModelExportImport]) to keep this file focused on
+ * state exposure and simple setters.
  */
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
@@ -83,12 +80,9 @@ class SettingsViewModel @Inject constructor(
     private val syncService: SyncService,
     private val calendarSyncService: CalendarSyncService,
     private val taskRepository: TaskRepository,
-    internal val googleDriveService: GoogleDriveService,
-    internal val backendSyncService: BackendSyncService,
     internal val backendSyncPreferences: BackendSyncPreferences,
     internal val templatePreferences: TemplatePreferences,
     internal val authTokenPreferences: AuthTokenPreferences,
-    internal val prismTaskApi: PrismTaskApi,
     private val calendarManager: CalendarManager,
     private val calendarSyncPreferences: CalendarSyncPreferences,
     private val billingManager: BillingManager,
@@ -651,37 +645,11 @@ class SettingsViewModel @Inject constructor(
     private val _isSyncing = MutableStateFlow(false)
     val isSyncing: StateFlow<Boolean> = _isSyncing
 
-    // --- Backend Sync (FastAPI) ---
-    val backendLastSyncAt: StateFlow<Long> = backendSyncPreferences.lastSyncAtFlow
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
-
-    val backendConnected: StateFlow<Boolean> = authTokenPreferences.accessTokenFlow
-        .map { !it.isNullOrBlank() }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
-
-    internal val _isBackendSyncing = MutableStateFlow(false)
-    val isBackendSyncing: StateFlow<Boolean> = _isBackendSyncing
-
-    internal val _isBackendAuthenticating = MutableStateFlow(false)
-    val isBackendAuthenticating: StateFlow<Boolean> = _isBackendAuthenticating
-
     internal val _isImporting = MutableStateFlow(false)
     val isImporting: StateFlow<Boolean> = _isImporting
 
     internal val _isExporting = MutableStateFlow(false)
     val isExporting: StateFlow<Boolean> = _isExporting
-
-    internal val _isDriveExporting = MutableStateFlow(false)
-    val isDriveExporting: StateFlow<Boolean> = _isDriveExporting
-
-    internal val _isDriveImporting = MutableStateFlow(false)
-    val isDriveImporting: StateFlow<Boolean> = _isDriveImporting
-
-    internal val _isCloudExporting = MutableStateFlow(false)
-    val isCloudExporting: StateFlow<Boolean> = _isCloudExporting
-
-    internal val _isCloudImporting = MutableStateFlow(false)
-    val isCloudImporting: StateFlow<Boolean> = _isCloudImporting
 
     // --- Theme setters ---
     fun setThemeMode(mode: String) {

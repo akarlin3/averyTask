@@ -35,7 +35,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.prismtask.BuildConfig
-import com.averycorp.prismtask.ui.components.settings.BackendAuthDialog
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.settings.sections.AboutSection
 import com.averycorp.prismtask.ui.screens.settings.sections.AccessibilitySection
@@ -43,7 +42,6 @@ import com.averycorp.prismtask.ui.screens.settings.sections.AccountSyncSection
 import com.averycorp.prismtask.ui.screens.settings.sections.AiNotificationsSection
 import com.averycorp.prismtask.ui.screens.settings.sections.AiSection
 import com.averycorp.prismtask.ui.screens.settings.sections.AppearanceSection
-import com.averycorp.prismtask.ui.screens.settings.sections.BackendSyncSection
 import com.averycorp.prismtask.ui.screens.settings.sections.BackupExportSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DashboardSection
 import com.averycorp.prismtask.ui.screens.settings.sections.DataSection
@@ -136,16 +134,8 @@ fun SettingsScreen(
     // Sync
     val isSignedIn by viewModel.isSignedIn.collectAsStateWithLifecycle()
     val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
-    val backendConnected by viewModel.backendConnected.collectAsStateWithLifecycle()
-    val backendLastSyncAt by viewModel.backendLastSyncAt.collectAsStateWithLifecycle()
-    val isBackendSyncing by viewModel.isBackendSyncing.collectAsStateWithLifecycle()
-    val isBackendAuthenticating by viewModel.isBackendAuthenticating.collectAsStateWithLifecycle()
     val isImporting by viewModel.isImporting.collectAsStateWithLifecycle()
     val isExporting by viewModel.isExporting.collectAsStateWithLifecycle()
-    val isDriveExporting by viewModel.isDriveExporting.collectAsStateWithLifecycle()
-    val isDriveImporting by viewModel.isDriveImporting.collectAsStateWithLifecycle()
-    val isCloudExporting by viewModel.isCloudExporting.collectAsStateWithLifecycle()
-    val isCloudImporting by viewModel.isCloudImporting.collectAsStateWithLifecycle()
     val pendingJson by viewModel.pendingJsonExport.collectAsStateWithLifecycle()
     val pendingCsv by viewModel.pendingCsvExport.collectAsStateWithLifecycle()
 
@@ -206,9 +196,6 @@ fun SettingsScreen(
     val leisureEnabled by viewModel.leisureEnabled.collectAsStateWithLifecycle()
     val houseworkEnabled by viewModel.houseworkEnabled.collectAsStateWithLifecycle()
 
-    // Dialogs owned by orchestrator
-    var showBackendAuthDialog by remember { mutableStateOf(false) }
-
     LaunchedEffect(Unit) {
         viewModel.messages.collect { message ->
             snackbarHostState.showSnackbar(message)
@@ -249,18 +236,6 @@ fun SettingsScreen(
             }
             if (jsonString != null) {
                 viewModel.onImportJson(jsonString)
-            }
-        }
-    }
-
-    val cloudImportLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? ->
-        if (uri != null) {
-            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-            val filename = uri.lastPathSegment?.substringAfterLast('/') ?: "import.json"
-            if (bytes != null) {
-                viewModel.onImportFromCloud(bytes, filename)
             }
         }
     }
@@ -317,23 +292,6 @@ fun SettingsScreen(
         )
     }
 
-    if (showBackendAuthDialog) {
-        BackendAuthDialog(
-            isAuthenticating = isBackendAuthenticating,
-            onLogin = { email, password ->
-                viewModel.onBackendLogin(email, password) { success ->
-                    if (success) showBackendAuthDialog = false
-                }
-            },
-            onRegister = { email, password, name ->
-                viewModel.onBackendRegister(email, password, name) { success ->
-                    if (success) showBackendAuthDialog = false
-                }
-            },
-            onDismiss = { showBackendAuthDialog = false }
-        )
-    }
-
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
@@ -351,7 +309,7 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            AnimatedVisibility(visible = isSyncing || isImporting || isExporting || isBackendSyncing || isCloudExporting || isCloudImporting) {
+            AnimatedVisibility(visible = isSyncing || isImporting || isExporting) {
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
             Column(
@@ -503,13 +461,9 @@ fun SettingsScreen(
                 )
 
                 BackupExportSection(
-                    isDriveExporting = isDriveExporting,
-                    isDriveImporting = isDriveImporting,
                     onExportJson = viewModel::onExportJson,
                     onExportCsv = viewModel::onExportCsv,
-                    onImportJson = { importLauncher.launch(arrayOf("application/json", "*/*")) },
-                    onExportToDrive = viewModel::onExportToDrive,
-                    onImportFromDrive = viewModel::onImportFromDrive
+                    onImportJson = { importLauncher.launch(arrayOf("application/json", "*/*")) }
                 )
 
                 AccountSyncSection(
@@ -519,19 +473,6 @@ fun SettingsScreen(
                     onSync = viewModel::onSync,
                     onSignOut = viewModel::onSignOut,
                     onSignIn = { navController.navigate("auth") }
-                )
-
-                BackendSyncSection(
-                    backendConnected = backendConnected,
-                    backendLastSyncAt = backendLastSyncAt,
-                    isBackendSyncing = isBackendSyncing,
-                    isCloudExporting = isCloudExporting,
-                    isCloudImporting = isCloudImporting,
-                    onBackendSync = viewModel::onBackendSync,
-                    onBackendDisconnect = viewModel::onBackendDisconnect,
-                    onExportToCloud = viewModel::onExportToCloud,
-                    onImportFromCloud = { cloudImportLauncher.launch(arrayOf("application/json", "*/*")) },
-                    onOpenAuthDialog = { showBackendAuthDialog = true }
                 )
 
                 DeviceCalendarSection(
