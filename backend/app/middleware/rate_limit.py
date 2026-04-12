@@ -1,5 +1,6 @@
 import time
 from collections import defaultdict
+from datetime import datetime, timezone
 from threading import Lock
 
 from fastapi import HTTPException, Request
@@ -37,5 +38,57 @@ class RateLimiter:
             self._requests[key].append(now)
 
 
+class DailyAIRateLimiter:
+    """Daily AI call rate limiter keyed by user ID.
+
+    Tier-based limits:
+    - Ultra: 100 calls/day
+    - Premium: 30 calls/day
+    - Pro: 15 calls/day
+    - Free: 0 (AI features are gated, but safety net)
+
+    Resets at midnight UTC. Counts reset on server restart (in-memory).
+    """
+
+    TIER_LIMITS = {
+        "ULTRA": 100,
+        "PREMIUM": 30,
+        "PRO": 15,
+        "FREE": 0,
+    }
+
+    def __init__(self) -> None:
+        # {user_id: (utc_date_str, count)}
+        self._counts: dict[int, tuple[str, int]] = {}
+        self._lock = Lock()
+
+    def _today_key(self) -> str:
+        return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    def check(self, user_id: int, tier: str) -> None:
+        limit = self.TIER_LIMITS.get(tier, 0)
+        if limit == 0:
+            return  # Free users are blocked by feature gate, not here
+
+        today = self._today_key()
+        with self._lock:
+            entry = self._counts.get(user_id)
+            if entry is None or entry[0] != today:
+                # New day or first call — reset
+                self._counts[user_id] = (today, 1)
+                return
+
+            current_count = entry[1]
+            if current_count >= limit:
+                raise HTTPException(
+                    status_code=429,
+                    detail="Daily AI limit reached \u2014 resets at midnight UTC",
+                )
+            self._counts[user_id] = (today, current_count + 1)
+
+
 # Auth endpoints: 10 requests per 60 seconds per IP
 auth_rate_limiter = RateLimiter(max_requests=10, window_seconds=60)
+
+# Daily AI call rate limiter (tier-based)
+daily_ai_rate_limiter = DailyAIRateLimiter()

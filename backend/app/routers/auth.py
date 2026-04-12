@@ -6,7 +6,7 @@ from app.database import get_db
 from app.middleware.auth import get_current_user
 from app.middleware.rate_limit import auth_rate_limiter
 from app.models import User
-from app.schemas.auth import Token, TokenRefresh, UserCreate, UserLogin, UserResponse
+from app.schemas.auth import Token, TokenRefresh, UpdateTierRequest, UserCreate, UserLogin, UserResponse
 from app.services.auth import (
     create_access_token,
     create_refresh_token,
@@ -79,4 +79,23 @@ async def refresh(request: Request, body: TokenRefresh, db: AsyncSession = Depen
 
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
+    return current_user
+
+
+@router.patch("/me/tier", response_model=UserResponse)
+async def update_tier(
+    body: UpdateTierRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update the user's subscription tier.
+
+    Called by the Android app after a purchase is confirmed with Google Play.
+    """
+    valid_tiers = {"FREE", "PRO", "PREMIUM", "ULTRA"}
+    if body.tier not in valid_tiers:
+        raise HTTPException(status_code=400, detail=f"Invalid tier: {body.tier}")
+    current_user.tier = body.tier
+    await db.flush()
+    await db.refresh(current_user)
     return current_user
