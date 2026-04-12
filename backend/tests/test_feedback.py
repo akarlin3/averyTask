@@ -78,6 +78,11 @@ async def test_list_bug_reports_admin(client: AsyncClient, auth_headers: dict):
 @pytest.mark.asyncio
 async def test_list_bug_reports_non_admin(client: AsyncClient):
     """GET bug reports as non-admin returns 403."""
+    # Register admin user first (gets user_id=1)
+    await client.post(
+        "/api/v1/auth/register",
+        json={"email": "admin@example.com", "name": "Admin", "password": "testpass123"},
+    )
     # Register a second user who is NOT admin (user_id != 1)
     reg = await client.post(
         "/api/v1/auth/register",
