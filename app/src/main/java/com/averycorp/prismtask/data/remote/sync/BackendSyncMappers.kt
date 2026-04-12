@@ -112,6 +112,11 @@ internal fun habitToOperation(habit: HabitEntity): SyncOperation {
         addProperty("has_logging", habit.hasLogging)
         addProperty("track_booking", habit.trackBooking)
         addProperty("track_previous_period", habit.trackPreviousPeriod)
+        addProperty("is_bookable", habit.isBookable)
+        addProperty("is_booked", habit.isBooked)
+        if (habit.bookedDate != null) addProperty("booked_date", habit.bookedDate)
+        if (habit.bookedNote != null) addProperty("booked_note", habit.bookedNote)
+        addProperty("show_streak", habit.showStreak)
         addProperty("created_at", habit.createdAt)
         addProperty("updated_at", habit.updatedAt)
     }

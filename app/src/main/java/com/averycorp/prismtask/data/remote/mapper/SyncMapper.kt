@@ -27,6 +27,7 @@ object SyncMapper {
         "plannedDate" to task.plannedDate,
         "estimatedDuration" to task.estimatedDuration,
         "scheduledStartTime" to task.scheduledStartTime,
+        "sourceHabitId" to task.sourceHabitId,
         "notes" to task.notes,
         "eisenhowerQuadrant" to task.eisenhowerQuadrant,
         "eisenhowerUpdatedAt" to task.eisenhowerUpdatedAt,
@@ -55,6 +56,7 @@ object SyncMapper {
         plannedDate = (data["plannedDate"] as? Number)?.toLong(),
         estimatedDuration = (data["estimatedDuration"] as? Number)?.toInt(),
         scheduledStartTime = (data["scheduledStartTime"] as? Number)?.toLong(),
+        sourceHabitId = (data["sourceHabitId"] as? Number)?.toLong(),
         notes = data["notes"] as? String,
         eisenhowerQuadrant = data["eisenhowerQuadrant"] as? String,
         eisenhowerUpdatedAt = (data["eisenhowerUpdatedAt"] as? Number)?.toLong(),
@@ -123,6 +125,7 @@ object SyncMapper {
         "isBooked" to habit.isBooked,
         "bookedDate" to habit.bookedDate,
         "bookedNote" to habit.bookedNote,
+        "showStreak" to habit.showStreak,
         "createdAt" to habit.createdAt,
         "updatedAt" to habit.updatedAt
     )
@@ -150,6 +153,7 @@ object SyncMapper {
         isBooked = data["isBooked"] as? Boolean ?: false,
         bookedDate = (data["bookedDate"] as? Number)?.toLong(),
         bookedNote = data["bookedNote"] as? String,
+        showStreak = data["showStreak"] as? Boolean ?: false,
         createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
         updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
     )

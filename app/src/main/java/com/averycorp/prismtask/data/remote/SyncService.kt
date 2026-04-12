@@ -345,7 +345,12 @@ class SyncService @Inject constructor(
         val snapshot = userCollection(name)?.get()?.await() ?: return
         for (doc in snapshot.documents) {
             val data = doc.data ?: continue
-            handler(data, doc.id)
+            try {
+                handler(data, doc.id)
+            } catch (e: Exception) {
+                Log.e("SyncService", "Failed to process $name/${doc.id}", e)
+                com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(e)
+            }
         }
     }
 
