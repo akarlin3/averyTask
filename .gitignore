@@ -3,16 +3,8 @@
 build/
 local.properties
 
-# Track debug APK even though build/ is ignored
-!app/build/
-app/build/*
-!app/build/outputs/
-app/build/outputs/*
-!app/build/outputs/apk/
-app/build/outputs/apk/*
-!app/build/outputs/apk/debug/
-app/build/outputs/apk/debug/*
-!app/build/outputs/apk/debug/app-debug.apk
+# Build outputs are produced by CI — do not commit
+# app/build/ is already covered by build/ above
 
 # Kotlin
 .kotlin/
@@ -54,6 +46,12 @@ keystore_base64.txt
 
 # Claude Code
 .claude/
+
+# Build artifacts in repo root
+*.apk
+*.aab
+apk/*.apk
+apk/*.aab
 
 # Stray test/log artifacts
 test.json

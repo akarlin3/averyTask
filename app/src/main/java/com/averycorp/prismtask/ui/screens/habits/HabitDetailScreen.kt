@@ -110,7 +110,7 @@ fun HabitDetailScreen(
             if (!h.description.isNullOrBlank()) {
                 item {
                     Text(
-                        text = h.description!!,
+                        text = h.description.orEmpty(),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -138,7 +138,7 @@ fun HabitDetailScreen(
                             )
                             if (!h.bookedNote.isNullOrBlank()) {
                                 Text(
-                                    text = h.bookedNote!!,
+                                    text = h.bookedNote.orEmpty(),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -263,7 +263,7 @@ fun HabitDetailScreen(
                                 )
                                 if (!log.notes.isNullOrBlank()) {
                                     Text(
-                                        text = log.notes!!,
+                                        text = log.notes.orEmpty(),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )

@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -233,7 +234,7 @@ fun AddEditTaskSheet(
         sheetState = sheetState,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
-        Box(modifier = Modifier.fillMaxHeight(0.9f)) {
+        Box(modifier = Modifier.fillMaxHeight(0.9f).imePadding()) {
         Column(
             modifier = Modifier.fillMaxSize()
         ) {

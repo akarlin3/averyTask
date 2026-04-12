@@ -209,7 +209,7 @@ class TaskRepository @Inject constructor(
         val grouped = linkedMapOf<String, MutableList<TaskEntity>>()
         for (task in tasks) { val bucket = when { task.dueDate == null -> "Later"; task.dueDate < startOfToday -> "Overdue"; task.dueDate < startOfTomorrow -> "Today"; task.dueDate < startOfDayAfterTomorrow -> "Tomorrow"; task.dueDate < endOfThisWeek -> "This Week"; else -> "Later" }; grouped.getOrPut(bucket) { mutableListOf() }.add(task) }
         val order = listOf("Overdue", "Today", "Tomorrow", "This Week", "Later")
-        return order.filter { it in grouped }.associateWith { grouped[it]!! }
+        return order.filter { it in grouped }.associateWith { grouped.getValue(it) }
     }
 
     companion object {

@@ -365,7 +365,8 @@ class SelfCareRepository @Inject constructor(
                     startedAt = System.currentTimeMillis()
                 )
             )
-            existing = selfCareDao.getLogForDateOnce(routineType, today)!!
+            existing = selfCareDao.getLogForDateOnce(routineType, today)
+                ?: return
         }
 
         val logs = parseMedStepLogs(existing.completedSteps).toMutableList()
@@ -444,7 +445,8 @@ class SelfCareRepository @Inject constructor(
                     startedAt = System.currentTimeMillis()
                 )
             )
-            existing = selfCareDao.getLogForDateOnce(routineType, today)!!
+            existing = selfCareDao.getLogForDateOnce(routineType, today)
+                ?: return
         }
 
         val isMedication = routineType == "medication"
@@ -645,7 +647,8 @@ class SelfCareRepository @Inject constructor(
                     startedAt = System.currentTimeMillis()
                 )
             )
-            existing = selfCareDao.getLogForDateOnce(routineType, today)!!
+            existing = selfCareDao.getLogForDateOnce(routineType, today)
+                ?: return
         }
 
         val tiersByTime = parseTiersByTime(existing.tiersByTime).toMutableMap()
@@ -828,7 +831,8 @@ class SelfCareRepository @Inject constructor(
                 frequencyPeriod = "daily"
             )
         )
-        return habitDao.getHabitByIdOnce(id)!!
+        return habitDao.getHabitByIdOnce(id)
+            ?: throw IllegalStateException("Habit not found after insert")
     }
 
     private suspend fun syncHabitCompletion(routineType: String, allDone: Boolean) {

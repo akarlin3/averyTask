@@ -46,6 +46,7 @@ class WeeklyBalanceReportViewModel @Inject constructor(
 
     fun loadWeek(reference: Long) {
         viewModelScope.launch {
+            try {
             val prefs = userPreferencesDataStore.workLifeBalanceFlow.first()
             val tasks = taskRepository.getAllTasksOnce()
             val stats = aggregator.aggregate(tasks, reference)
@@ -74,7 +75,7 @@ class WeeklyBalanceReportViewModel @Inject constructor(
                 val totalInWeek = weekStats.byCategory.values.sum().coerceAtLeast(1)
                 com.averycorp.prismtask.domain.model.LifeCategory.TRACKED.forEach { cat ->
                     val count = weekStats.byCategory[cat] ?: 0
-                    fourWeek[cat]!!.add(count.toFloat() / totalInWeek.toFloat())
+                    fourWeek.getOrPut(cat) { mutableListOf() }.add(count.toFloat() / totalInWeek.toFloat())
                 }
             }
 
@@ -85,6 +86,9 @@ class WeeklyBalanceReportViewModel @Inject constructor(
                 reference = reference,
                 fourWeekTrend = fourWeek.mapValues { it.value.toList() }
             )
+            } catch (e: Exception) {
+                android.util.Log.e("WeeklyBalanceVM", "Failed to load week", e)
+            }
         }
     }
 

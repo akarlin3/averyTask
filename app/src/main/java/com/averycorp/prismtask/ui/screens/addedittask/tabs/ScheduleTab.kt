@@ -259,7 +259,7 @@ internal fun ScheduleTabContent(viewModel: AddEditTaskViewModel) {
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Text(
-                                text = "\uD83D\uDD50 ${formatTime(viewModel.dueTime!!)}",
+                                text = "\uD83D\uDD50 ${viewModel.dueTime?.let { formatTime(it) } ?: ""}",
                                 fontWeight = FontWeight.Medium
                             )
                         }

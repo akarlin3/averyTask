@@ -103,7 +103,7 @@ fun AuthScreen(
             }
             is AuthState.Error -> {
                 Text(
-                    text = (authState as AuthState.Error).message,
+                    text = (authState as? AuthState.Error)?.message ?: "Unknown error",
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodyMedium
                 )

@@ -49,7 +49,8 @@ class UpdateChecker(
     }
 
     fun downloadAndInstall(versionInfo: VersionInfo) {
-        val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager
+            ?: return
         val uri = Uri.parse("$baseUrl${versionInfo.apkUrl}")
 
         val request = DownloadManager.Request(uri).apply {

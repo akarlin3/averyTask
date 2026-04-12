@@ -117,7 +117,8 @@ class SchoolworkRepository @Inject constructor(
                 frequencyPeriod = "daily"
             )
         )
-        return habitDao.getHabitByIdOnce(id)!!
+        return habitDao.getHabitByIdOnce(id)
+            ?: throw IllegalStateException("Habit not found after insert")
     }
 
     private suspend fun syncHabitCompletion() {

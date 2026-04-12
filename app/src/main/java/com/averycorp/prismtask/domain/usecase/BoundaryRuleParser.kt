@@ -95,7 +95,7 @@ object BoundaryRuleParser {
         val sortedKeys = categoryMap.keys.sortedByDescending { it.length }
         for (key in sortedKeys) {
             if (body.startsWith(key)) {
-                return categoryMap[key]!! to body.removePrefix(key).trim()
+                return categoryMap.getValue(key) to body.removePrefix(key).trim()
             }
         }
         return null

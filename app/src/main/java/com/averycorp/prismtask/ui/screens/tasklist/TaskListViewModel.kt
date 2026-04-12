@@ -82,11 +82,17 @@ class TaskListViewModel @Inject constructor(
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.averycorp.prismtask.data.preferences.SwipePrefs())
 
     fun onToggleFlag(taskId: Long) {
-        viewModelScope.launch { taskRepository.toggleFlag(taskId) }
+        viewModelScope.launch {
+            try { taskRepository.toggleFlag(taskId) }
+            catch (e: Exception) { Log.e("TaskListVM", "Failed to toggle flag", e) }
+        }
     }
 
     fun onArchiveTask(taskId: Long) {
-        viewModelScope.launch { taskRepository.archiveTask(taskId) }
+        viewModelScope.launch {
+            try { taskRepository.archiveTask(taskId) }
+            catch (e: Exception) { Log.e("TaskListVM", "Failed to archive task", e) }
+        }
     }
 
     val snackbarHostState = SnackbarHostState()
@@ -111,23 +117,29 @@ class TaskListViewModel @Inject constructor(
         // "default sort" setting from TaskBehaviorPreferences so existing
         // installs keep respecting the global preference.
         viewModelScope.launch {
-            val savedToken = sortPreferences.getSortModeOrNull(SortPreferences.ScreenKeys.TASK_LIST)
-            val initial = SortOption.fromToken(savedToken)
-                ?: taskBehaviorPreferences.getDefaultSort().first().let { name ->
-                    SortOption.entries.find { it.name == name } ?: SortOption.DUE_DATE
+            try {
+                val savedToken = sortPreferences.getSortModeOrNull(SortPreferences.ScreenKeys.TASK_LIST)
+                val initial = SortOption.fromToken(savedToken)
+                    ?: taskBehaviorPreferences.getDefaultSort().first().let { name ->
+                        SortOption.entries.find { it.name == name } ?: SortOption.DUE_DATE
+                    }
+                _currentSort.value = initial
+            } catch (e: Exception) { Log.e("TaskListVM", "Failed to load sort prefs", e) }
+        }
+        viewModelScope.launch {
+            try {
+                taskBehaviorPreferences.getDefaultViewMode().collect { modeName ->
+                    val mode = ViewMode.entries.find { it.name == modeName } ?: ViewMode.UPCOMING
+                    if (_viewMode.value == ViewMode.UPCOMING) _viewMode.value = mode
                 }
-            _currentSort.value = initial
+            } catch (e: Exception) { Log.e("TaskListVM", "Failed to load view mode", e) }
         }
         viewModelScope.launch {
-            taskBehaviorPreferences.getDefaultViewMode().collect { modeName ->
-                val mode = ViewMode.entries.find { it.name == modeName } ?: ViewMode.UPCOMING
-                if (_viewMode.value == ViewMode.UPCOMING) _viewMode.value = mode
-            }
-        }
-        viewModelScope.launch {
-            taskBehaviorPreferences.getUrgencyWeights().collect { weights ->
-                _urgencyWeights.value = weights
-            }
+            try {
+                taskBehaviorPreferences.getUrgencyWeights().collect { weights ->
+                    _urgencyWeights.value = weights
+                }
+            } catch (e: Exception) { Log.e("TaskListVM", "Failed to load urgency weights", e) }
         }
     }
 
@@ -875,6 +887,6 @@ class TaskListViewModel @Inject constructor(
         val order = listOf("Overdue", "Today", "Tomorrow", "This Week", "Later", "No Date")
         return order
             .filter { it in grouped }
-            .associateWith { sortTasks(grouped[it]!!, sort) }
+            .associateWith { sortTasks(grouped.getValue(it), sort) }
     }
 }

@@ -215,14 +215,12 @@ internal fun OrganizeTabContent(
     )
 
     // ---- Parent task section ----
-    // TODO: Add searchable parent-task picker so tasks can be nested as subtasks
-    // from the Organize tab. For now we expose a minimal read-only indicator
-    // when a parent is already set (e.g. when editing a task opened from a
-    // subtask row) so the relationship is visible and can be cleared.
+    // Future: searchable parent-task picker for nesting subtasks from this tab.
+    // For now we show a read-only indicator when a parent is already set.
     if (viewModel.parentTaskId != null) {
         SectionLabel("Parent Task")
         ParentTaskIndicator(
-            parentTaskId = viewModel.parentTaskId!!,
+            parentTaskId = viewModel.parentTaskId ?: return,
             onClear = { viewModel.onParentTaskIdChange(null) }
         )
     }

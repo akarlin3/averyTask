@@ -135,7 +135,7 @@ fun EisenhowerScreen(
     ) { padding ->
         if (expandedQuadrant != null) {
             // Full-screen view of a single quadrant
-            val info = QUADRANTS.find { it.key == expandedQuadrant }!!
+            val info = QUADRANTS.find { it.key == expandedQuadrant } ?: return@Scaffold
             val tasks = quadrants[expandedQuadrant] ?: emptyList()
             ExpandedQuadrantView(
                 info = info,

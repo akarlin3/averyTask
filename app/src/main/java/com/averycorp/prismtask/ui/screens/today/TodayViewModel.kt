@@ -78,12 +78,16 @@ class TodayViewModel @Inject constructor(
                 .setCustomKey("screen", "TodayScreen")
         } catch (_: Exception) { }
         viewModelScope.launch {
-            val dayStartHour = taskBehaviorPreferences.getDayStartHour().first()
-            val todayStartLocal = DayBoundary.startOfCurrentDay(dayStartHour)
-            val mostRecent = checkInLogRepository.getMostRecentDate()
-            val alreadyToday = mostRecent != null && mostRecent >= todayStartLocal
-            val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
-            _showCheckInPrompt.value = !alreadyToday && hour < 11
+            try {
+                val dayStartHour = taskBehaviorPreferences.getDayStartHour().first()
+                val todayStartLocal = DayBoundary.startOfCurrentDay(dayStartHour)
+                val mostRecent = checkInLogRepository.getMostRecentDate()
+                val alreadyToday = mostRecent != null && mostRecent >= todayStartLocal
+                val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+                _showCheckInPrompt.value = !alreadyToday && hour < 11
+            } catch (e: Exception) {
+                Log.e("TodayVM", "Failed to load check-in prompt", e)
+            }
         }
     }
 
@@ -107,10 +111,14 @@ class TodayViewModel @Inject constructor(
 
     fun nudgeDidIt() {
         viewModelScope.launch {
-            taskRepository.addTask(
-                title = "Self-care break",
-                lifeCategory = com.averycorp.prismtask.domain.model.LifeCategory.SELF_CARE.name
-            )
+            try {
+                taskRepository.addTask(
+                    title = "Self-care break",
+                    lifeCategory = com.averycorp.prismtask.domain.model.LifeCategory.SELF_CARE.name
+                )
+            } catch (e: Exception) {
+                Log.e("TodayVM", "Failed to add self-care task", e)
+            }
             _currentNudge.value?.let { dismissedNudgesToday.add(it.id) }
             _currentNudge.value = null
         }
@@ -240,12 +248,18 @@ class TodayViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            taskDao.clearExpiredPlans(currentStartOfToday())
+            try { taskDao.clearExpiredPlans(currentStartOfToday()) }
+            catch (e: Exception) { Log.e("TodayVM", "Failed to clear expired plans", e) }
         }
         viewModelScope.launch {
-            // Wait for first emission from a key data flow, then mark loading done
-            dayStart.flatMapLatest { start -> taskDao.getTodayTasks(start, start + DayBoundary.DAY_MILLIS) }.first()
-            _isLoading.value = false
+            try {
+                // Wait for first emission from a key data flow, then mark loading done
+                dayStart.flatMapLatest { start -> taskDao.getTodayTasks(start, start + DayBoundary.DAY_MILLIS) }.first()
+            } catch (e: Exception) {
+                Log.e("TodayVM", "Failed initial data load", e)
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 
@@ -401,10 +415,14 @@ class TodayViewModel @Inject constructor(
 
     fun onToggleHabitCompletion(habitId: Long, isCurrentlyCompleted: Boolean) {
         viewModelScope.launch {
-            if (isCurrentlyCompleted) {
-                habitRepository.uncompleteHabit(habitId, System.currentTimeMillis())
-            } else {
-                habitRepository.completeHabit(habitId, System.currentTimeMillis())
+            try {
+                if (isCurrentlyCompleted) {
+                    habitRepository.uncompleteHabit(habitId, System.currentTimeMillis())
+                } else {
+                    habitRepository.completeHabit(habitId, System.currentTimeMillis())
+                }
+            } catch (e: Exception) {
+                Log.e("TodayVM", "Failed to toggle habit", e)
             }
         }
     }
@@ -428,27 +446,33 @@ class TodayViewModel @Inject constructor(
 
     fun onPlanForToday(taskId: Long) {
         viewModelScope.launch {
-            taskDao.setPlanDate(taskId, currentStartOfToday())
+            try { taskDao.setPlanDate(taskId, currentStartOfToday()) }
+            catch (e: Exception) { Log.e("TodayVM", "Failed to plan task", e) }
         }
     }
 
     fun onPlanForToday(taskIds: List<Long>) {
         viewModelScope.launch {
-            val start = currentStartOfToday()
-            taskIds.forEach { id -> taskDao.setPlanDate(id, start) }
+            try {
+                val start = currentStartOfToday()
+                taskIds.forEach { id -> taskDao.setPlanDate(id, start) }
+            } catch (e: Exception) { Log.e("TodayVM", "Failed to plan tasks", e) }
         }
     }
 
     fun onPlanAllOverdue() {
         viewModelScope.launch {
-            val start = currentStartOfToday()
-            overdueTasks.value.forEach { task -> taskDao.setPlanDate(task.id, start) }
+            try {
+                val start = currentStartOfToday()
+                overdueTasks.value.forEach { task -> taskDao.setPlanDate(task.id, start) }
+            } catch (e: Exception) { Log.e("TodayVM", "Failed to plan overdue tasks", e) }
         }
     }
 
     fun onRemoveFromToday(taskId: Long) {
         viewModelScope.launch {
-            taskDao.setPlanDate(taskId, null)
+            try { taskDao.setPlanDate(taskId, null) }
+            catch (e: Exception) { Log.e("TodayVM", "Failed to remove task from today", e) }
         }
     }
 
@@ -657,18 +681,22 @@ class TodayViewModel @Inject constructor(
     // Rollover
     fun onRolloverToTomorrow(taskIds: List<Long>) {
         viewModelScope.launch {
-            val tomorrow = currentStartOfToday() + DayBoundary.DAY_MILLIS
-            taskIds.forEach { id ->
-                taskDao.updateDueDate(id, tomorrow)
-            }
+            try {
+                val tomorrow = currentStartOfToday() + DayBoundary.DAY_MILLIS
+                taskIds.forEach { id ->
+                    taskDao.updateDueDate(id, tomorrow)
+                }
+            } catch (e: Exception) { Log.e("TodayVM", "Failed to rollover tasks", e) }
         }
     }
 
     fun onClearDueDates(taskIds: List<Long>) {
         viewModelScope.launch {
-            taskIds.forEach { id ->
-                taskDao.updateDueDate(id, null)
-            }
+            try {
+                taskIds.forEach { id ->
+                    taskDao.updateDueDate(id, null)
+                }
+            } catch (e: Exception) { Log.e("TodayVM", "Failed to clear due dates", e) }
         }
     }
 

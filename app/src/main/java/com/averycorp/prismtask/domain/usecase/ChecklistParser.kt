@@ -72,6 +72,7 @@ class ChecklistParser @Inject constructor(
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(120, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
         .build()
 
     suspend fun parse(content: String): ComprehensiveImportResult? {

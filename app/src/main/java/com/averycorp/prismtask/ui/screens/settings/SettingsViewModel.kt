@@ -108,16 +108,22 @@ class SettingsViewModel @Inject constructor(
     val checkInStreak: StateFlow<Int> = _checkInStreak
 
     init {
-        com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance()
-            .setCustomKey("screen", "SettingsScreen")
+        try {
+            com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance()
+                .setCustomKey("screen", "SettingsScreen")
+        } catch (_: Exception) { }
         viewModelScope.launch {
-            val todayStart = java.util.Calendar.getInstance().apply {
-                set(java.util.Calendar.HOUR_OF_DAY, 0)
-                set(java.util.Calendar.MINUTE, 0)
-                set(java.util.Calendar.SECOND, 0)
-                set(java.util.Calendar.MILLISECOND, 0)
-            }.timeInMillis
-            _checkInStreak.value = checkInLogRepository.currentStreak(todayStart)
+            try {
+                val todayStart = java.util.Calendar.getInstance().apply {
+                    set(java.util.Calendar.HOUR_OF_DAY, 0)
+                    set(java.util.Calendar.MINUTE, 0)
+                    set(java.util.Calendar.SECOND, 0)
+                    set(java.util.Calendar.MILLISECOND, 0)
+                }.timeInMillis
+                _checkInStreak.value = checkInLogRepository.currentStreak(todayStart)
+            } catch (e: Exception) {
+                android.util.Log.e("SettingsVM", "Failed to load check-in streak", e)
+            }
         }
     }
 

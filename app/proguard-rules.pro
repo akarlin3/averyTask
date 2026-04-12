@@ -67,6 +67,25 @@
 -keep class com.averycorp.prismtask.domain.model.BugSeverity { *; }
 -keep class com.averycorp.prismtask.domain.model.ReportStatus { *; }
 
+# ── Backend API models (Gson-serialized request/response classes) ──
+-keep class com.averycorp.prismtask.data.remote.api.** { *; }
+-keep class com.averycorp.prismtask.data.remote.sync.** { *; }
+
+# ── Widget data models ──
+-keep class com.averycorp.prismtask.widget.WidgetTaskRow { *; }
+-keep class com.averycorp.prismtask.widget.TodayWidgetData { *; }
+-keep class com.averycorp.prismtask.widget.HabitWidgetData { *; }
+-keep class com.averycorp.prismtask.widget.HabitWidgetItem { *; }
+-keep class com.averycorp.prismtask.widget.UpcomingWidgetData { *; }
+-keep class com.averycorp.prismtask.widget.ProductivityWidgetData { *; }
+
+# ── Export/import data classes ──
+-keep class com.averycorp.prismtask.data.export.** { *; }
+
+# ── Checklist/NLP parser inner classes (Gson-serialized) ──
+-keep class com.averycorp.prismtask.domain.usecase.ChecklistParser$* { *; }
+-keep class com.averycorp.prismtask.domain.usecase.TodoListParser$* { *; }
+
 # ── Gson ──
 -keepattributes Signature
 -keepattributes *Annotation*
