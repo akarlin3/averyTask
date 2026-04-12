@@ -11,6 +11,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.Assert.assertNotNull
@@ -62,7 +63,7 @@ class ShakeDetectorTest {
         val event2 = createSensorEvent(0f, 20f, 0f) // magnitude = 20, above 15
 
         var eventReceived = false
-        val job = launch {
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) {
             shakeDetector.shakeEvents.first()
             eventReceived = true
         }
