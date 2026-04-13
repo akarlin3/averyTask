@@ -58,7 +58,8 @@ apiClient.interceptors.response.use(
       if (
         originalRequest.url?.includes('/auth/login') ||
         originalRequest.url?.includes('/auth/register') ||
-        originalRequest.url?.includes('/auth/refresh')
+        originalRequest.url?.includes('/auth/refresh') ||
+        originalRequest.url?.includes('/auth/firebase')
       ) {
         return Promise.reject(error);
       }

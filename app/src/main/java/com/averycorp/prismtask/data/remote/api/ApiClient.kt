@@ -46,7 +46,8 @@ class AuthInterceptor @Inject constructor(
         val path = request.url.encodedPath
         return path.endsWith("/auth/login") ||
                 path.endsWith("/auth/register") ||
-                path.endsWith("/auth/refresh")
+                path.endsWith("/auth/refresh") ||
+                path.endsWith("/auth/firebase")
     }
 }
 

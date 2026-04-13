@@ -49,12 +49,30 @@ function toFirebaseUser(fbUser: FbUser): FirebaseUser {
 /**
  * After Firebase Auth succeeds, ensure the user also has a FastAPI account
  * and obtain a JWT for backend API calls (NLP, AI features).
+ *
+ * Sends the Firebase ID token to POST /auth/firebase, which verifies it
+ * server-side and finds-or-creates the backend user.  Falls back to the
+ * legacy email/password flow if the new endpoint is unavailable.
  */
 async function ensureBackendAccount(fbUser: FbUser): Promise<void> {
   const email = fbUser.email;
   if (!email) return;
 
-  // Try login first
+  // Preferred path: send the Firebase ID token for server-side verification
+  try {
+    const idToken = await fbUser.getIdToken();
+    const tokens = await authApi.firebaseLogin({
+      firebase_token: idToken,
+      name: fbUser.displayName || undefined,
+    });
+    localStorage.setItem('prismtask_access_token', tokens.access_token);
+    localStorage.setItem('prismtask_refresh_token', tokens.refresh_token);
+    return;
+  } catch {
+    // Firebase endpoint unavailable — fall back to legacy flow
+  }
+
+  // Legacy fallback: synthetic email/password login, then register
   try {
     const tokens = await authApi.login({
       email,

@@ -4,6 +4,7 @@ import jwt
 from passlib.context import CryptContext
 
 from app.config import settings
+from app.services.firebase_storage import _get_firebase_app
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -35,4 +36,19 @@ def decode_token(token: str) -> dict | None:
         payload = jwt.decode(token, settings.get_jwt_secret(), algorithms=[settings.JWT_ALGORITHM])
         return payload
     except (jwt.InvalidTokenError, jwt.ExpiredSignatureError):
+        return None
+
+
+def verify_firebase_token(id_token: str) -> dict | None:
+    """Verify a Firebase ID token and return the decoded claims.
+
+    Returns None if verification fails (invalid token, expired, etc.).
+    """
+    from firebase_admin import auth as firebase_auth
+
+    try:
+        _get_firebase_app()
+        decoded = firebase_auth.verify_id_token(id_token)
+        return decoded
+    except Exception:
         return None
