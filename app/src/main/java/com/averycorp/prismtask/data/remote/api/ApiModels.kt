@@ -32,6 +32,15 @@ data class TokenResponse(
     @SerializedName("token_type") val tokenType: String
 )
 
+data class UserInfoResponse(
+    val id: Int,
+    val email: String,
+    val name: String,
+    val tier: String = "FREE",
+    @SerializedName("is_admin") val isAdmin: Boolean = false,
+    @SerializedName("effective_tier") val effectiveTier: String = "FREE"
+)
+
 // endregion
 
 // region Tasks

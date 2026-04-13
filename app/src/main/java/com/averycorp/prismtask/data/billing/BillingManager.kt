@@ -65,6 +65,9 @@ class BillingManager @Inject constructor(
     private val _debugTierOverride = MutableStateFlow<UserTier?>(null)
     val debugTierOverride: StateFlow<UserTier?> = _debugTierOverride.asStateFlow()
 
+    private val _isAdmin = MutableStateFlow(false)
+    val isAdmin: StateFlow<Boolean> = _isAdmin.asStateFlow()
+
     private var realTier: UserTier = UserTier.FREE
     private var realState: SubscriptionState = SubscriptionState.NOT_SUBSCRIBED
 
@@ -244,8 +247,7 @@ class BillingManager @Inject constructor(
         realTier = tier
         realState = state
         if (_debugTierOverride.value == null) {
-            _userTier.value = tier
-            _proSubscriptionState.value = state
+            applyEffectiveTier(tier, state)
         }
         proStatusPreferences.setCachedTier(tier.name)
         if (tier != UserTier.FREE) {
@@ -256,6 +258,31 @@ class BillingManager @Inject constructor(
             proStatusPreferences.setTierExpiresAt(0)
         }
         proStatusPreferences.setLastVerifiedAt(System.currentTimeMillis())
+    }
+
+    /**
+     * Apply the effective tier, taking admin status into account.
+     * Admin users always get ULTRA tier.
+     */
+    private fun applyEffectiveTier(tier: UserTier, state: SubscriptionState) {
+        if (_isAdmin.value) {
+            _userTier.value = UserTier.ULTRA
+            _proSubscriptionState.value = SubscriptionState.SUBSCRIBED
+        } else {
+            _userTier.value = tier
+            _proSubscriptionState.value = state
+        }
+    }
+
+    /**
+     * Set admin status. When admin is true, the user automatically gets
+     * the highest tier (ULTRA) regardless of their billing status.
+     */
+    fun setAdminStatus(isAdmin: Boolean) {
+        _isAdmin.value = isAdmin
+        if (_debugTierOverride.value == null) {
+            applyEffectiveTier(realTier, realState)
+        }
     }
 
     fun setDebugTier(tier: UserTier) {
@@ -272,7 +299,6 @@ class BillingManager @Inject constructor(
     fun clearDebugTier() {
         if (!BuildConfig.DEBUG) return
         _debugTierOverride.value = null
-        _userTier.value = realTier
-        _proSubscriptionState.value = realState
+        applyEffectiveTier(realTier, realState)
     }
 }

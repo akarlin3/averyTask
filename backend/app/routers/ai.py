@@ -77,7 +77,7 @@ async def categorize_eisenhower(
     db: AsyncSession = Depends(get_db),
 ):
     ai_rate_limiter.check(request)
-    tier = current_user.tier or "FREE"
+    tier = current_user.effective_tier
     daily_ai_rate_limiter.check(current_user.id, tier)
 
     tasks = await _fetch_incomplete_tasks(current_user, db, data.task_ids)
@@ -137,7 +137,7 @@ async def plan_pomodoro(
     db: AsyncSession = Depends(get_db),
 ):
     ai_rate_limiter.check(request)
-    tier = current_user.tier or "FREE"
+    tier = current_user.effective_tier
     daily_ai_rate_limiter.check(current_user.id, tier)
 
     tasks = await _fetch_incomplete_tasks(current_user, db)
@@ -197,7 +197,7 @@ async def daily_briefing(
     db: AsyncSession = Depends(get_db),
 ):
     briefing_rate_limiter.check(request)
-    tier = current_user.tier or "FREE"
+    tier = current_user.effective_tier
     daily_ai_rate_limiter.check(current_user.id, tier)
 
     target_date = date.fromisoformat(data.date) if data.date else date.today()
@@ -290,7 +290,7 @@ async def weekly_plan(
     db: AsyncSession = Depends(get_db),
 ):
     weekly_plan_rate_limiter.check(request)
-    tier = current_user.tier or "FREE"
+    tier = current_user.effective_tier
     daily_ai_rate_limiter.check(current_user.id, tier)
 
     if data.week_start:
@@ -361,7 +361,7 @@ async def time_block(
     db: AsyncSession = Depends(get_db),
 ):
     time_block_rate_limiter.check(request)
-    tier = current_user.tier or "FREE"
+    tier = current_user.effective_tier
     daily_ai_rate_limiter.check(current_user.id, tier)
 
     target_date = date.fromisoformat(data.date) if data.date else date.today()
@@ -445,7 +445,7 @@ async def weekly_review(
     users and network failures.
     """
     weekly_review_rate_limiter.check(request)
-    tier = current_user.tier or "FREE"
+    tier = current_user.effective_tier
     daily_ai_rate_limiter.check(current_user.id, tier)
 
     try:
@@ -494,7 +494,7 @@ async def extract_from_text(
     screen enforces the same cap client-side.
     """
     extract_rate_limiter.check(request)
-    tier = current_user.tier or "FREE"
+    tier = current_user.effective_tier
     daily_ai_rate_limiter.check(current_user.id, tier)
 
     try:
