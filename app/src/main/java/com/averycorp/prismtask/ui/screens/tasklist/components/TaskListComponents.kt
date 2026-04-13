@@ -319,7 +319,7 @@ internal fun androidx.compose.foundation.lazy.LazyListScope.taskItemWithSubtasks
                         SwipeToDismissBoxValue.Settled -> com.averycorp.prismtask.domain.model.SwipeAction.NONE
                     }
                     if (action == com.averycorp.prismtask.domain.model.SwipeAction.NONE) return@rememberSwipeToDismissBoxState false
-                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                    try { haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress) } catch (_: Exception) {}
                     com.averycorp.prismtask.ui.components.dispatchSwipeAction(
                         action = action,
                         taskId = task.id,

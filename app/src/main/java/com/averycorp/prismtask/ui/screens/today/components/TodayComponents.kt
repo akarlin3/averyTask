@@ -705,7 +705,7 @@ private fun HabitChip(
             .scale(chipScale)
             .clickable {
                 tapped = true
-                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                try { haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress) } catch (_: Exception) {}
                 onTap()
             },
         shape = RoundedCornerShape(14.dp),
@@ -842,12 +842,12 @@ internal fun SwipeableTaskItem(
         confirmValueChange = { value ->
             when (value) {
                 SwipeToDismissBoxValue.StartToEnd -> {
-                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                    try { haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress) } catch (_: Exception) {}
                     onComplete()
                     true
                 }
                 SwipeToDismissBoxValue.EndToStart -> {
-                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                    try { haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress) } catch (_: Exception) {}
                     onMoveToTomorrow()
                     true
                 }
