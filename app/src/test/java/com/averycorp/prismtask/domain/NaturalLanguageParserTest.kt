@@ -7,6 +7,7 @@ import com.averycorp.prismtask.data.remote.api.CoachingRequest
 import com.averycorp.prismtask.data.remote.api.CoachingResponse
 import com.averycorp.prismtask.data.remote.api.DailyBriefingRequest
 import com.averycorp.prismtask.data.remote.api.DailyBriefingResponse
+import com.averycorp.prismtask.data.remote.api.FirebaseTokenRequest
 import com.averycorp.prismtask.data.remote.api.EisenhowerRequest
 import com.averycorp.prismtask.data.remote.api.EisenhowerResponse
 import com.averycorp.prismtask.data.remote.api.EveningSummaryRequest
@@ -55,6 +56,8 @@ class NaturalLanguageParserTest {
         override suspend fun register(request: RegisterRequest): TokenResponse =
             error("not used in offline parser tests")
         override suspend fun login(request: LoginRequest): TokenResponse =
+            error("not used in offline parser tests")
+        override suspend fun firebaseLogin(request: FirebaseTokenRequest): TokenResponse =
             error("not used in offline parser tests")
         override suspend fun refresh(request: RefreshRequest): TokenResponse =
             error("not used in offline parser tests")
