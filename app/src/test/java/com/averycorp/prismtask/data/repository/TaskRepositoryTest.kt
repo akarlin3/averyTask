@@ -516,6 +516,8 @@ class TaskRepositoryTest {
         override suspend fun getIncompleteTodayCount(endOfDay: Long): Int = 0
         override suspend fun getLastCompletedTask(): TaskEntity? = null
         override suspend fun getIncompleteTaskCount(): Int = tasks.count { !it.isCompleted }
+        override suspend fun deleteAll() { tasks.clear() }
+        override suspend fun deleteAllTaskTagCrossRefs() {}
     }
 
     private class FakeTagDao : TagDao {
@@ -543,5 +545,7 @@ class TaskRepositoryTest {
         override suspend fun removeAllTagsFromTask(taskId: Long) {
             crossRefs.removeAll { it.taskId == taskId }
         }
+        override suspend fun deleteAll() {}
+        override suspend fun deleteAllCrossRefs() { crossRefs.clear() }
     }
 }

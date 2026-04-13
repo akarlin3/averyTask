@@ -471,6 +471,7 @@ class TaskTemplateRepositoryTest {
             flowOf(store.values.filter {
                 (it.name.contains(query) || it.templateTitle?.contains(query) == true)
             })
+        override suspend fun deleteAll() { store.clear() }
     }
 
     /** In-memory fake of [TaskDao]. Implements only the handful of calls the template repo uses. */
@@ -544,6 +545,8 @@ class TaskTemplateRepositoryTest {
         override suspend fun getIncompleteTodayCount(endOfDay: Long): Int = unsupported()
         override suspend fun getLastCompletedTask(): TaskEntity? = unsupported()
         override suspend fun getIncompleteTaskCount(): Int = unsupported()
+        override suspend fun deleteAll(): Nothing = unsupported()
+        override suspend fun deleteAllTaskTagCrossRefs(): Nothing = unsupported()
     }
 
     /** In-memory fake of [TagDao]. Records all cross-ref inserts so tests can assert on them. */
@@ -570,6 +573,8 @@ class TaskTemplateRepositoryTest {
         override fun searchTags(query: String): Flow<List<TagEntity>> = unsupported()
         override suspend fun removeTagFromTask(taskId: Long, tagId: Long) = unsupported()
         override suspend fun removeAllTagsFromTask(taskId: Long) = unsupported()
+        override suspend fun deleteAll(): Nothing = unsupported()
+        override suspend fun deleteAllCrossRefs(): Nothing = unsupported()
     }
 
     companion object {

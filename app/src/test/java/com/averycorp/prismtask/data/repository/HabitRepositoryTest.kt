@@ -334,6 +334,7 @@ class HabitRepositoryTest {
             habits.filter { it.reminderIntervalMillis != null && !it.isArchived }
         override suspend fun getAllCategories(): List<String> =
             habits.mapNotNull { it.category }.distinct().sorted()
+        override suspend fun deleteAll() { habits.clear() }
     }
 
     private class FakeHabitCompletionDao : HabitCompletionDao {
@@ -394,6 +395,7 @@ class HabitRepositoryTest {
 
         override suspend fun getAllCompletionsOnce(): List<HabitCompletionEntity> =
             completions.toList()
+        override suspend fun deleteAll() { completions.clear() }
     }
 
     private class FakeHabitLogDao : HabitLogDao {
@@ -426,5 +428,6 @@ class HabitRepositoryTest {
 
         override suspend fun getAllLogsOnce(): List<HabitLogEntity> =
             logs.sortedByDescending { it.date }
+        override suspend fun deleteAll() { logs.clear() }
     }
 }
