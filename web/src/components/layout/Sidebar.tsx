@@ -32,7 +32,7 @@ const NAV_ITEMS = [
 ] as const;
 
 const ADMIN_NAV_ITEMS = [
-  { to: '/admin/logs', icon: ShieldCheck, label: 'Admin' },
+  { to: '/admin/logs', icon: ShieldCheck, label: 'Admin Logs' },
 ] as const;
 
 export function Sidebar() {
