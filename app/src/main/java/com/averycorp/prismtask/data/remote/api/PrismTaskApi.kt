@@ -19,6 +19,9 @@ import retrofit2.http.Query
  */
 interface PrismTaskApi {
 
+    @GET("api/v1/auth/me")
+    suspend fun getMe(): UserInfoResponse
+
     @POST("api/v1/auth/register")
     suspend fun register(@Body request: RegisterRequest): TokenResponse
 

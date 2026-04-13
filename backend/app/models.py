@@ -91,6 +91,13 @@ class User(Base):
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
+    @property
+    def effective_tier(self) -> str:
+        """Return ULTRA for admins, otherwise the stored tier."""
+        if self.is_admin:
+            return "ULTRA"
+        return self.tier or "FREE"
+
     goals = relationship("Goal", back_populates="user", cascade="all, delete-orphan")
     tags = relationship("Tag", back_populates="user", cascade="all, delete-orphan")
     habits = relationship("Habit", back_populates="user", cascade="all, delete-orphan")

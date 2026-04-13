@@ -1,6 +1,7 @@
 package com.averycorp.prismtask.data.remote.sync
 
 import android.util.Log
+import com.averycorp.prismtask.data.billing.BillingManager
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.dao.ProjectDao
@@ -48,7 +49,8 @@ class BackendSyncService @Inject constructor(
     private val taskTemplateDao: TaskTemplateDao,
     private val authTokenPreferences: AuthTokenPreferences,
     private val backendSyncPreferences: BackendSyncPreferences,
-    private val templatePreferences: TemplatePreferences
+    private val templatePreferences: TemplatePreferences,
+    private val billingManager: BillingManager
 ) {
 
     /**
@@ -66,6 +68,8 @@ class BackendSyncService @Inject constructor(
         if (!isConnected()) {
             throw IllegalStateException("Not connected to backend. Sign in first.")
         }
+        // Check admin status and apply tier override if needed
+        syncAdminStatus()
         // On the very first connect, push all local templates in one shot
         // (including the built-ins). Subsequent syncs fall through to the
         // normal updated_at-based incremental push.
@@ -77,6 +81,19 @@ class BackendSyncService @Inject constructor(
             pulled = pulled,
             lastSyncAt = backendSyncPreferences.getLastSyncAt()
         )
+    }
+
+    /**
+     * Fetch user info from the backend and update admin status on the
+     * BillingManager. Admin users automatically receive ULTRA tier access.
+     */
+    private suspend fun syncAdminStatus() {
+        try {
+            val userInfo = api.getMe()
+            billingManager.setAdminStatus(userInfo.isAdmin)
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not fetch admin status", e)
+        }
     }
 
     /**

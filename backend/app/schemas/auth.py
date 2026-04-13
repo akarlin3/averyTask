@@ -32,5 +32,6 @@ class UserResponse(BaseModel):
     name: str
     tier: str = "FREE"
     is_admin: bool = False
+    effective_tier: str = "FREE"
 
     model_config = {"from_attributes": True}

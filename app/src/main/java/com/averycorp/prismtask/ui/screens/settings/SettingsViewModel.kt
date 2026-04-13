@@ -296,6 +296,7 @@ class SettingsViewModel @Inject constructor(
     val userTier: StateFlow<UserTier> = billingManager.userTier
     val subscriptionState: StateFlow<SubscriptionState> = billingManager.proSubscriptionState
     val debugTierOverride: StateFlow<UserTier?> = billingManager.debugTierOverride
+    val isAdmin: StateFlow<Boolean> = billingManager.isAdmin
 
     // --- AI Notification Settings ---
     private val _eveningSummaryEnabled = MutableStateFlow(false)

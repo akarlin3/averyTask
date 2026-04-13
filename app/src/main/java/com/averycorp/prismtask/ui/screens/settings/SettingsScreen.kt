@@ -34,7 +34,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.averycorp.prismtask.BuildConfig
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.settings.sections.AboutSection
 import com.averycorp.prismtask.ui.screens.settings.sections.AccessibilitySection
@@ -76,6 +75,7 @@ fun SettingsScreen(
     // Subscription
     val userTier by viewModel.userTier.collectAsStateWithLifecycle()
     val debugTierOverride by viewModel.debugTierOverride.collectAsStateWithLifecycle()
+    val isAdmin by viewModel.isAdmin.collectAsStateWithLifecycle()
 
     // Appearance
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
@@ -567,7 +567,7 @@ fun SettingsScreen(
                     onRefreshWidgets = viewModel::refreshWidgets
                 )
 
-                if (BuildConfig.DEBUG) {
+                if (isAdmin) {
                     DebugTierSection(
                         debugTierOverride = debugTierOverride,
                         onSetDebugTier = viewModel::setDebugTier,
