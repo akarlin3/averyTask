@@ -28,6 +28,9 @@ interface PrismTaskApi {
     @POST("api/v1/auth/login")
     suspend fun login(@Body request: LoginRequest): TokenResponse
 
+    @POST("api/v1/auth/firebase")
+    suspend fun firebaseLogin(@Body request: FirebaseTokenRequest): TokenResponse
+
     @POST("api/v1/auth/refresh")
     suspend fun refresh(@Body request: RefreshRequest): TokenResponse
 

@@ -22,6 +22,11 @@ data class LoginRequest(
     val password: String
 )
 
+data class FirebaseTokenRequest(
+    @SerializedName("firebase_token") val firebaseToken: String,
+    val name: String? = null
+)
+
 data class RefreshRequest(
     @SerializedName("refresh_token") val refreshToken: String
 )

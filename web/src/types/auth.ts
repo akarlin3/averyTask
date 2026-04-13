@@ -34,6 +34,11 @@ export interface AuthTokens {
   token_type: string;
 }
 
+export interface FirebaseTokenLogin {
+  firebase_token: string;
+  name?: string;
+}
+
 export interface TokenRefresh {
   refresh_token: string;
 }

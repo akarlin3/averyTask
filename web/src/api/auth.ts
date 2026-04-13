@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { AuthTokens, User, UserCreate, UserLogin } from '@/types/auth';
+import type { AuthTokens, FirebaseTokenLogin, User, UserCreate, UserLogin } from '@/types/auth';
 
 export const authApi = {
   login(credentials: UserLogin): Promise<AuthTokens> {
@@ -8,6 +8,10 @@ export const authApi = {
 
   register(data: UserCreate): Promise<AuthTokens> {
     return apiClient.post('/auth/register', data).then((r) => r.data);
+  },
+
+  firebaseLogin(data: FirebaseTokenLogin): Promise<AuthTokens> {
+    return apiClient.post('/auth/firebase', data).then((r) => r.data);
   },
 
   refresh(refreshToken: string): Promise<AuthTokens> {

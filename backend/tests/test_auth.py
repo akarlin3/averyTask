@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 from httpx import AsyncClient
 
@@ -83,3 +85,94 @@ async def test_protected_route_with_token(client: AsyncClient, auth_headers: dic
     data = resp.json()
     assert data["email"] == "test@example.com"
     assert data["name"] == "Test User"
+
+
+# --- Firebase token auth tests ---
+
+FAKE_FIREBASE_CLAIMS = {
+    "uid": "firebase-uid-123",
+    "email": "firebase@example.com",
+    "name": "Firebase User",
+}
+
+
+@pytest.mark.asyncio
+@patch("app.routers.auth.verify_firebase_token", return_value=FAKE_FIREBASE_CLAIMS)
+async def test_firebase_login_creates_user(mock_verify, client: AsyncClient):
+    resp = await client.post(
+        "/api/v1/auth/firebase",
+        json={"firebase_token": "fake-id-token"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "access_token" in data
+    assert "refresh_token" in data
+    assert data["token_type"] == "bearer"
+
+
+@pytest.mark.asyncio
+@patch("app.routers.auth.verify_firebase_token", return_value=FAKE_FIREBASE_CLAIMS)
+async def test_firebase_login_returns_same_user_on_repeat(mock_verify, client: AsyncClient):
+    resp1 = await client.post(
+        "/api/v1/auth/firebase",
+        json={"firebase_token": "fake-id-token"},
+    )
+    resp2 = await client.post(
+        "/api/v1/auth/firebase",
+        json={"firebase_token": "fake-id-token"},
+    )
+    assert resp1.status_code == 200
+    assert resp2.status_code == 200
+
+    # Verify it's the same user by checking /me with each token
+    headers1 = {"Authorization": f"Bearer {resp1.json()['access_token']}"}
+    headers2 = {"Authorization": f"Bearer {resp2.json()['access_token']}"}
+    me1 = await client.get("/api/v1/auth/me", headers=headers1)
+    me2 = await client.get("/api/v1/auth/me", headers=headers2)
+    assert me1.json()["id"] == me2.json()["id"]
+
+
+@pytest.mark.asyncio
+@patch("app.routers.auth.verify_firebase_token", return_value=FAKE_FIREBASE_CLAIMS)
+async def test_firebase_login_links_existing_email_account(mock_verify, client: AsyncClient):
+    """If a user registered via email/password, Firebase login should link to that account."""
+    await client.post(
+        "/api/v1/auth/register",
+        json={"email": "firebase@example.com", "name": "Existing User", "password": "pass123"},
+    )
+    resp = await client.post(
+        "/api/v1/auth/firebase",
+        json={"firebase_token": "fake-id-token"},
+    )
+    assert resp.status_code == 200
+
+    # Verify it linked to the existing account (same email, name preserved)
+    headers = {"Authorization": f"Bearer {resp.json()['access_token']}"}
+    me = await client.get("/api/v1/auth/me", headers=headers)
+    assert me.json()["email"] == "firebase@example.com"
+    assert me.json()["name"] == "Existing User"
+
+
+@pytest.mark.asyncio
+@patch("app.routers.auth.verify_firebase_token", return_value=None)
+async def test_firebase_login_invalid_token(mock_verify, client: AsyncClient):
+    resp = await client.post(
+        "/api/v1/auth/firebase",
+        json={"firebase_token": "bad-token"},
+    )
+    assert resp.status_code == 401
+    assert resp.json()["detail"] == "Invalid Firebase token"
+
+
+@pytest.mark.asyncio
+@patch(
+    "app.routers.auth.verify_firebase_token",
+    return_value={"uid": "no-email-uid", "name": "No Email"},
+)
+async def test_firebase_login_no_email(mock_verify, client: AsyncClient):
+    resp = await client.post(
+        "/api/v1/auth/firebase",
+        json={"firebase_token": "fake-id-token"},
+    )
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "Firebase account has no email"

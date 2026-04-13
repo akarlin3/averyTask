@@ -6,12 +6,13 @@ from app.database import get_db
 from app.middleware.auth import get_current_user
 from app.middleware.rate_limit import auth_rate_limiter
 from app.models import User
-from app.schemas.auth import Token, TokenRefresh, UpdateTierRequest, UserCreate, UserLogin, UserResponse
+from app.schemas.auth import FirebaseTokenLogin, Token, TokenRefresh, UpdateTierRequest, UserCreate, UserLogin, UserResponse
 from app.services.auth import (
     create_access_token,
     create_refresh_token,
     decode_token,
     hash_password,
+    verify_firebase_token,
     verify_password,
 )
 
@@ -49,6 +50,59 @@ async def login(request: Request, credentials: UserLogin, db: AsyncSession = Dep
 
     if not user or not verify_password(credentials.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    token_data = {"sub": str(user.id), "email": user.email}
+    return Token(
+        access_token=create_access_token(token_data),
+        refresh_token=create_refresh_token(token_data),
+    )
+
+
+@router.post("/firebase", response_model=Token)
+async def firebase_login(
+    request: Request, body: FirebaseTokenLogin, db: AsyncSession = Depends(get_db)
+):
+    """Authenticate with a Firebase ID token.
+
+    Verifies the token with Firebase Admin SDK, then finds or creates
+    the corresponding backend user and returns JWT tokens.
+    """
+    auth_rate_limiter.check(request)
+
+    decoded = verify_firebase_token(body.firebase_token)
+    if decoded is None:
+        raise HTTPException(status_code=401, detail="Invalid Firebase token")
+
+    uid: str = decoded["uid"]
+    email: str | None = decoded.get("email")
+    if not email:
+        raise HTTPException(status_code=400, detail="Firebase account has no email")
+
+    # Look up by firebase_uid first, then by email
+    result = await db.execute(select(User).where(User.firebase_uid == uid))
+    user = result.scalar_one_or_none()
+
+    if user is None:
+        # Check if a user with this email already exists (created before Firebase linking)
+        result = await db.execute(select(User).where(User.email == email))
+        user = result.scalar_one_or_none()
+
+        if user is not None:
+            # Link existing account to this Firebase UID
+            user.firebase_uid = uid
+        else:
+            # Create a new user
+            display_name = decoded.get("name") or body.name or email.split("@")[0]
+            user = User(
+                email=email,
+                name=display_name,
+                hashed_password=hash_password(f"firebase_{uid}"),
+                firebase_uid=uid,
+            )
+            db.add(user)
+
+        await db.flush()
+        await db.refresh(user)
 
     token_data = {"sub": str(user.id), "email": user.email}
     return Token(

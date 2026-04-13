@@ -26,6 +26,11 @@ class UpdateTierRequest(BaseModel):
     tier: str
 
 
+class FirebaseTokenLogin(BaseModel):
+    firebase_token: str
+    name: str | None = None
+
+
 class UserResponse(BaseModel):
     id: int
     email: str
