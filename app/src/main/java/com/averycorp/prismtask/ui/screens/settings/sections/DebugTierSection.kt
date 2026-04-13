@@ -31,10 +31,10 @@ fun DebugTierSection(
 ) {
     Spacer(modifier = Modifier.height(24.dp))
     HorizontalDivider()
-    SectionHeader("\uD83D\uDEE0 Debug")
+    SectionHeader("\uD83D\uDEE0 Admin")
 
     Text(
-        text = "Debug only \u2014 not visible in release builds",
+        text = "Admin only \u2014 visible to admin users",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.error,
         modifier = Modifier.padding(bottom = 12.dp)

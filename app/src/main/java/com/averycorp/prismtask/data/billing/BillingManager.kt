@@ -286,7 +286,7 @@ class BillingManager @Inject constructor(
     }
 
     fun setDebugTier(tier: UserTier) {
-        if (!BuildConfig.DEBUG) return
+        if (!BuildConfig.DEBUG && !_isAdmin.value) return
         _debugTierOverride.value = tier
         _userTier.value = tier
         _proSubscriptionState.value = if (tier == UserTier.FREE) {
@@ -297,7 +297,7 @@ class BillingManager @Inject constructor(
     }
 
     fun clearDebugTier() {
-        if (!BuildConfig.DEBUG) return
+        if (!BuildConfig.DEBUG && !_isAdmin.value) return
         _debugTierOverride.value = null
         applyEffectiveTier(realTier, realState)
     }
