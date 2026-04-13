@@ -185,5 +185,7 @@ class TagRepositoryTest {
         override suspend fun removeAllTagsFromTask(taskId: Long) {
             crossRefs.removeAll { it.taskId == taskId }
         }
+        override suspend fun deleteAll() { tags.clear() }
+        override suspend fun deleteAllCrossRefs() { crossRefs.clear() }
     }
 }

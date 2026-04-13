@@ -220,5 +220,6 @@ class TemplateSeederTest {
 
         override fun searchTemplates(query: String): Flow<List<TaskTemplateEntity>> =
             flowOf(templates.filter { it.name.contains(query) })
+        override suspend fun deleteAll() { templates.clear() }
     }
 }
