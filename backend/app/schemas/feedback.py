@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 class BugReportCreate(BaseModel):
     category: str = Field(..., description="Bug category: CRASH, UI_GLITCH, FEATURE_NOT_WORKING, DATA_LOSS, PERFORMANCE, SYNC_ISSUE, WIDGET_ISSUE, FEATURE_REQUEST, OTHER")
-    description: str = Field(..., min_length=10, description="Description of the issue")
+    description: str = Field(..., description="Description of the issue")
     severity: str = Field(default="MINOR", description="MINOR, MAJOR, or CRITICAL")
     steps: list[str] = Field(default_factory=list, description="Steps to reproduce")
     screenshot_uris: list[str] = Field(default_factory=list, description="Firebase Storage screenshot URIs")

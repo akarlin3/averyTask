@@ -119,10 +119,10 @@ class BugReportModelTest {
     }
 
     @Test
-    fun `description validation - minimum length check`() {
-        val shortDesc = "Too short"
-        val validDesc = "This is a valid description that is long enough"
-        assertEquals(true, shortDesc.length < 10)
-        assertEquals(true, validDesc.length >= 10)
+    fun `description validation - non-blank check`() {
+        val blankDesc = "   "
+        val validDesc = "ok"
+        assertEquals(true, blankDesc.isBlank())
+        assertEquals(true, validDesc.isNotBlank())
     }
 }

@@ -105,7 +105,7 @@ class BugReportViewModel @Inject constructor(
     val importance: StateFlow<String> = _importance.asStateFlow()
 
     val isValid: Boolean
-        get() = _description.value.length >= 10
+        get() = _description.value.isNotBlank()
 
     init {
         viewModelScope.launch {

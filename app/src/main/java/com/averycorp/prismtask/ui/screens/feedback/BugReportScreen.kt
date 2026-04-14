@@ -213,12 +213,7 @@ fun BugReportScreen(
                 },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 3,
-                maxLines = 6,
-                supportingText = {
-                    if (description.length < 10) {
-                        Text("${10 - description.length} more characters needed")
-                    }
-                }
+                maxLines = 6
             )
 
             if (!isFeatureRequest) {
@@ -427,7 +422,7 @@ fun BugReportScreen(
             Button(
                 onClick = { viewModel.submit() },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = description.length >= 10 && !isSubmitting && isSignedIn
+                enabled = description.isNotBlank() && !isSubmitting && isSignedIn
             ) {
                 if (isSubmitting) {
                     CircularProgressIndicator(
