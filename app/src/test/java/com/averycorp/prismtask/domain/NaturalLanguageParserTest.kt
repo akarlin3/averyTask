@@ -91,6 +91,10 @@ class NaturalLanguageParserTest {
             error("not used in offline parser tests")
         override suspend fun getCoaching(request: CoachingRequest): CoachingResponse =
             error("not used in offline parser tests")
+        override suspend fun parseImport(request: ParseImportRequest): ParseImportResponse =
+            error("not used in offline parser tests")
+        override suspend fun parseChecklist(request: ParseChecklistRequest): ParseChecklistResponse =
+            error("not used in offline parser tests")
     }
 
     private fun dateMillis(date: LocalDate): Long =
