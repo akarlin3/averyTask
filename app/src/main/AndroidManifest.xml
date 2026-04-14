@@ -5,8 +5,28 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!--
+        Exact alarm permissions. We request both so reminders fire reliably
+        across Android versions:
+          - SCHEDULE_EXACT_ALARM: required on Android 12 (API 31-32); the
+            user must toggle it on via Settings. We prompt for this in
+            MainActivity when canScheduleExactAlarms() returns false.
+          - USE_EXACT_ALARM: auto-granted on Android 13+ (API 33+) for
+            calendar/reminder/timer-style apps, so no prompt is needed.
+        Without USE_EXACT_ALARM the app was silently falling back to
+        inexact alarms on Android 13+, which Samsung (and other OEMs)
+        aggressively delay or drop under Doze/App Standby.
+    -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!--
+        Used on Samsung and other OEM devices that aggressively optimize
+        battery usage. MainActivity shows a one-time dialog that opens
+        the system "ignore battery optimizations" screen so scheduled
+        reminders are not deferred indefinitely.
+    -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <uses-permission android:name="android.permission.WRITE_CALENDAR" />
