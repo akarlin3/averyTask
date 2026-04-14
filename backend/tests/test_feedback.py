@@ -46,8 +46,8 @@ async def test_create_bug_report_missing_description(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_create_bug_report_description_too_short(client: AsyncClient):
-    """POST bug report with description < 10 chars returns 422."""
+async def test_create_bug_report_short_description_accepted(client: AsyncClient):
+    """POST bug report with a short description still succeeds (no minimum length)."""
     resp = await client.post(
         "/api/v1/feedback/bug-report",
         json={
@@ -56,7 +56,7 @@ async def test_create_bug_report_description_too_short(client: AsyncClient):
             "severity": "MINOR",
         },
     )
-    assert resp.status_code == 422
+    assert resp.status_code == 201
 
 
 @pytest.mark.asyncio
