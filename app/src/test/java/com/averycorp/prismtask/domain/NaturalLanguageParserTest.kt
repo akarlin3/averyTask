@@ -1,6 +1,7 @@
 package com.averycorp.prismtask.domain
 
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
+import com.averycorp.prismtask.data.remote.api.BugReportMirrorResponse
 import com.averycorp.prismtask.data.remote.api.ChatRequest
 import com.averycorp.prismtask.data.remote.api.ChatResponse
 import com.averycorp.prismtask.data.remote.api.CoachingRequest
@@ -98,6 +99,8 @@ class NaturalLanguageParserTest {
         override suspend fun parseImport(request: ParseImportRequest): ParseImportResponse =
             error("not used in offline parser tests")
         override suspend fun parseChecklist(request: ParseChecklistRequest): ParseChecklistResponse =
+            error("not used in offline parser tests")
+        override suspend fun submitBugReport(body: Map<String, Any?>): BugReportMirrorResponse =
             error("not used in offline parser tests")
     }
 
