@@ -3,9 +3,15 @@ name: Android CI
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - 'backend/**'
-      - '**.md'
+    paths:
+      - 'app/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle/**'
+      - 'gradle.properties'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - '.github/workflows/android-ci.yml'
   workflow_dispatch:
 
 concurrency:
