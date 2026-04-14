@@ -300,8 +300,15 @@ class SmartPomodoroViewModel @Inject constructor(
         _screenState.value = PomodoroState.SESSION_ACTIVE
         _currentSessionIndex.value = 0
         val durationSeconds = config.value.sessionLength * 60
-        Log.d("PomodoroVM", "startSession: duration=${durationSeconds}s, config=${config.value}")
-        Toast.makeText(appContext, "Starting timer: ${durationSeconds}s", Toast.LENGTH_SHORT).show()
+        // Visible debug output for field troubleshooting. Guarded because
+        // Android framework stubs (Log, Toast) throw RuntimeException in
+        // plain JVM unit tests that don't pull in Robolectric.
+        try {
+            Log.d("PomodoroVM", "startSession: duration=${durationSeconds}s, config=${config.value}")
+            Toast.makeText(appContext, "Starting timer: ${durationSeconds}s", Toast.LENGTH_SHORT).show()
+        } catch (_: Throwable) {
+            // No-op: unit-test environment without Android framework.
+        }
         _timerSecondsRemaining.value = durationSeconds
         startTimer(durationSeconds, PomodoroTimerService.SESSION_TYPE_WORK)
     }
