@@ -10,6 +10,8 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import com.averycorp.prismtask.MainActivity
 import kotlinx.coroutines.CoroutineScope
@@ -45,6 +47,7 @@ class PomodoroTimerService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        Log.d("PomodoroService", "onStartCommand: action=${intent?.action}")
         when (intent?.action) {
             ACTION_START -> startCountdown(intent)
             ACTION_STOP -> {
@@ -63,6 +66,7 @@ class PomodoroTimerService : Service() {
         secondsRemaining = intent.getIntExtra(EXTRA_DURATION_SECONDS, 0)
         sessionIndex = intent.getIntExtra(EXTRA_SESSION_INDEX, 0)
         sessionType = intent.getStringExtra(EXTRA_SESSION_TYPE) ?: SESSION_TYPE_WORK
+        Log.d("PomodoroService", "startCountdown: seconds=$secondsRemaining type=$sessionType")
 
         val notification = buildOngoingNotification(secondsRemaining)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -252,10 +256,9 @@ class PomodoroTimerService : Service() {
                 } else {
                     context.startService(intent)
                 }
-            } catch (_: Exception) {
-                // Foreground-service restrictions or mocked-context in tests.
-                // The ViewModel's in-app timer state still updates; we just
-                // won't get the ongoing notification in these edge cases.
+            } catch (e: Exception) {
+                Log.e("PomodoroService", "Failed to start foreground service", e)
+                Toast.makeText(context, "Service start failed: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
 
