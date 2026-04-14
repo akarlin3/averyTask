@@ -1,9 +1,14 @@
 package com.averycorp.prismtask
 
 import android.Manifest
+import android.annotation.SuppressLint
+import android.app.AlarmManager
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
 import android.util.Log
 import android.os.Bundle
 import android.os.VibrationEffect
@@ -60,6 +65,7 @@ import com.averycorp.prismtask.ui.navigation.PrismTaskNavGraph
 import com.averycorp.prismtask.ui.theme.PrismTaskTheme
 import com.averycorp.prismtask.ui.theme.PriorityColors
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -250,6 +256,119 @@ class MainActivity : ComponentActivity() {
                         notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                     }
                 }
+            }
+
+            // Exact-alarm permission. On API 33+ we declare USE_EXACT_ALARM
+            // which is auto-granted for reminder-style apps, so no prompt is
+            // needed. On API 31-32 the user must toggle SCHEDULE_EXACT_ALARM
+            // via system Settings, otherwise reminders silently fall back to
+            // inexact alarms (which Samsung/other OEMs aggressively delay).
+            var showExactAlarmDialog by remember { mutableStateOf(false) }
+            LaunchedEffect(Unit) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                    Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
+                ) {
+                    val am = getSystemService(AlarmManager::class.java)
+                    if (am != null && !am.canScheduleExactAlarms()) {
+                        showExactAlarmDialog = true
+                    }
+                }
+            }
+            if (showExactAlarmDialog) {
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { showExactAlarmDialog = false },
+                    title = { androidx.compose.material3.Text("Enable Exact Reminders") },
+                    text = {
+                        androidx.compose.material3.Text(
+                            "PrismTask needs exact alarm permission for reliable " +
+                                "reminders. Without it, notifications may be delayed " +
+                                "or skipped by the system."
+                        )
+                    },
+                    confirmButton = {
+                        androidx.compose.material3.TextButton(onClick = {
+                            showExactAlarmDialog = false
+                            try {
+                                val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                                    .apply { data = Uri.parse("package:$packageName") }
+                                startActivity(intent)
+                            } catch (e: Exception) {
+                                Log.w("MainActivity", "Failed to open exact alarm settings", e)
+                            }
+                        }) {
+                            androidx.compose.material3.Text("Open Settings")
+                        }
+                    },
+                    dismissButton = {
+                        androidx.compose.material3.TextButton(onClick = {
+                            showExactAlarmDialog = false
+                        }) {
+                            androidx.compose.material3.Text("Not Now")
+                        }
+                    }
+                )
+            }
+
+            // Samsung (and other OEM) battery optimization prompt. Samsung
+            // devices aggressively kill background alarms even when exact
+            // alarms are granted, so we ask the user once to whitelist
+            // PrismTask from battery optimization. The dialog is shown at
+            // most once per install regardless of the user's choice.
+            var showBatteryOptimizationDialog by remember { mutableStateOf(false) }
+            LaunchedEffect(Unit) {
+                if (!Build.MANUFACTURER.equals("samsung", ignoreCase = true)) return@LaunchedEffect
+                val alreadyShown = onboardingPreferences
+                    .hasShownBatteryOptimizationPrompt()
+                    .first()
+                if (alreadyShown) return@LaunchedEffect
+                val pm = getSystemService(PowerManager::class.java)
+                if (pm != null && !pm.isIgnoringBatteryOptimizations(packageName)) {
+                    showBatteryOptimizationDialog = true
+                }
+            }
+            if (showBatteryOptimizationDialog) {
+                val dismissAndRecord: () -> Unit = {
+                    showBatteryOptimizationDialog = false
+                    notificationSnackbarScope.launch {
+                        onboardingPreferences.setBatteryOptimizationPromptShown()
+                    }
+                }
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = dismissAndRecord,
+                    title = { androidx.compose.material3.Text("Improve Reminder Reliability") },
+                    text = {
+                        androidx.compose.material3.Text(
+                            "Samsung devices may delay notifications. Tap below to " +
+                                "disable battery optimization for PrismTask so " +
+                                "reminders fire on time."
+                        )
+                    },
+                    confirmButton = {
+                        androidx.compose.material3.TextButton(onClick = {
+                            try {
+                                @SuppressLint("BatteryLife")
+                                val intent = Intent(
+                                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+                                ).apply { data = Uri.parse("package:$packageName") }
+                                startActivity(intent)
+                            } catch (e: Exception) {
+                                Log.w(
+                                    "MainActivity",
+                                    "Failed to open battery optimization settings",
+                                    e
+                                )
+                            }
+                            dismissAndRecord()
+                        }) {
+                            androidx.compose.material3.Text("Open Settings")
+                        }
+                    },
+                    dismissButton = {
+                        androidx.compose.material3.TextButton(onClick = dismissAndRecord) {
+                            androidx.compose.material3.Text("Not Now")
+                        }
+                    }
+                )
             }
 
             // Once Firebase confirms we're signed in, refresh admin status
