@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
+import android.util.Log
+import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.data.local.dao.TaskDao
@@ -298,6 +300,8 @@ class SmartPomodoroViewModel @Inject constructor(
         _screenState.value = PomodoroState.SESSION_ACTIVE
         _currentSessionIndex.value = 0
         val durationSeconds = config.value.sessionLength * 60
+        Log.d("PomodoroVM", "startSession: duration=${durationSeconds}s, config=${config.value}")
+        Toast.makeText(appContext, "Starting timer: ${durationSeconds}s", Toast.LENGTH_SHORT).show()
         _timerSecondsRemaining.value = durationSeconds
         startTimer(durationSeconds, PomodoroTimerService.SESSION_TYPE_WORK)
     }
