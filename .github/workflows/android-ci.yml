@@ -95,6 +95,24 @@ jobs:
       - name: Run unit tests
         run: ./gradlew testDebugUnitTest
 
+      - name: Bump versionCode
+        id: version
+        run: |
+          set -euo pipefail
+          OFFSET=200
+          CURRENT_CODE=$(grep -oP 'versionCode\s*=\s*\K[0-9]+' app/build.gradle.kts | head -1)
+          CANDIDATE=$(( OFFSET + ${{ github.run_number }} ))
+          if [ "$CANDIDATE" -le "$CURRENT_CODE" ]; then
+            NEW_CODE=$(( CURRENT_CODE + 1 ))
+          else
+            NEW_CODE=$CANDIDATE
+          fi
+          sed -i "s/versionCode = [0-9]*/versionCode = $NEW_CODE/" app/build.gradle.kts
+          VERSION_NAME=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts | head -1)
+          echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "version_code=$NEW_CODE" >> "$GITHUB_OUTPUT"
+          echo "Building v$VERSION_NAME (build $NEW_CODE)"
+
       - name: Assemble debug APK
         run: ./gradlew assembleDebug
 
@@ -125,15 +143,6 @@ jobs:
         with:
           name: app-debug
           path: app/build/outputs/apk/debug/app-debug.apk
-
-      - name: Read app version
-        id: version
-        run: |
-          set -euo pipefail
-          VERSION_NAME=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts | head -1)
-          VERSION_CODE=$(grep -oP 'versionCode\s*=\s*\K[0-9]+' app/build.gradle.kts | head -1)
-          echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
-          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
 
       - name: Upload to Firebase App Distribution
         env:
