@@ -8,7 +8,6 @@ import com.averycorp.prismtask.data.repository.ProjectRepository
 import com.averycorp.prismtask.data.repository.TagRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.data.repository.TaskTemplateRepository
-import com.averycorp.prismtask.notifications.ReminderScheduler
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -42,7 +41,6 @@ class AddEditTaskViewModelTest {
     private lateinit var tagRepository: TagRepository
     private lateinit var attachmentRepository: AttachmentRepository
     private lateinit var templateRepository: TaskTemplateRepository
-    private lateinit var reminderScheduler: ReminderScheduler
     private lateinit var boundaryRuleRepository: BoundaryRuleRepository
     private lateinit var savedStateHandle: SavedStateHandle
 
@@ -54,7 +52,6 @@ class AddEditTaskViewModelTest {
         tagRepository = mockk(relaxed = true)
         attachmentRepository = mockk(relaxed = true)
         templateRepository = mockk(relaxed = true)
-        reminderScheduler = mockk(relaxed = true)
         boundaryRuleRepository = mockk(relaxed = true)
         savedStateHandle = SavedStateHandle()
 
@@ -74,7 +71,6 @@ class AddEditTaskViewModelTest {
         tagRepository,
         attachmentRepository,
         templateRepository,
-        reminderScheduler,
         boundaryRuleRepository,
         savedStateHandle
     )
@@ -192,12 +188,20 @@ class AddEditTaskViewModelTest {
         val ok = vm.saveTask()
         assertFalse(ok)
         assertTrue(vm.titleError)
-        coVerify(exactly = 0) { taskRepository.addTask(any(), any(), any(), any(), any(), any(), any()) }
+        coVerify(exactly = 0) {
+            taskRepository.addTask(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        }
     }
 
     @Test
     fun saveTask_createMode_invokesRepositoryWithFields() = runTest {
-        coEvery { taskRepository.addTask(any(), any(), any(), any(), any(), any(), any()) } returns 55L
+        coEvery {
+            taskRepository.addTask(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+            )
+        } returns 55L
         coEvery { taskRepository.getTaskById(55L) } returns flowOf(
             TaskEntity(id = 55L, title = "Bake bread")
         )

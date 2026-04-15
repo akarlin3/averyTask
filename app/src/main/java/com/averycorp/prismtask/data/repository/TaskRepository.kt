@@ -114,7 +114,10 @@ constructor(
         priority: Int = 0,
         projectId: Long? = null,
         parentTaskId: Long? = null,
-        lifeCategory: String? = null
+        lifeCategory: String? = null,
+        reminderOffset: Long? = null,
+        recurrenceRule: String? = null,
+        estimatedDuration: Int? = null
     ): Long {
         val now = System.currentTimeMillis()
         val nextSortOrder = if (parentTaskId == null) taskDao.getMaxRootSortOrder() + 1 else 0
@@ -129,6 +132,9 @@ constructor(
                 parentTaskId = parentTaskId,
                 sortOrder = nextSortOrder,
                 lifeCategory = lifeCategory,
+                reminderOffset = reminderOffset,
+                recurrenceRule = recurrenceRule,
+                estimatedDuration = estimatedDuration,
                 createdAt = now,
                 updatedAt = now
             )
@@ -136,6 +142,15 @@ constructor(
         syncTracker.trackCreate(id, "task")
         calendarSyncService.syncTaskToCalendar(task.copy(id = id))
         widgetUpdateManager.updateTaskWidgets()
+        if (reminderOffset != null && dueDate != null) {
+            reminderScheduler.scheduleReminder(
+                taskId = id,
+                taskTitle = title,
+                taskDescription = description,
+                dueDate = ReminderScheduler.combineDateAndTime(dueDate, dueTime),
+                reminderOffset = reminderOffset
+            )
+        }
         return id
     }
 

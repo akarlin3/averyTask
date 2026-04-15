@@ -28,7 +28,6 @@ import com.averycorp.prismtask.domain.model.RecurrenceRule
 import com.averycorp.prismtask.domain.usecase.BoundaryDecision
 import com.averycorp.prismtask.domain.usecase.BoundaryEnforcer
 import com.averycorp.prismtask.domain.usecase.LifeCategoryClassifier
-import com.averycorp.prismtask.notifications.ReminderScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -67,7 +66,6 @@ constructor(
     private val tagRepository: TagRepository,
     private val attachmentRepository: AttachmentRepository,
     private val templateRepository: TaskTemplateRepository,
-    private val reminderScheduler: ReminderScheduler,
     private val boundaryRuleRepository: BoundaryRuleRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -663,20 +661,11 @@ constructor(
                     priority = priority,
                     projectId = projectId,
                     parentTaskId = parentTaskId,
-                    lifeCategory = resolvedLifeCategory
+                    lifeCategory = resolvedLifeCategory,
+                    reminderOffset = reminderOffset,
+                    recurrenceRule = recurrenceJson,
+                    estimatedDuration = estimatedDuration
                 )
-                // Update reminder offset, recurrence, and estimated duration on the newly created task
-                if (reminderOffset != null || recurrenceJson != null || estimatedDuration != null) {
-                    taskRepository.getTaskById(savedId).firstOrNull()?.let { created ->
-                        taskRepository.updateTask(
-                            created.copy(
-                                reminderOffset = reminderOffset ?: created.reminderOffset,
-                                recurrenceRule = recurrenceJson ?: created.recurrenceRule,
-                                estimatedDuration = estimatedDuration ?: created.estimatedDuration
-                            )
-                        )
-                    }
-                }
             }
 
             // Save tags
@@ -698,19 +687,6 @@ constructor(
                     taskRepository.insertTask(subtask)
                 }
                 pendingSubtasks.clear()
-            }
-
-            // Schedule or cancel reminder. Combine dueDate (midnight) with
-            // dueTime (time-of-day) so the trigger time is the actual
-            // deadline, not midnight of the due day.
-            val effectiveDueDate = dueDate?.let {
-                ReminderScheduler.combineDateAndTime(it, dueTime)
-            }
-            val effectiveOffset = reminderOffset
-            if (effectiveDueDate != null && effectiveOffset != null) {
-                reminderScheduler.scheduleReminder(savedId, trimmedTitle, trimmedDesc, effectiveDueDate, effectiveOffset)
-            } else {
-                reminderScheduler.cancelReminder(savedId)
             }
 
             true

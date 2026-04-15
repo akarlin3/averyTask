@@ -28,7 +28,13 @@ constructor(
         reminderOffset: Long
     ) {
         val triggerTime = dueDate - reminderOffset
-        if (triggerTime <= System.currentTimeMillis()) return
+        val now = System.currentTimeMillis()
+        val effectiveTrigger = if (triggerTime <= now) {
+            // If the missed window is within ~24h, fire as soon as possible
+            // rather than silently dropping. Reminders more than a day stale
+            // are genuinely outdated and should be discarded.
+            if (now - triggerTime < 24 * 60 * 60 * 1000L) now + 5_000L else return
+        } else triggerTime
 
         val intent = Intent(context, ReminderBroadcastReceiver::class.java).apply {
             putExtra("taskId", taskId)
@@ -42,7 +48,7 @@ constructor(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        ExactAlarmHelper.scheduleExact(context, triggerTime, pendingIntent)
+        ExactAlarmHelper.scheduleExact(context, effectiveTrigger, pendingIntent)
     }
 
     fun cancelReminder(taskId: Long) {
