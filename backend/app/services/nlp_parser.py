@@ -28,6 +28,7 @@ Parse the following input and return a JSON object with these fields:
 - "title": (string, required) The task title, cleaned up
 - "project_suggestion": (string or null) If the input mentions or implies one of the user's existing projects, include the project name
 - "due_date": (string in YYYY-MM-DD format, or null) Any mentioned due date, resolved relative to today
+- "due_time": (string in HH:MM 24-hour format, or null) Any mentioned time-of-day. Examples: "3pm" -> "15:00", "9:30am" -> "09:30", "noon" -> "12:00", "midnight" -> "00:00". Null when no time is specified.
 - "priority": (integer 1-4 or null) 1=Urgent, 2=High, 3=Medium, 4=Low. Infer from urgency words if present
 - "parent_task_suggestion": (string or null) If the input suggests this is a subtask of something, include the parent task description
 - "confidence": (float 0.0-1.0) How confident you are in the overall parse

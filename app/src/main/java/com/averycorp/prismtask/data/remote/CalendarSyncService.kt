@@ -13,6 +13,9 @@ import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.preferences.CalendarPreferences
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZoneOffset
 import java.util.TimeZone
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -179,16 +182,40 @@ constructor(
             put(CalendarContract.Events.CALENDAR_ID, calendarId)
             put(CalendarContract.Events.TITLE, task.title)
             put(CalendarContract.Events.DESCRIPTION, buildDescription(task))
-            put(CalendarContract.Events.EVENT_TIMEZONE, TimeZone.getDefault().id)
             if (isAllDay) {
+                // Android CalendarContract requires all-day events to have
+                // DTSTART at 00:00 UTC of the target date and EVENT_TIMEZONE
+                // set to "UTC". task.dueDate is stored as local-midnight
+                // epoch millis, so translate it to the same civil date at UTC
+                // midnight — otherwise timezones west of UTC push the event
+                // forward a day and timezones east push it back a day.
+                val utcMidnight = toUtcDayStartMillis(dueDate, ZoneId.systemDefault())
+                put(CalendarContract.Events.EVENT_TIMEZONE, "UTC")
                 put(CalendarContract.Events.ALL_DAY, 1)
-                put(CalendarContract.Events.DTSTART, dueDate)
-                put(CalendarContract.Events.DTEND, dueDate + 86_400_000L)
+                put(CalendarContract.Events.DTSTART, utcMidnight)
+                put(CalendarContract.Events.DTEND, utcMidnight + 86_400_000L)
             } else {
+                put(CalendarContract.Events.EVENT_TIMEZONE, TimeZone.getDefault().id)
                 put(CalendarContract.Events.ALL_DAY, 0)
                 put(CalendarContract.Events.DTSTART, startMillis)
                 put(CalendarContract.Events.DTEND, endMillis)
             }
+        }
+    }
+
+    companion object {
+        /**
+         * Converts a local-midnight epoch-millis timestamp (the format stored
+         * in [TaskEntity.dueDate]) to the epoch-millis of 00:00 UTC on the
+         * same civil date in [zone]. Android's CalendarContract requires
+         * all-day events to use UTC midnight for DTSTART; passing local
+         * midnight directly causes off-by-one-day bugs in non-UTC zones.
+         */
+        internal fun toUtcDayStartMillis(localMidnightMillis: Long, zone: ZoneId): Long {
+            val localDate = Instant.ofEpochMilli(localMidnightMillis)
+                .atZone(zone)
+                .toLocalDate()
+            return localDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
         }
     }
 
