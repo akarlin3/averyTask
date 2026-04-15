@@ -34,7 +34,9 @@ constructor(
             // rather than silently dropping. Reminders more than a day stale
             // are genuinely outdated and should be discarded.
             if (now - triggerTime < 24 * 60 * 60 * 1000L) now + 5_000L else return
-        } else triggerTime
+        } else {
+            triggerTime
+        }
 
         val intent = Intent(context, ReminderBroadcastReceiver::class.java).apply {
             putExtra("taskId", taskId)
