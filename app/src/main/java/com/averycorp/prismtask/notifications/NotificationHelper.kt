@@ -31,16 +31,16 @@ object NotificationHelper {
      * notification posting is itself a one-shot side-effect.
      */
     private fun currentImportance(context: Context): String = runBlocking {
-        NotificationPreferences(context).getImportanceOnce()
+        NotificationPreferences.from(context).getImportanceOnce()
     }
 
     private fun previousImportance(context: Context): String? = runBlocking {
-        NotificationPreferences(context).getPreviousImportanceOnce()
+        NotificationPreferences.from(context).getPreviousImportanceOnce()
     }
 
     private fun recordImportance(context: Context, importance: String) {
         runBlocking {
-            NotificationPreferences(context).setPreviousImportance(importance)
+            NotificationPreferences.from(context).setPreviousImportance(importance)
         }
     }
 
@@ -110,7 +110,7 @@ object NotificationHelper {
         taskTitle: String,
         taskDescription: String?
     ) {
-        val prefs = NotificationPreferences(context)
+        val prefs = NotificationPreferences.from(context)
         val enabled = runBlocking { prefs.taskRemindersEnabled.first() }
         if (!enabled) {
             Log.d("NotificationHelper", "Task reminders disabled — skipping task=$taskId")
@@ -185,7 +185,7 @@ object NotificationHelper {
         doseNumber: Int = 0,
         totalDoses: Int = 1
     ) {
-        val prefs = NotificationPreferences(context)
+        val prefs = NotificationPreferences.from(context)
         val enabled = runBlocking { prefs.medicationRemindersEnabled.first() }
         if (!enabled) {
             Log.d("NotificationHelper", "Medication reminders disabled — skipping habit=$habitId")
@@ -255,7 +255,7 @@ object NotificationHelper {
         medName: String,
         medNote: String
     ) {
-        val prefs = NotificationPreferences(context)
+        val prefs = NotificationPreferences.from(context)
         val enabled = runBlocking { prefs.medicationRemindersEnabled.first() }
         if (!enabled) {
             Log.d("NotificationHelper", "Medication reminders disabled — skipping step=$stepId")
@@ -309,7 +309,7 @@ object NotificationHelper {
     }
 
     fun showTimerCompleteNotification(context: Context, mode: String) {
-        val prefs = NotificationPreferences(context)
+        val prefs = NotificationPreferences.from(context)
         val enabled = runBlocking { prefs.timerAlertsEnabled.first() }
         if (!enabled) {
             Log.d("NotificationHelper", "Timer alerts disabled — skipping mode=$mode")

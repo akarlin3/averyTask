@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import com.averycorp.prismtask.data.calendar.CalendarSyncPreferences
 import com.averycorp.prismtask.data.preferences.NdPreferencesDataStore
+import com.averycorp.prismtask.data.preferences.NotificationPreferences
 import com.averycorp.prismtask.data.preferences.SortPreferences
 import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 import dagger.Module
@@ -50,4 +51,11 @@ object PreferencesModule {
         @ApplicationContext context: Context
     ): NdPreferencesDataStore =
         NdPreferencesDataStore(context.ndPrefsDataStore)
+
+    @Provides
+    @Singleton
+    fun provideNotificationPreferences(
+        @ApplicationContext context: Context
+    ): NotificationPreferences =
+        NotificationPreferences.from(context)
 }

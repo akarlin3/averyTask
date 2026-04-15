@@ -8,12 +8,9 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import javax.inject.Inject
-import javax.inject.Singleton
 
 private val Context.notificationDataStore: DataStore<Preferences> by preferencesDataStore(
     name = "notification_prefs"
@@ -27,15 +24,18 @@ private val Context.notificationDataStore: DataStore<Preferences> by preferences
  *  - a default reminder lead-time used to pre-fill `reminderOffset` on
  *    newly-created tasks.
  *
+ * Takes a [DataStore] directly so it can be unit-tested without an Android
+ * Context; production wiring lives in
+ * [com.averycorp.prismtask.di.PreferencesModule]. The [from] factory exists
+ * for non-Hilt callers like [com.averycorp.prismtask.notifications.NotificationHelper]
+ * that only have a [Context] on hand.
+ *
  * Everything is read/written via [Flow]/`suspend` setters — callers
  * (workers, the notification helper, ViewModels) read with `.first()`
  * before posting, or collect the flow when they need live updates.
  */
-@Singleton
-class NotificationPreferences
-@Inject
-constructor(
-    @ApplicationContext private val context: Context
+class NotificationPreferences(
+    private val dataStore: DataStore<Preferences>
 ) {
     companion object {
         // Per-type enable flags (default true)
@@ -85,103 +85,107 @@ constructor(
             86_400_000L,
             OFFSET_NONE
         )
+
+        /** Factory for non-Hilt callers that only have a [Context]. */
+        fun from(context: Context): NotificationPreferences =
+            NotificationPreferences(context.notificationDataStore)
     }
 
     // region Per-type enable flags
 
-    val taskRemindersEnabled: Flow<Boolean> = context.notificationDataStore.data
+    val taskRemindersEnabled: Flow<Boolean> = dataStore.data
         .map { it[TASK_REMINDERS_ENABLED] ?: true }
 
     suspend fun setTaskRemindersEnabled(enabled: Boolean) {
-        context.notificationDataStore.edit { it[TASK_REMINDERS_ENABLED] = enabled }
+        dataStore.edit { it[TASK_REMINDERS_ENABLED] = enabled }
     }
 
-    val timerAlertsEnabled: Flow<Boolean> = context.notificationDataStore.data
+    val timerAlertsEnabled: Flow<Boolean> = dataStore.data
         .map { it[TIMER_ALERTS_ENABLED] ?: true }
 
     suspend fun setTimerAlertsEnabled(enabled: Boolean) {
-        context.notificationDataStore.edit { it[TIMER_ALERTS_ENABLED] = enabled }
+        dataStore.edit { it[TIMER_ALERTS_ENABLED] = enabled }
     }
 
-    val medicationRemindersEnabled: Flow<Boolean> = context.notificationDataStore.data
+    val medicationRemindersEnabled: Flow<Boolean> = dataStore.data
         .map { it[MEDICATION_REMINDERS_ENABLED] ?: true }
 
     suspend fun setMedicationRemindersEnabled(enabled: Boolean) {
-        context.notificationDataStore.edit { it[MEDICATION_REMINDERS_ENABLED] = enabled }
+        dataStore.edit { it[MEDICATION_REMINDERS_ENABLED] = enabled }
     }
 
-    val dailyBriefingEnabled: Flow<Boolean> = context.notificationDataStore.data
+    val dailyBriefingEnabled: Flow<Boolean> = dataStore.data
         .map { it[DAILY_BRIEFING_ENABLED] ?: true }
 
     suspend fun setDailyBriefingEnabled(enabled: Boolean) {
-        context.notificationDataStore.edit { it[DAILY_BRIEFING_ENABLED] = enabled }
+        dataStore.edit { it[DAILY_BRIEFING_ENABLED] = enabled }
     }
 
-    val eveningSummaryEnabled: Flow<Boolean> = context.notificationDataStore.data
+    val eveningSummaryEnabled: Flow<Boolean> = dataStore.data
         .map { it[EVENING_SUMMARY_ENABLED] ?: true }
 
     suspend fun setEveningSummaryEnabled(enabled: Boolean) {
-        context.notificationDataStore.edit { it[EVENING_SUMMARY_ENABLED] = enabled }
+        dataStore.edit { it[EVENING_SUMMARY_ENABLED] = enabled }
     }
 
-    val weeklySummaryEnabled: Flow<Boolean> = context.notificationDataStore.data
+    val weeklySummaryEnabled: Flow<Boolean> = dataStore.data
         .map { it[WEEKLY_SUMMARY_ENABLED] ?: true }
 
     suspend fun setWeeklySummaryEnabled(enabled: Boolean) {
-        context.notificationDataStore.edit { it[WEEKLY_SUMMARY_ENABLED] = enabled }
+        dataStore.edit { it[WEEKLY_SUMMARY_ENABLED] = enabled }
     }
 
-    val overloadAlertsEnabled: Flow<Boolean> = context.notificationDataStore.data
+    val overloadAlertsEnabled: Flow<Boolean> = dataStore.data
         .map { it[OVERLOAD_ALERTS_ENABLED] ?: true }
 
     suspend fun setOverloadAlertsEnabled(enabled: Boolean) {
-        context.notificationDataStore.edit { it[OVERLOAD_ALERTS_ENABLED] = enabled }
+        dataStore.edit { it[OVERLOAD_ALERTS_ENABLED] = enabled }
     }
 
-    val reengagementEnabled: Flow<Boolean> = context.notificationDataStore.data
+    val reengagementEnabled: Flow<Boolean> = dataStore.data
         .map { it[REENGAGEMENT_ENABLED] ?: true }
 
     suspend fun setReengagementEnabled(enabled: Boolean) {
-        context.notificationDataStore.edit { it[REENGAGEMENT_ENABLED] = enabled }
+        dataStore.edit { it[REENGAGEMENT_ENABLED] = enabled }
     }
 
     // endregion
 
     // region Importance
 
-    val importance: Flow<String> = context.notificationDataStore.data.map {
+    val importance: Flow<String> = dataStore.data.map {
         val stored = it[NOTIFICATION_IMPORTANCE] ?: DEFAULT_IMPORTANCE
         if (stored in ALL_IMPORTANCES) stored else DEFAULT_IMPORTANCE
     }
 
     suspend fun setImportance(level: String) {
         val normalized = if (level in ALL_IMPORTANCES) level else DEFAULT_IMPORTANCE
-        context.notificationDataStore.edit { it[NOTIFICATION_IMPORTANCE] = normalized }
+        dataStore.edit { it[NOTIFICATION_IMPORTANCE] = normalized }
     }
 
     suspend fun getImportanceOnce(): String = importance.first()
 
-    val previousImportance: Flow<String?> = context.notificationDataStore.data.map {
+    val previousImportance: Flow<String?> = dataStore.data.map {
         it[PREVIOUS_IMPORTANCE]
     }
 
-    suspend fun getPreviousImportanceOnce(): String? = context.notificationDataStore.data
+    suspend fun getPreviousImportanceOnce(): String? = dataStore.data
         .first()[PREVIOUS_IMPORTANCE]
 
     suspend fun setPreviousImportance(level: String) {
-        context.notificationDataStore.edit { it[PREVIOUS_IMPORTANCE] = level }
+        dataStore.edit { it[PREVIOUS_IMPORTANCE] = level }
     }
 
     // endregion
 
     // region Default reminder offset
 
-    val defaultReminderOffset: Flow<Long> = context.notificationDataStore.data.map {
+    val defaultReminderOffset: Flow<Long> = dataStore.data.map {
         it[DEFAULT_REMINDER_OFFSET] ?: DEFAULT_REMINDER_OFFSET_MS
     }
 
     suspend fun setDefaultReminderOffset(offset: Long) {
-        context.notificationDataStore.edit { it[DEFAULT_REMINDER_OFFSET] = offset }
+        dataStore.edit { it[DEFAULT_REMINDER_OFFSET] = offset }
     }
 
     suspend fun getDefaultReminderOffsetOnce(): Long = defaultReminderOffset.first()
