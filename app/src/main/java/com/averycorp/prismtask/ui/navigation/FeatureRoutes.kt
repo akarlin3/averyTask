@@ -766,6 +766,11 @@ internal fun NavGraphBuilder.featureRoutes(
             navArgument("fromScreen") {
                 type = NavType.StringType
                 defaultValue = ""
+            },
+            navArgument("screenshotUri") {
+                type = NavType.StringType
+                nullable = true
+                defaultValue = null
             }
         ),
         enterTransition = {
