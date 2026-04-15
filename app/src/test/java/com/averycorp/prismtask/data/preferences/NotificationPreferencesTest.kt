@@ -1,31 +1,49 @@
 package com.averycorp.prismtask.data.preferences
 
-import android.app.Application
-import androidx.test.core.app.ApplicationProvider
-import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.Preferences
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.annotation.Config
+import org.junit.rules.TemporaryFolder
+import java.io.File
 
 /**
- * Robolectric-backed tests for [NotificationPreferences]. Each test gets a
- * fresh DataStore by virtue of Robolectric's per-test app context isolation,
- * so the documented defaults are observable on first read.
+ * Unit tests for [NotificationPreferences]. Each test gets a brand new
+ * [DataStore] rooted in a fresh [TemporaryFolder] so the documented
+ * defaults are observable on first read regardless of what any sibling
+ * test wrote.
  */
-@RunWith(AndroidJUnit4::class)
-@Config(manifest = Config.NONE, sdk = [33], application = Application::class)
 class NotificationPreferencesTest {
+    @get:Rule
+    val tmpFolder = TemporaryFolder()
+
+    private lateinit var scope: CoroutineScope
+    private lateinit var dataStore: DataStore<Preferences>
     private lateinit var prefs: NotificationPreferences
 
     @Before
     fun setUp() {
-        prefs = NotificationPreferences(ApplicationProvider.getApplicationContext())
+        scope = CoroutineScope(Dispatchers.Unconfined + SupervisorJob())
+        val file = File(tmpFolder.root, "notification_prefs_test.preferences_pb")
+        dataStore = PreferenceDataStoreFactory.create(scope = scope) { file }
+        prefs = NotificationPreferences(dataStore)
+    }
+
+    @After
+    fun tearDown() {
+        scope.cancel()
     }
 
     @Test
