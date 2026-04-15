@@ -203,22 +203,6 @@ constructor(
         }
     }
 
-    companion object {
-        /**
-         * Converts a local-midnight epoch-millis timestamp (the format stored
-         * in [TaskEntity.dueDate]) to the epoch-millis of 00:00 UTC on the
-         * same civil date in [zone]. Android's CalendarContract requires
-         * all-day events to use UTC midnight for DTSTART; passing local
-         * midnight directly causes off-by-one-day bugs in non-UTC zones.
-         */
-        internal fun toUtcDayStartMillis(localMidnightMillis: Long, zone: ZoneId): Long {
-            val localDate = Instant.ofEpochMilli(localMidnightMillis)
-                .atZone(zone)
-                .toLocalDate()
-            return localDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
-        }
-    }
-
     private fun buildDescription(task: TaskEntity): String {
         val parts = mutableListOf<String>()
         if (!task.description.isNullOrBlank()) parts.add(task.description)
@@ -313,5 +297,19 @@ constructor(
 
     companion object {
         private const val TAG = "CalendarSyncService"
+
+        /**
+         * Converts a local-midnight epoch-millis timestamp (the format stored
+         * in [TaskEntity.dueDate]) to the epoch-millis of 00:00 UTC on the
+         * same civil date in [zone]. Android's CalendarContract requires
+         * all-day events to use UTC midnight for DTSTART; passing local
+         * midnight directly causes off-by-one-day bugs in non-UTC zones.
+         */
+        internal fun toUtcDayStartMillis(localMidnightMillis: Long, zone: ZoneId): Long {
+            val localDate = Instant.ofEpochMilli(localMidnightMillis)
+                .atZone(zone)
+                .toLocalDate()
+            return localDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+        }
     }
 }
