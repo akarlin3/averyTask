@@ -5,10 +5,11 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.averycorp.prismtask.MainActivity
-import com.averycorp.prismtask.R
 import com.averycorp.prismtask.data.preferences.NotificationPreferences
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -26,12 +27,39 @@ object NotificationHelper {
     private const val LEGACY_MED_CHANNEL_ID = "averytask_medication_reminders"
 
     /**
-     * Resolves the importance currently configured by the user. Workers /
-     * receivers call this synchronously; we accept the brief block because
-     * notification posting is itself a one-shot side-effect.
+     * Long, repeating-feel vibration used when the user enables "Buzz
+     * Repeatedly". Android plays the channel pattern once per notification,
+     * so we approximate a repeating buzz by laying a dense sequence of
+     * pulses over ~10 seconds. Users dismissing or tapping the notification
+     * stops it naturally.
      */
-    private fun currentImportance(context: Context): String = runBlocking {
-        NotificationPreferences.from(context).getImportanceOnce()
+    private val REPEATING_VIBRATION_PATTERN = longArrayOf(
+        0,
+        500, 300, 500, 300, 500, 300, 500, 300,
+        500, 300, 500, 300, 500, 300, 500, 300,
+        500, 300, 500, 300
+    )
+
+    /**
+     * Bundle of user-configurable delivery-style flags. Channels are
+     * immutable for sound / vibration / importance, so each unique
+     * combination gets its own channel ID via [channelSuffix].
+     */
+    private data class Style(
+        val importance: String,
+        val fullScreen: Boolean,
+        val overrideVolume: Boolean,
+        val repeatingVibration: Boolean
+    )
+
+    private fun currentStyle(context: Context): Style = runBlocking {
+        val prefs = NotificationPreferences.from(context)
+        Style(
+            importance = prefs.getImportanceOnce(),
+            fullScreen = prefs.getFullScreenNotificationsEnabledOnce(),
+            overrideVolume = prefs.getOverrideVolumeEnabledOnce(),
+            repeatingVibration = prefs.getRepeatingVibrationEnabledOnce()
+        )
     }
 
     private fun previousImportance(context: Context): String? = runBlocking {
@@ -44,12 +72,33 @@ object NotificationHelper {
         }
     }
 
+    private fun channelSuffix(style: Style): String = buildString {
+        append('_').append(style.importance)
+        if (style.fullScreen) append("_fsi")
+        if (style.overrideVolume) append("_alrm")
+        if (style.repeatingVibration) append("_rvib")
+    }
+
     fun channelIdFor(base: String, importance: String): String = "${base}_$importance"
+
+    private fun channelIdFor(base: String, style: Style): String = base + channelSuffix(style)
 
     fun importanceToChannelLevel(importance: String): Int = when (importance) {
         NotificationPreferences.IMPORTANCE_MINIMAL -> NotificationManager.IMPORTANCE_LOW
         NotificationPreferences.IMPORTANCE_URGENT -> NotificationManager.IMPORTANCE_HIGH
         else -> NotificationManager.IMPORTANCE_DEFAULT
+    }
+
+    private fun effectiveChannelImportance(style: Style): Int {
+        // Full-screen intents and heads-up alarm behavior require HIGH.
+        // When the user opts into either, bump the channel so the behavior
+        // actually takes effect regardless of the "Importance" picker.
+        val base = importanceToChannelLevel(style.importance)
+        return if (style.fullScreen || style.overrideVolume) {
+            maxOf(base, NotificationManager.IMPORTANCE_HIGH)
+        } else {
+            base
+        }
     }
 
     fun importanceToBuilderPriority(importance: String): Int = when (importance) {
@@ -58,50 +107,109 @@ object NotificationHelper {
         else -> NotificationCompat.PRIORITY_DEFAULT
     }
 
-    /**
-     * Drops every channel the app has previously created for the
-     * importance-suffix scheme so a level change wipes the stale channel
-     * (whose importance is immutable). Called whenever we're about to
-     * (re-)create a channel for the *current* importance.
-     */
-    private fun deleteStaleChannels(context: Context, base: String, currentImportance: String) {
-        val manager = context.getSystemService(NotificationManager::class.java) ?: return
-        val previous = previousImportance(context)
-        if (previous != null && previous != currentImportance) {
-            manager.deleteNotificationChannel(channelIdFor(base, previous))
+    private fun effectiveBuilderPriority(style: Style): Int {
+        val base = importanceToBuilderPriority(style.importance)
+        return if (style.fullScreen || style.overrideVolume) {
+            maxOf(base, NotificationCompat.PRIORITY_HIGH)
+        } else {
+            base
         }
-        // Also clear any other suffixes the user might have toggled through
-        // before we started recording previousImportance — cheap, idempotent.
-        for (level in NotificationPreferences.ALL_IMPORTANCES) {
-            if (level != currentImportance) {
-                manager.deleteNotificationChannel(channelIdFor(base, level))
+    }
+
+    /**
+     * Drops every channel the app has previously created for [base] under
+     * any style combination other than the current one, so a style change
+     * wipes stale channels (whose sound/vibration/importance are immutable).
+     */
+    private fun deleteStaleChannels(context: Context, base: String, style: Style) {
+        val manager = context.getSystemService(NotificationManager::class.java) ?: return
+        val currentId = channelIdFor(base, style)
+        // Bare legacy channel (pre-importance-suffix scheme).
+        manager.deleteNotificationChannel(base)
+        for (importance in NotificationPreferences.ALL_IMPORTANCES) {
+            for (fsi in listOf(false, true)) {
+                for (alrm in listOf(false, true)) {
+                    for (rvib in listOf(false, true)) {
+                        val candidate = Style(importance, fsi, alrm, rvib)
+                        val id = channelIdFor(base, candidate)
+                        if (id != currentId) {
+                            manager.deleteNotificationChannel(id)
+                        }
+                    }
+                }
             }
+        }
+    }
+
+    private fun buildChannel(
+        id: String,
+        name: String,
+        description: String,
+        style: Style
+    ): NotificationChannel = NotificationChannel(
+        id,
+        name,
+        effectiveChannelImportance(style)
+    ).apply {
+        this.description = description
+        if (style.overrideVolume) {
+            val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            val attrs = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
+            setSound(alarmUri, attrs)
+            setBypassDnd(true)
+        }
+        if (style.repeatingVibration) {
+            enableVibration(true)
+            vibrationPattern = REPEATING_VIBRATION_PATTERN
         }
     }
 
     fun createNotificationChannel(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
         migrateOldChannels(context)
-        val importance = currentImportance(context)
-        deleteStaleChannels(context, BASE_CHANNEL_ID, importance)
-        // Also remove the bare/legacy "prismtask_reminders" channel created
-        // before the importance suffix scheme existed.
-        manager.deleteNotificationChannel(BASE_CHANNEL_ID)
-        val channel = NotificationChannel(
-            channelIdFor(BASE_CHANNEL_ID, importance),
-            CHANNEL_NAME,
-            importanceToChannelLevel(importance)
-        ).apply {
-            description = "Reminders for upcoming tasks"
-        }
+        val style = currentStyle(context)
+        deleteStaleChannels(context, BASE_CHANNEL_ID, style)
+        val channel = buildChannel(
+            id = channelIdFor(BASE_CHANNEL_ID, style),
+            name = CHANNEL_NAME,
+            description = "Reminders for upcoming tasks",
+            style = style
+        )
         manager.createNotificationChannel(channel)
-        recordImportance(context, importance)
+        recordImportance(context, style.importance)
     }
 
     fun migrateOldChannels(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.deleteNotificationChannel(LEGACY_CHANNEL_ID)
         manager.deleteNotificationChannel(LEGACY_MED_CHANNEL_ID)
+    }
+
+    /**
+     * Applies the user's delivery-style preferences (full-screen, alarm
+     * stream, repeating vibration) to [builder]. Callers still set their
+     * own content/actions — this only touches priority, category, sound,
+     * vibration, and the full-screen intent.
+     */
+    private fun applyStyle(
+        builder: NotificationCompat.Builder,
+        style: Style,
+        tapPending: PendingIntent
+    ) {
+        // API 26+ uses the channel's sound/vibration; builder-level calls
+        // are kept only for flags that still have runtime effect
+        // (priority, category, full-screen intent).
+        builder.priority = effectiveBuilderPriority(style)
+        if (style.overrideVolume) {
+            builder.setCategory(NotificationCompat.CATEGORY_ALARM)
+        }
+        if (style.fullScreen) {
+            builder.setFullScreenIntent(tapPending, true)
+        }
     }
 
     fun showTaskReminder(
@@ -118,8 +226,8 @@ object NotificationHelper {
         }
         Log.d("NotificationHelper", "Showing notification for task=$taskId")
         createNotificationChannel(context)
-        val importance = currentImportance(context)
-        val channelId = channelIdFor(BASE_CHANNEL_ID, importance)
+        val style = currentStyle(context)
+        val channelId = channelIdFor(BASE_CHANNEL_ID, style)
 
         val tapIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -141,12 +249,11 @@ object NotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val notification = NotificationCompat
+        val builder = NotificationCompat
             .Builder(context, channelId)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle("$taskTitle is coming up")
             .setContentText(taskDescription ?: "Ready when you are.")
-            .setPriority(importanceToBuilderPriority(importance))
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setAutoCancel(true)
             .setContentIntent(tapPending)
@@ -154,26 +261,25 @@ object NotificationHelper {
                 android.R.drawable.ic_menu_send,
                 "Complete",
                 completePending
-            ).build()
+            )
+        applyStyle(builder, style, tapPending)
 
         val manager = context.getSystemService(NotificationManager::class.java)
-        manager.notify(taskId.toInt(), notification)
+        manager.notify(taskId.toInt(), builder.build())
     }
 
     private fun createMedicationChannel(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
-        val importance = currentImportance(context)
-        deleteStaleChannels(context, BASE_MED_CHANNEL_ID, importance)
-        manager.deleteNotificationChannel(BASE_MED_CHANNEL_ID)
-        val channel = NotificationChannel(
-            channelIdFor(BASE_MED_CHANNEL_ID, importance),
-            MED_CHANNEL_NAME,
-            importanceToChannelLevel(importance)
-        ).apply {
-            description = "Reminders for medication and timed habits"
-        }
+        val style = currentStyle(context)
+        deleteStaleChannels(context, BASE_MED_CHANNEL_ID, style)
+        val channel = buildChannel(
+            id = channelIdFor(BASE_MED_CHANNEL_ID, style),
+            name = MED_CHANNEL_NAME,
+            description = "Reminders for medication and timed habits",
+            style = style
+        )
         manager.createNotificationChannel(channel)
-        recordImportance(context, importance)
+        recordImportance(context, style.importance)
     }
 
     fun showMedicationReminder(
@@ -192,8 +298,8 @@ object NotificationHelper {
             return
         }
         createMedicationChannel(context)
-        val importance = currentImportance(context)
-        val channelId = channelIdFor(BASE_MED_CHANNEL_ID, importance)
+        val style = currentStyle(context)
+        val channelId = channelIdFor(BASE_MED_CHANNEL_ID, style)
 
         val tapIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -229,13 +335,12 @@ object NotificationHelper {
             "$contentText\nNext reminder $intervalText after logging."
         }
 
-        val notification = NotificationCompat
+        val builder = NotificationCompat
             .Builder(context, channelId)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle(title)
             .setContentText(contentText)
             .setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
-            .setPriority(importanceToBuilderPriority(importance))
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setAutoCancel(true)
             .setContentIntent(tapPending)
@@ -243,10 +348,11 @@ object NotificationHelper {
                 android.R.drawable.ic_menu_send,
                 "Log",
                 logPending
-            ).build()
+            )
+        applyStyle(builder, style, tapPending)
 
         val manager = context.getSystemService(NotificationManager::class.java)
-        manager.notify(habitId.toInt() + 200_000, notification)
+        manager.notify(habitId.toInt() + 200_000, builder.build())
     }
 
     fun showMedStepReminder(
@@ -262,8 +368,8 @@ object NotificationHelper {
             return
         }
         createMedicationChannel(context)
-        val importance = currentImportance(context)
-        val channelId = channelIdFor(BASE_MED_CHANNEL_ID, importance)
+        val style = currentStyle(context)
+        val channelId = channelIdFor(BASE_MED_CHANNEL_ID, style)
 
         val tapIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -277,35 +383,32 @@ object NotificationHelper {
 
         val contentText = if (medNote.isNotEmpty()) medNote else "$medName \u2014 whenever you're ready."
 
-        val notification = NotificationCompat
+        val builder = NotificationCompat
             .Builder(context, channelId)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle("$medName \u2014 Heads Up")
             .setContentText(contentText)
-            .setPriority(importanceToBuilderPriority(importance))
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setAutoCancel(true)
             .setContentIntent(tapPending)
-            .build()
+        applyStyle(builder, style, tapPending)
 
         val manager = context.getSystemService(NotificationManager::class.java)
-        manager.notify(stepId.hashCode() + 400_000, notification)
+        manager.notify(stepId.hashCode() + 400_000, builder.build())
     }
 
     private fun createTimerChannel(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
-        val importance = currentImportance(context)
-        deleteStaleChannels(context, BASE_TIMER_CHANNEL_ID, importance)
-        manager.deleteNotificationChannel(BASE_TIMER_CHANNEL_ID)
-        val channel = NotificationChannel(
-            channelIdFor(BASE_TIMER_CHANNEL_ID, importance),
-            TIMER_CHANNEL_NAME,
-            importanceToChannelLevel(importance)
-        ).apply {
-            description = "Alerts when a Timer countdown completes"
-        }
+        val style = currentStyle(context)
+        deleteStaleChannels(context, BASE_TIMER_CHANNEL_ID, style)
+        val channel = buildChannel(
+            id = channelIdFor(BASE_TIMER_CHANNEL_ID, style),
+            name = TIMER_CHANNEL_NAME,
+            description = "Alerts when a Timer countdown completes",
+            style = style
+        )
         manager.createNotificationChannel(channel)
-        recordImportance(context, importance)
+        recordImportance(context, style.importance)
     }
 
     fun showTimerCompleteNotification(context: Context, mode: String) {
@@ -316,8 +419,8 @@ object NotificationHelper {
             return
         }
         createTimerChannel(context)
-        val importance = currentImportance(context)
-        val channelId = channelIdFor(BASE_TIMER_CHANNEL_ID, importance)
+        val style = currentStyle(context)
+        val channelId = channelIdFor(BASE_TIMER_CHANNEL_ID, style)
 
         val isBreak = mode.equals("BREAK", ignoreCase = true)
         val title = if (isBreak) "Break Complete!" else "Timer Complete!"
@@ -337,19 +440,18 @@ object NotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val notification = NotificationCompat
+        val builder = NotificationCompat
             .Builder(context, channelId)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle(title)
             .setContentText(body)
-            .setPriority(importanceToBuilderPriority(importance))
             .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setAutoCancel(true)
             .setContentIntent(tapPending)
-            .build()
+        applyStyle(builder, style, tapPending)
 
         val manager = context.getSystemService(NotificationManager::class.java)
-        manager.notify(TIMER_NOTIFICATION_ID, notification)
+        manager.notify(TIMER_NOTIFICATION_ID, builder.build())
     }
 
     private fun formatInterval(millis: Long): String {

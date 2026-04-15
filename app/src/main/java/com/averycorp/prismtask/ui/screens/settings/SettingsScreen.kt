@@ -222,6 +222,9 @@ fun SettingsScreen(
     val weeklySummaryEnabled by viewModel.weeklySummaryEnabled.collectAsStateWithLifecycle()
     val overloadAlertsEnabled by viewModel.overloadAlertsEnabled.collectAsStateWithLifecycle()
     val reengagementEnabled by viewModel.reengagementEnabled.collectAsStateWithLifecycle()
+    val fullScreenNotificationsEnabled by viewModel.fullScreenNotificationsEnabled.collectAsStateWithLifecycle()
+    val overrideVolumeEnabled by viewModel.overrideVolumeEnabled.collectAsStateWithLifecycle()
+    val repeatingVibrationEnabled by viewModel.repeatingVibrationEnabled.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.messages.collect { message ->
@@ -577,6 +580,9 @@ fun SettingsScreen(
                     weeklySummaryEnabled = weeklySummaryEnabled,
                     overloadAlertsEnabled = overloadAlertsEnabled,
                     reengagementEnabled = reengagementEnabled,
+                    fullScreenNotificationsEnabled = fullScreenNotificationsEnabled,
+                    overrideVolumeEnabled = overrideVolumeEnabled,
+                    repeatingVibrationEnabled = repeatingVibrationEnabled,
                     userTier = userTier,
                     onImportanceChange = viewModel::setNotificationImportance,
                     onDefaultReminderOffsetChange = viewModel::setDefaultReminderOffset,
@@ -587,7 +593,10 @@ fun SettingsScreen(
                     onEveningSummaryToggle = viewModel::setEveningSummaryEnabled,
                     onWeeklySummaryToggle = viewModel::setWeeklySummaryEnabled,
                     onOverloadAlertsToggle = viewModel::setOverloadAlertsEnabled,
-                    onReengagementToggle = viewModel::setReengagementEnabled
+                    onReengagementToggle = viewModel::setReengagementEnabled,
+                    onFullScreenNotificationsToggle = viewModel::setFullScreenNotificationsEnabled,
+                    onOverrideVolumeToggle = viewModel::setOverrideVolumeEnabled,
+                    onRepeatingVibrationToggle = viewModel::setRepeatingVibrationEnabled
                 )
 
                 VoiceInputSection(
