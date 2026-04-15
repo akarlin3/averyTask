@@ -474,6 +474,16 @@ constructor(
     val reengagementEnabled: StateFlow<Boolean> = notificationPreferences.reengagementEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
+    val fullScreenNotificationsEnabled: StateFlow<Boolean> =
+        notificationPreferences.fullScreenNotificationsEnabled
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+    val overrideVolumeEnabled: StateFlow<Boolean> =
+        notificationPreferences.overrideVolumeEnabled
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+    val repeatingVibrationEnabled: StateFlow<Boolean> =
+        notificationPreferences.repeatingVibrationEnabled
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     val notificationImportance: StateFlow<String> = notificationPreferences.importance
         .stateIn(
             viewModelScope,
@@ -543,6 +553,38 @@ constructor(
             } else {
                 com.averycorp.prismtask.notifications.ReengagementWorker
                     .cancel(appContext)
+            }
+        }
+    }
+
+    fun setFullScreenNotificationsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            notificationPreferences.setFullScreenNotificationsEnabled(enabled)
+        }
+    }
+
+    fun setOverrideVolumeEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            notificationPreferences.setOverrideVolumeEnabled(enabled)
+            // Channel sound is immutable; recreate so the new alarm-stream
+            // audio attributes take effect next reminder.
+            try {
+                com.averycorp.prismtask.notifications.NotificationHelper
+                    .createNotificationChannel(appContext)
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    fun setRepeatingVibrationEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            notificationPreferences.setRepeatingVibrationEnabled(enabled)
+            // Channel vibration pattern is immutable; recreate so the new
+            // pattern takes effect next reminder.
+            try {
+                com.averycorp.prismtask.notifications.NotificationHelper
+                    .createNotificationChannel(appContext)
+            } catch (_: Exception) {
             }
         }
     }

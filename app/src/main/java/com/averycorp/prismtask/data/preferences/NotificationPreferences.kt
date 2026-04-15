@@ -48,6 +48,15 @@ class NotificationPreferences(
         private val OVERLOAD_ALERTS_ENABLED = booleanPreferencesKey("overload_alerts_enabled")
         private val REENGAGEMENT_ENABLED = booleanPreferencesKey("reengagement_enabled")
 
+        // Full-screen heads-up reminder (opens in full-screen over lock screen)
+        private val FULL_SCREEN_NOTIFICATIONS_ENABLED = booleanPreferencesKey("full_screen_notifications_enabled")
+
+        // Play reminders at alarm volume (bypasses silent ringer)
+        private val OVERRIDE_VOLUME_ENABLED = booleanPreferencesKey("override_volume_enabled")
+
+        // Use a long, repeating vibration pattern for reminders
+        private val REPEATING_VIBRATION_ENABLED = booleanPreferencesKey("repeating_vibration_enabled")
+
         // Importance / intrusiveness
         private val NOTIFICATION_IMPORTANCE = stringPreferencesKey("notification_importance")
 
@@ -148,6 +157,47 @@ class NotificationPreferences(
     suspend fun setReengagementEnabled(enabled: Boolean) {
         dataStore.edit { it[REENGAGEMENT_ENABLED] = enabled }
     }
+
+    // endregion
+
+    // region Intrusive delivery behaviors
+    //
+    // Three orthogonal toggles that change *how* a fired reminder is
+    // delivered. All default OFF so users opt in explicitly — they affect
+    // the lock screen, audio stream, and vibrator. Because NotificationChannel
+    // sound and vibration are immutable after creation, changing
+    // [overrideVolumeEnabled] or [repeatingVibrationEnabled] causes the
+    // channel to be recreated under a new ID (see NotificationHelper).
+
+    val fullScreenNotificationsEnabled: Flow<Boolean> = dataStore.data
+        .map { it[FULL_SCREEN_NOTIFICATIONS_ENABLED] ?: false }
+
+    suspend fun setFullScreenNotificationsEnabled(enabled: Boolean) {
+        dataStore.edit { it[FULL_SCREEN_NOTIFICATIONS_ENABLED] = enabled }
+    }
+
+    suspend fun getFullScreenNotificationsEnabledOnce(): Boolean =
+        fullScreenNotificationsEnabled.first()
+
+    val overrideVolumeEnabled: Flow<Boolean> = dataStore.data
+        .map { it[OVERRIDE_VOLUME_ENABLED] ?: false }
+
+    suspend fun setOverrideVolumeEnabled(enabled: Boolean) {
+        dataStore.edit { it[OVERRIDE_VOLUME_ENABLED] = enabled }
+    }
+
+    suspend fun getOverrideVolumeEnabledOnce(): Boolean =
+        overrideVolumeEnabled.first()
+
+    val repeatingVibrationEnabled: Flow<Boolean> = dataStore.data
+        .map { it[REPEATING_VIBRATION_ENABLED] ?: false }
+
+    suspend fun setRepeatingVibrationEnabled(enabled: Boolean) {
+        dataStore.edit { it[REPEATING_VIBRATION_ENABLED] = enabled }
+    }
+
+    suspend fun getRepeatingVibrationEnabledOnce(): Boolean =
+        repeatingVibrationEnabled.first()
 
     // endregion
 

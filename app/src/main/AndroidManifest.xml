@@ -6,6 +6,15 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!--
+        Required for reminders to pop as full-screen notifications over the
+        lock screen when the user enables "Full-Screen Notifications" in
+        Settings → Notifications. Android 14+ restricts this to apps whose
+        core function is alarms/calendar/communication; for other apps the
+        system downgrades it to a heads-up notification, which is fine —
+        we only request it when the toggle is on.
+    -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <!--
         Exact alarm permissions. We request both so reminders fire reliably
         across Android versions:
           - SCHEDULE_EXACT_ALARM: required on Android 12 (API 31-32); the

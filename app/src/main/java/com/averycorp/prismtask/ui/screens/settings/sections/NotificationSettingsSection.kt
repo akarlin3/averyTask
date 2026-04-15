@@ -52,6 +52,9 @@ fun NotificationSettingsSection(
     weeklySummaryEnabled: Boolean,
     overloadAlertsEnabled: Boolean,
     reengagementEnabled: Boolean,
+    fullScreenNotificationsEnabled: Boolean,
+    overrideVolumeEnabled: Boolean,
+    repeatingVibrationEnabled: Boolean,
     userTier: UserTier,
     onImportanceChange: (String) -> Unit,
     onDefaultReminderOffsetChange: (Long) -> Unit,
@@ -62,7 +65,10 @@ fun NotificationSettingsSection(
     onEveningSummaryToggle: (Boolean) -> Unit,
     onWeeklySummaryToggle: (Boolean) -> Unit,
     onOverloadAlertsToggle: (Boolean) -> Unit,
-    onReengagementToggle: (Boolean) -> Unit
+    onReengagementToggle: (Boolean) -> Unit,
+    onFullScreenNotificationsToggle: (Boolean) -> Unit,
+    onOverrideVolumeToggle: (Boolean) -> Unit,
+    onRepeatingVibrationToggle: (Boolean) -> Unit
 ) {
     SectionHeader("Notifications")
 
@@ -211,6 +217,36 @@ fun NotificationSettingsSection(
         checked = reengagementEnabled && isPremiumOrAbove,
         enabled = isPremiumOrAbove,
         onCheckedChange = onReengagementToggle
+    )
+
+    Spacer(modifier = Modifier.height(8.dp))
+
+    Text(
+        text = "Alert Style",
+        style = MaterialTheme.typography.bodyMedium,
+        fontWeight = FontWeight.Medium,
+        modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
+    )
+
+    SettingsToggleRow(
+        title = "Full-Screen Notifications",
+        subtitle = "Reminders take over the screen, even on the lock screen",
+        checked = fullScreenNotificationsEnabled,
+        onCheckedChange = onFullScreenNotificationsToggle
+    )
+
+    SettingsToggleRow(
+        title = "Override Volume",
+        subtitle = "Play at alarm volume so reminders are heard even on silent",
+        checked = overrideVolumeEnabled,
+        onCheckedChange = onOverrideVolumeToggle
+    )
+
+    SettingsToggleRow(
+        title = "Buzz Repeatedly",
+        subtitle = "Long, repeating vibration pattern on each reminder",
+        checked = repeatingVibrationEnabled,
+        onCheckedChange = onRepeatingVibrationToggle
     )
 
     HorizontalDivider()
