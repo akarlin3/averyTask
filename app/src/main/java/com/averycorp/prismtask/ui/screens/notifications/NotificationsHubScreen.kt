@@ -124,19 +124,25 @@ fun NotificationsHubScreen(
                 title = "Quiet Hours",
                 subtitle = if (activeProfile.quietHours.enabled) {
                     "${activeProfile.quietHours.start} \u2192 ${activeProfile.quietHours.end}"
-                } else "Off"
+                } else {
+                    "Off"
+                }
             ) { navController.navigate(NotificationRoutes.QUIET_HOURS) }
 
             SettingsRowWithSubtitle(
                 title = "Snooze & Re-Alerts",
-                subtitle = "Snooze: ${activeProfile.snoozeDurationsMinutes.joinToString(", ")}m \u2014 Re-alert every ${activeProfile.reAlertIntervalMinutes}m"
+                subtitle = "Snooze: ${activeProfile.snoozeDurationsMinutes.joinToString(
+                    ", "
+                )}m \u2014 Re-alert every ${activeProfile.reAlertIntervalMinutes}m"
             ) { navController.navigate(NotificationRoutes.SNOOZE) }
 
             SettingsRowWithSubtitle(
                 title = "Escalation Chain",
                 subtitle = if (activeProfile.escalation.enabled) {
                     "${activeProfile.escalation.steps.size} steps"
-                } else "Off"
+                } else {
+                    "Off"
+                }
             ) { navController.navigate(NotificationRoutes.ESCALATION) }
 
             HorizontalDivider()

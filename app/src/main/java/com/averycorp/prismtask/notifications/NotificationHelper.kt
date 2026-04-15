@@ -7,7 +7,6 @@ import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
 import android.media.RingtoneManager
-import android.net.Uri
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.averycorp.prismtask.MainActivity
@@ -677,7 +676,10 @@ object NotificationHelper {
             profile.accentColorHex?.let { hex ->
                 runCatching { android.graphics.Color.parseColor(hex) }
                     .getOrNull()
-                    ?.let { lightColor = it; enableLights(true) }
+                    ?.let {
+                        lightColor = it;
+                        enableLights(true)
+                    }
             }
 
             // Badge behavior

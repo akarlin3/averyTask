@@ -31,8 +31,13 @@ object VibrationPatterns {
     private val HEARTBEAT = longArrayOf(
         0L,
         // Double beat, longer pause — repeats twice
-        90L, 90L, 180L, 500L,
-        90L, 90L, 180L
+        90L,
+        90L,
+        180L,
+        500L,
+        90L,
+        90L,
+        180L
     )
     private val WAVE = longArrayOf(
         0L,

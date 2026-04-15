@@ -3,10 +3,8 @@ package com.averycorp.prismtask.data.repository
 import com.averycorp.prismtask.data.local.dao.NotificationProfileDao
 import com.averycorp.prismtask.data.local.entity.NotificationProfileEntity
 import com.averycorp.prismtask.domain.model.notifications.BuiltInSound
-import com.averycorp.prismtask.domain.model.notifications.EscalationChain
 import com.averycorp.prismtask.domain.model.notifications.LockScreenVisibility
 import com.averycorp.prismtask.domain.model.notifications.NotificationDisplayMode
-import com.averycorp.prismtask.domain.model.notifications.QuietHoursWindow
 import com.averycorp.prismtask.domain.model.notifications.UrgencyTier
 import com.averycorp.prismtask.domain.model.notifications.VibrationIntensity
 import com.averycorp.prismtask.domain.model.notifications.VibrationPreset

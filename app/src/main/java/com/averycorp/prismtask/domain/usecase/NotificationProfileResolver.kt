@@ -53,7 +53,11 @@ class NotificationProfileResolver(private val gson: Gson = Gson()) {
         accentColorHex = entity.accentColorHex,
         badgeMode = BadgeMode.fromKey(entity.badgeModeKey),
         toastPosition = ToastPosition.fromKey(entity.toastPositionKey),
-        escalation = decodeEscalationChain(entity.escalationChainJson, legacyFlag = entity.escalation, legacyInterval = entity.escalationIntervalMinutes),
+        escalation = decodeEscalationChain(
+            entity.escalationChainJson,
+            legacyFlag = entity.escalation,
+            legacyInterval = entity.escalationIntervalMinutes
+        ),
         quietHours = decodeQuietHours(entity.quietHoursJson),
         snoozeDurationsMinutes = entity.snoozeDurations().ifEmpty { listOf(5, 15, 30, 60) },
         reAlertIntervalMinutes = entity.reAlertIntervalMinutes.coerceIn(1, 60),

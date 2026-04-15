@@ -15,7 +15,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -73,21 +72,42 @@ class NotificationSettingsViewModel @Inject constructor(
     val overloadAlertsEnabled = prefs.overloadAlertsEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
 
     // Briefing
-    val briefingMorningHour = prefs.briefingMorningHour.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), NotificationPreferences.DEFAULT_MORNING_HOUR)
-    val briefingEveningHour = prefs.briefingEveningHour.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), NotificationPreferences.DEFAULT_EVENING_HOUR)
+    val briefingMorningHour = prefs.briefingMorningHour.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        NotificationPreferences.DEFAULT_MORNING_HOUR
+    )
+    val briefingEveningHour = prefs.briefingEveningHour.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        NotificationPreferences.DEFAULT_EVENING_HOUR
+    )
     val briefingMiddayEnabled = prefs.briefingMiddayEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
-    val briefingTone = prefs.briefingTone.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), NotificationPreferences.BRIEFING_TONE_CONCISE)
-    val briefingSections = prefs.briefingSections.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), NotificationPreferences.DEFAULT_BRIEFING_SECTIONS)
+    val briefingTone = prefs.briefingTone.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        NotificationPreferences.BRIEFING_TONE_CONCISE
+    )
+    val briefingSections = prefs.briefingSections.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        NotificationPreferences.DEFAULT_BRIEFING_SECTIONS
+    )
     val briefingReadAloudEnabled = prefs.briefingReadAloudEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     // Streak
     val streakAtRiskLeadHours = prefs.streakAtRiskLeadHours.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5_000),
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
         NotificationPreferences.DEFAULT_STREAK_AT_RISK_LEAD_HOURS
     )
 
     // Collaborator
-    val collabDigestMode = prefs.collabDigestMode.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), NotificationPreferences.COLLAB_DIGEST_IMMEDIATE)
+    val collabDigestMode = prefs.collabDigestMode.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        NotificationPreferences.COLLAB_DIGEST_IMMEDIATE
+    )
     val collabAssignedEnabled = prefs.collabAssignedEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     val collabMentionedEnabled = prefs.collabMentionedEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
     val collabStatusEnabled = prefs.collabStatusEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
@@ -95,7 +115,11 @@ class NotificationSettingsViewModel @Inject constructor(
     val collabDueSoonEnabled = prefs.collabDueSoonEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
 
     // Watch
-    val watchSyncMode = prefs.watchSyncMode.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), NotificationPreferences.WATCH_SYNC_MIRROR)
+    val watchSyncMode = prefs.watchSyncMode.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        NotificationPreferences.WATCH_SYNC_MIRROR
+    )
     val watchVolumePercent = prefs.watchVolumePercent.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 70)
     val watchHapticIntensity = prefs.watchHapticIntensity.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "medium")
 
@@ -106,7 +130,9 @@ class NotificationSettingsViewModel @Inject constructor(
 
     // Snooze options
     val snoozeDurationsMinutes = prefs.snoozeDurationsMinutes.stateIn(
-        viewModelScope, SharingStarted.WhileSubscribed(5_000), NotificationPreferences.DEFAULT_SNOOZE_MINUTES
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        NotificationPreferences.DEFAULT_SNOOZE_MINUTES
     )
 
     // Transient status for the tester button
@@ -127,7 +153,9 @@ class NotificationSettingsViewModel @Inject constructor(
 
     fun setTaskRemindersEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setTaskRemindersEnabled(enabled) }
     fun setTimerAlertsEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setTimerAlertsEnabled(enabled) }
-    fun setMedicationRemindersEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setMedicationRemindersEnabled(enabled) }
+    fun setMedicationRemindersEnabled(enabled: Boolean) = viewModelScope.launch {
+        prefs.setMedicationRemindersEnabled(enabled)
+    }
     fun setDailyBriefingEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setDailyBriefingEnabled(enabled) }
     fun setEveningSummaryEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setEveningSummaryEnabled(enabled) }
     fun setWeeklySummaryEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setWeeklySummaryEnabled(enabled) }
@@ -161,7 +189,9 @@ class NotificationSettingsViewModel @Inject constructor(
 
     fun setBadgeMode(mode: String) = viewModelScope.launch { prefs.setBadgeMode(mode) }
     fun setToastPosition(position: String) = viewModelScope.launch { prefs.setToastPosition(position) }
-    fun setHighContrastEnabled(enabled: Boolean) = viewModelScope.launch { prefs.setHighContrastNotificationsEnabled(enabled) }
+    fun setHighContrastEnabled(enabled: Boolean) = viewModelScope.launch {
+        prefs.setHighContrastNotificationsEnabled(enabled)
+    }
 
     fun setSnoozeDurationsMinutes(minutes: List<Int>) = viewModelScope.launch {
         prefs.setSnoozeDurationsMinutes(minutes.sorted().distinct())

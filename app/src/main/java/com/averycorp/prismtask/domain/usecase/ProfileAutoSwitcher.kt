@@ -61,9 +61,13 @@ class ProfileAutoSwitcher {
             trigger = ProfileAutoSwitchTrigger.TIME_OF_DAY,
             matches = { ctx ->
                 val t = ctx.time
-                if (start == end) false
-                else if (start < end) t >= start && t < end
-                else t >= start || t < end
+                if (start == end) {
+                    false
+                } else if (start < end) {
+                    t >= start && t < end
+                } else {
+                    t >= start || t < end
+                }
             }
         )
 
