@@ -112,6 +112,67 @@ class TestNlpParser:
             assert result.parent_task_suggestion == "Release preparation"
 
     @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test-key"})
+    def test_due_time_extracted(self):
+        """Backend must preserve the time-of-day so tasks don't sync to Google
+        Calendar as all-day events when the user said "at 3pm"."""
+        from app.services.nlp_parser import parse_task_input
+
+        with patch("app.services.nlp_parser.anthropic") as mock_anthropic:
+            mock_client = MagicMock()
+            mock_anthropic.Anthropic.return_value = mock_client
+            mock_client.messages.create.return_value = _make_mock_response({
+                "title": "Submit report",
+                "project_suggestion": None,
+                "due_date": "2026-04-17",
+                "due_time": "15:00",
+                "priority": None,
+                "parent_task_suggestion": None,
+                "confidence": 0.9,
+            })
+
+            result = parse_task_input(
+                "Submit report Friday at 3pm", [], date(2026, 4, 15)
+            )
+
+            assert result.title == "Submit report"
+            assert str(result.due_date) == "2026-04-17"
+            assert result.due_time == "15:00"
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test-key"})
+    def test_due_time_null_when_absent(self):
+        from app.services.nlp_parser import parse_task_input
+
+        with patch("app.services.nlp_parser.anthropic") as mock_anthropic:
+            mock_client = MagicMock()
+            mock_anthropic.Anthropic.return_value = mock_client
+            mock_client.messages.create.return_value = _make_mock_response({
+                "title": "Pay rent",
+                "project_suggestion": None,
+                "due_date": "2026-05-01",
+                "due_time": None,
+                "priority": None,
+                "parent_task_suggestion": None,
+                "confidence": 0.85,
+            })
+
+            result = parse_task_input("Pay rent May 1", [], date(2026, 4, 15))
+
+            assert result.title == "Pay rent"
+            assert result.due_time is None
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test-key"})
+    def test_prompt_requests_due_time(self):
+        """The Claude prompt must explicitly ask for due_time in HH:MM format;
+        without it the model omits the field and the Android client loses the
+        time component."""
+        from app.services.nlp_parser import _build_prompt
+
+        prompt = _build_prompt("Submit report Friday at 3pm", [], date(2026, 4, 15))
+
+        assert '"due_time"' in prompt
+        assert "HH:MM" in prompt
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test-key"})
     def test_empty_string_error(self):
         from app.services.nlp_parser import parse_task_input
 

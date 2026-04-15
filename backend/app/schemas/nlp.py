@@ -8,6 +8,11 @@ class ParsedTask(BaseModel):
     title: str
     project_suggestion: Optional[str] = None
     due_date: Optional[date] = None
+    # HH:MM (24-hour) time-of-day component when the user specified a time
+    # (e.g. "Friday at 3pm" -> due_date=Friday, due_time="15:00"). Kept as a
+    # raw string so the client can apply its own timezone; null when the
+    # input had no time component.
+    due_time: Optional[str] = None
     priority: Optional[int] = None
     parent_task_suggestion: Optional[str] = None
     confidence: float
