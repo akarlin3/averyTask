@@ -138,8 +138,8 @@ ktlint {
     ignoreFailures.set(false)
     additionalEditorconfig.set(
         mapOf(
-            "ktlint_kotlin_version" to "2.2.10",
-        ),
+            "ktlint_kotlin_version" to "2.2.10"
+        )
     )
     filter {
         exclude { element -> element.file.path.contains("/build/") }
@@ -161,8 +161,8 @@ detekt {
             "src/test/java",
             "src/test/kotlin",
             "src/androidTest/java",
-            "src/androidTest/kotlin",
-        ),
+            "src/androidTest/kotlin"
+        )
     )
 }
 
