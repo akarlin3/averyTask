@@ -26,7 +26,8 @@ class DuplicateTaskTest {
         title = title,
         description = "Quarterly summary",
         dueDate = 1_700_000_000_000L,
-        dueTime = 32_400_000L, // 9am
+        // 9am
+        dueTime = 32_400_000L,
         priority = 3,
         isCompleted = true,
         projectId = 7L,

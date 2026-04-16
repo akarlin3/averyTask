@@ -329,7 +329,8 @@ constructor(
             appVersion = BuildConfig.VERSION_NAME,
             appVersionCode = BuildConfig.VERSION_CODE,
             buildType = if (BuildConfig.DEBUG) "debug" else "release",
-            userTier = "Free", // Default; could be injected from BillingManager
+            // Default; could be injected from BillingManager
+            userTier = "Free",
             taskCount = taskCount,
             habitCount = habitCount,
             availableRamMb = availableRamMb,

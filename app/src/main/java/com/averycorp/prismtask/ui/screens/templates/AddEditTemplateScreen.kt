@@ -50,22 +50,38 @@ import kotlinx.coroutines.launch
  * errands, study, fitness) rather than an exhaustive emoji grid.
  */
 private val TEMPLATE_ICONS = listOf(
-    "\uD83D\uDCCB", // 📋
-    "\uD83D\uDCDD", // 📝
-    "\uD83D\uDCCC", // 📌
-    "\uD83C\uDFE0", // 🏠
-    "\uD83D\uDCBC", // 💼
-    "\uD83D\uDED2", // 🛒
-    "\uD83D\uDCDA", // 📚
-    "\uD83C\uDFC3", // 🏃
-    "\uD83E\uDDF9", // 🧹
-    "\uD83D\uDC68\u200D\uD83D\uDCBB", // 👨‍💻
-    "\uD83D\uDCE7", // 📧
-    "\uD83D\uDCDE", // 📞
-    "\u2708\uFE0F", // ✈️
-    "\uD83C\uDFAF", // 🎯
-    "\uD83D\uDCA1", // 💡
-    "\u2B50" // ⭐
+    // 📋
+    "\uD83D\uDCCB",
+    // 📝
+    "\uD83D\uDCDD",
+    // 📌
+    "\uD83D\uDCCC",
+    // 🏠
+    "\uD83C\uDFE0",
+    // 💼
+    "\uD83D\uDCBC",
+    // 🛒
+    "\uD83D\uDED2",
+    // 📚
+    "\uD83D\uDCDA",
+    // 🏃
+    "\uD83C\uDFC3",
+    // 🧹
+    "\uD83E\uDDF9",
+    // 👨‍💻
+    "\uD83D\uDC68\u200D\uD83D\uDCBB",
+    // 📧
+    "\uD83D\uDCE7",
+    // 📞
+    "\uD83D\uDCDE",
+    // ✈️
+    "\u2708\uFE0F",
+    // 🎯
+    "\uD83C\uDFAF",
+    // 💡
+    "\uD83D\uDCA1",
+    // ⭐
+    "\u2B50"
 )
 
 @OptIn(ExperimentalMaterial3Api::class)

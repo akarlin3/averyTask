@@ -77,7 +77,8 @@ class MorningCheckInResolverTest {
             tasks = emptyList(),
             habits = emptyList(),
             config = MorningCheckInConfig(),
-            lastCompletedDate = todayStart + 1000, // already done this morning
+            // already done this morning
+            lastCompletedDate = todayStart + 1000,
             todayStart = todayStart,
             now = now,
             zone = zone

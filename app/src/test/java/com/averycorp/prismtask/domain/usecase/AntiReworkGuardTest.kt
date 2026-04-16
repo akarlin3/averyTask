@@ -22,7 +22,8 @@ class AntiReworkGuardTest {
         id = 1,
         title = "Test Task",
         isCompleted = true,
-        completedAt = System.currentTimeMillis() - 5 * 60 * 1000, // 5 min ago
+        // 5 min ago
+        completedAt = System.currentTimeMillis() - 5 * 60 * 1000,
         revisionCount = 0,
         revisionLocked = false
     )
