@@ -1,0 +1,746 @@
+=== CI FAILURE ===
+Workflow:      Backend CI
+Workflow file: akarlin3/prismTask/.github/workflows/backend-ci.yml@refs/pull/468/merge
+Job(s):        test
+Run ID:        24523532786
+Run attempt:   1
+Run URL:       https://github.com/akarlin3/prismTask/actions/runs/24523532786
+Commit:        cb1ff242f84299d16f63b57968d65bafdf4eec79
+Branch:        468/merge
+Event:         pull_request
+Actor:         akarlin3
+Runner OS:     Linux
+Timestamp:     2026-04-16T17:09:42.004Z
+
+Failed steps:
+  - test: #8 Run tests
+
+=== FAILED JOB LOG ===
+
+--- Job: test (id 71687486340) ---
+2026-04-16T17:07:41.2453242Z Current runner version: '2.333.1'
+2026-04-16T17:07:41.2477819Z ##[group]Runner Image Provisioner
+2026-04-16T17:07:41.2478656Z Hosted Compute Agent
+2026-04-16T17:07:41.2479256Z Version: 20260213.493
+2026-04-16T17:07:41.2479813Z Commit: 5c115507f6dd24b8de37d8bbe0bb4509d0cc0fa3
+2026-04-16T17:07:41.2480532Z Build Date: 2026-02-13T00:28:41Z
+2026-04-16T17:07:41.2481217Z Worker ID: {752ff030-2a41-4f94-b35a-5fc0c17c1144}
+2026-04-16T17:07:41.2481854Z Azure Region: westcentralus
+2026-04-16T17:07:41.2482457Z ##[endgroup]
+2026-04-16T17:07:41.2484083Z ##[group]Operating System
+2026-04-16T17:07:41.2484692Z Ubuntu
+2026-04-16T17:07:41.2485104Z 24.04.4
+2026-04-16T17:07:41.2485654Z LTS
+2026-04-16T17:07:41.2486338Z ##[endgroup]
+2026-04-16T17:07:41.2486829Z ##[group]Runner Image
+2026-04-16T17:07:41.2487441Z Image: ubuntu-24.04
+2026-04-16T17:07:41.2487911Z Version: 20260406.80.1
+2026-04-16T17:07:41.2489159Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260406.80/images/ubuntu/Ubuntu2404-Readme.md
+2026-04-16T17:07:41.2490569Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260406.80
+2026-04-16T17:07:41.2491433Z ##[endgroup]
+2026-04-16T17:07:41.2492613Z ##[group]GITHUB_TOKEN Permissions
+2026-04-16T17:07:41.2494622Z Actions: read
+2026-04-16T17:07:41.2495263Z Checks: read
+2026-04-16T17:07:41.2495763Z Contents: write
+2026-04-16T17:07:41.2496671Z Metadata: read
+2026-04-16T17:07:41.2497188Z ##[endgroup]
+2026-04-16T17:07:41.2499225Z Secret source: Actions
+2026-04-16T17:07:41.2499914Z Prepare workflow directory
+2026-04-16T17:07:41.2959232Z Prepare all required actions
+2026-04-16T17:07:41.2996762Z Getting action download info
+2026-04-16T17:07:41.7089811Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+2026-04-16T17:07:41.8645666Z Download action repository 'actions/setup-python@v5' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+2026-04-16T17:07:42.0374076Z Complete job name: test
+2026-04-16T17:07:42.0855674Z ##[group]Checking docker version
+2026-04-16T17:07:42.0869098Z ##[command]/usr/bin/docker version --format '{{.Server.APIVersion}}'
+2026-04-16T17:07:42.1224886Z '1.48'
+2026-04-16T17:07:42.1235255Z Docker daemon API version: '1.48'
+2026-04-16T17:07:42.1236342Z ##[command]/usr/bin/docker version --format '{{.Client.APIVersion}}'
+2026-04-16T17:07:42.1388966Z '1.48'
+2026-04-16T17:07:42.1399978Z Docker client API version: '1.48'
+2026-04-16T17:07:42.1404346Z ##[endgroup]
+2026-04-16T17:07:42.1407589Z ##[group]Clean up resources from previous jobs
+2026-04-16T17:07:42.1412741Z ##[command]/usr/bin/docker ps --all --quiet --no-trunc --filter "label=ea21b7"
+2026-04-16T17:07:42.1544188Z ##[command]/usr/bin/docker network prune --force --filter "label=ea21b7"
+2026-04-16T17:07:42.1666337Z ##[endgroup]
+2026-04-16T17:07:42.1666798Z ##[group]Create local container network
+2026-04-16T17:07:42.1676569Z ##[command]/usr/bin/docker network create --label ea21b7 github_network_62999e71e02446aaa5b5d78bc9a8953a
+2026-04-16T17:07:42.2167854Z 5c786e66aad45f5e47dd666b9212de5cad7403f033cb1f6cb7228e242e65a598
+2026-04-16T17:07:42.2196289Z ##[endgroup]
+2026-04-16T17:07:42.2221174Z ##[group]Starting postgres service container
+2026-04-16T17:07:42.2242476Z ##[command]/usr/bin/docker pull postgres:16
+2026-04-16T17:07:42.9204519Z 16: Pulling from library/postgres
+2026-04-16T17:07:43.1054516Z 5435b2dcdf5c: Pulling fs layer
+2026-04-16T17:07:43.1055267Z baf06005f9e9: Pulling fs layer
+2026-04-16T17:07:43.1055753Z 7cec73702fc3: Pulling fs layer
+2026-04-16T17:07:43.1056960Z fecac0093525: Pulling fs layer
+2026-04-16T17:07:43.1057796Z eb4cdb4c077a: Pulling fs layer
+2026-04-16T17:07:43.1058303Z f4deb76cb231: Pulling fs layer
+2026-04-16T17:07:43.1058940Z 11c182969642: Pulling fs layer
+2026-04-16T17:07:43.1059389Z 2140605cc9e3: Pulling fs layer
+2026-04-16T17:07:43.1059973Z 733634c09269: Pulling fs layer
+2026-04-16T17:07:43.1060420Z 98d103c7f97a: Pulling fs layer
+2026-04-16T17:07:43.1060877Z daf100733f51: Pulling fs layer
+2026-04-16T17:07:43.1061401Z 3f502c7bb1d5: Pulling fs layer
+2026-04-16T17:07:43.1062204Z dc376cda597b: Pulling fs layer
+2026-04-16T17:07:43.1062704Z 9be7ce32394f: Pulling fs layer
+2026-04-16T17:07:43.1063185Z 733634c09269: Waiting
+2026-04-16T17:07:43.1063540Z 98d103c7f97a: Waiting
+2026-04-16T17:07:43.1063897Z fecac0093525: Waiting
+2026-04-16T17:07:43.1064283Z f4deb76cb231: Waiting
+2026-04-16T17:07:43.1064662Z 11c182969642: Waiting
+2026-04-16T17:07:43.1065036Z 2140605cc9e3: Waiting
+2026-04-16T17:07:43.1065419Z daf100733f51: Waiting
+2026-04-16T17:07:43.1066062Z 3f502c7bb1d5: Waiting
+2026-04-16T17:07:43.1066479Z dc376cda597b: Waiting
+2026-04-16T17:07:43.1066861Z 9be7ce32394f: Waiting
+2026-04-16T17:07:43.3243033Z baf06005f9e9: Download complete
+2026-04-16T17:07:43.5217700Z 7cec73702fc3: Verifying Checksum
+2026-04-16T17:07:43.5219234Z 7cec73702fc3: Download complete
+2026-04-16T17:07:43.6435581Z 5435b2dcdf5c: Verifying Checksum
+2026-04-16T17:07:43.6436943Z 5435b2dcdf5c: Download complete
+2026-04-16T17:07:43.6879326Z fecac0093525: Verifying Checksum
+2026-04-16T17:07:43.6881656Z fecac0093525: Download complete
+2026-04-16T17:07:43.9107429Z 11c182969642: Download complete
+2026-04-16T17:07:43.9729268Z eb4cdb4c077a: Verifying Checksum
+2026-04-16T17:07:43.9732222Z eb4cdb4c077a: Download complete
+2026-04-16T17:07:43.9981460Z f4deb76cb231: Verifying Checksum
+2026-04-16T17:07:43.9982009Z f4deb76cb231: Download complete
+2026-04-16T17:07:44.1494465Z 2140605cc9e3: Verifying Checksum
+2026-04-16T17:07:44.1495973Z 2140605cc9e3: Download complete
+2026-04-16T17:07:44.2432523Z 98d103c7f97a: Verifying Checksum
+2026-04-16T17:07:44.2434273Z 98d103c7f97a: Download complete
+2026-04-16T17:07:44.4069388Z daf100733f51: Verifying Checksum
+2026-04-16T17:07:44.4070026Z daf100733f51: Download complete
+2026-04-16T17:07:44.4919832Z 3f502c7bb1d5: Verifying Checksum
+2026-04-16T17:07:44.4920372Z 3f502c7bb1d5: Download complete
+2026-04-16T17:07:44.6578216Z dc376cda597b: Verifying Checksum
+2026-04-16T17:07:44.6604424Z dc376cda597b: Download complete
+2026-04-16T17:07:44.7268969Z 5435b2dcdf5c: Pull complete
+2026-04-16T17:07:44.7493555Z 9be7ce32394f: Verifying Checksum
+2026-04-16T17:07:44.7498261Z 9be7ce32394f: Download complete
+2026-04-16T17:07:44.8693247Z 733634c09269: Verifying Checksum
+2026-04-16T17:07:44.8693728Z 733634c09269: Download complete
+2026-04-16T17:07:44.9658556Z baf06005f9e9: Pull complete
+2026-04-16T17:07:45.1396000Z 7cec73702fc3: Pull complete
+2026-04-16T17:07:45.1846128Z fecac0093525: Pull complete
+2026-04-16T17:07:45.4839272Z eb4cdb4c077a: Pull complete
+2026-04-16T17:07:45.5628876Z f4deb76cb231: Pull complete
+2026-04-16T17:07:45.5710054Z 11c182969642: Pull complete
+2026-04-16T17:07:45.5828628Z 2140605cc9e3: Pull complete
+2026-04-16T17:07:48.5849943Z 733634c09269: Pull complete
+2026-04-16T17:07:48.6004900Z 98d103c7f97a: Pull complete
+2026-04-16T17:07:48.6110851Z daf100733f51: Pull complete
+2026-04-16T17:07:48.6225635Z 3f502c7bb1d5: Pull complete
+2026-04-16T17:07:48.6320714Z dc376cda597b: Pull complete
+2026-04-16T17:07:48.6408537Z 9be7ce32394f: Pull complete
+2026-04-16T17:07:48.6447556Z Digest: sha256:5a65324fe84dc41709ff914e90b07f3e2f577073ed27bf917d4873aca0c9ec51
+2026-04-16T17:07:48.6463537Z Status: Downloaded newer image for postgres:16
+2026-04-16T17:07:48.6472164Z docker.io/library/postgres:16
+2026-04-16T17:07:48.6529885Z ##[command]/usr/bin/docker create --name e51eaea247fe40caadc6e8a75c3d303b_postgres16_f14279 --label ea21b7 --network github_network_62999e71e02446aaa5b5d78bc9a8953a --network-alias postgres -p 5432:5432 --health-cmd "pg_isready -U postgres" --health-interval 10s --health-timeout 5s --health-retries 5 -e "POSTGRES_USER=postgres" -e "POSTGRES_PASSWORD=postgres" -e "POSTGRES_DB=averytask_test" -e GITHUB_ACTIONS=true -e CI=true postgres:16
+2026-04-16T17:07:48.6761967Z 9f4b4d4f214e8bd194127ab2be9f96d14e6fed698f82702a8cac2be4ec7d6bfb
+2026-04-16T17:07:48.6781300Z ##[command]/usr/bin/docker start 9f4b4d4f214e8bd194127ab2be9f96d14e6fed698f82702a8cac2be4ec7d6bfb
+2026-04-16T17:07:48.8358850Z 9f4b4d4f214e8bd194127ab2be9f96d14e6fed698f82702a8cac2be4ec7d6bfb
+2026-04-16T17:07:48.8378336Z ##[command]/usr/bin/docker ps --all --filter id=9f4b4d4f214e8bd194127ab2be9f96d14e6fed698f82702a8cac2be4ec7d6bfb --filter status=running --no-trunc --format "{{.ID}} {{.Status}}"
+2026-04-16T17:07:48.8512388Z 9f4b4d4f214e8bd194127ab2be9f96d14e6fed698f82702a8cac2be4ec7d6bfb Up Less than a second (health: starting)
+2026-04-16T17:07:48.8539131Z ##[command]/usr/bin/docker port 9f4b4d4f214e8bd194127ab2be9f96d14e6fed698f82702a8cac2be4ec7d6bfb
+2026-04-16T17:07:48.8673433Z 5432/tcp -> 0.0.0.0:5432
+2026-04-16T17:07:48.8674414Z 5432/tcp -> [::]:5432
+2026-04-16T17:07:48.8726670Z ##[endgroup]
+2026-04-16T17:07:48.8734845Z ##[group]Waiting for all services to be ready
+2026-04-16T17:07:48.8749132Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" 9f4b4d4f214e8bd194127ab2be9f96d14e6fed698f82702a8cac2be4ec7d6bfb
+2026-04-16T17:07:48.8879356Z starting
+2026-04-16T17:07:48.8915356Z postgres service is starting, waiting 2 seconds before checking again.
+2026-04-16T17:07:50.8908786Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" 9f4b4d4f214e8bd194127ab2be9f96d14e6fed698f82702a8cac2be4ec7d6bfb
+2026-04-16T17:07:50.9032344Z starting
+2026-04-16T17:07:50.9043467Z postgres service is starting, waiting 4 seconds before checking again.
+2026-04-16T17:07:55.1170727Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" 9f4b4d4f214e8bd194127ab2be9f96d14e6fed698f82702a8cac2be4ec7d6bfb
+2026-04-16T17:07:55.1296779Z starting
+2026-04-16T17:07:55.1318029Z postgres service is starting, waiting 7 seconds before checking again.
+2026-04-16T17:08:02.9216861Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" 9f4b4d4f214e8bd194127ab2be9f96d14e6fed698f82702a8cac2be4ec7d6bfb
+2026-04-16T17:08:02.9338679Z healthy
+2026-04-16T17:08:02.9352280Z postgres service is healthy.
+2026-04-16T17:08:02.9353347Z ##[endgroup]
+2026-04-16T17:08:02.9619577Z ##[group]Run actions/checkout@v4
+2026-04-16T17:08:02.9620111Z with:
+2026-04-16T17:08:02.9620304Z   repository: akarlin3/prismTask
+2026-04-16T17:08:02.9620692Z   token: ***
+2026-04-16T17:08:02.9620867Z   ssh-strict: true
+2026-04-16T17:08:02.9621044Z   ssh-user: git
+2026-04-16T17:08:02.9621288Z   persist-credentials: true
+2026-04-16T17:08:02.9621488Z   clean: true
+2026-04-16T17:08:02.9621675Z   sparse-checkout-cone-mode: true
+2026-04-16T17:08:02.9621898Z   fetch-depth: 1
+2026-04-16T17:08:02.9622060Z   fetch-tags: false
+2026-04-16T17:08:02.9622238Z   show-progress: true
+2026-04-16T17:08:02.9622408Z   lfs: false
+2026-04-16T17:08:02.9622562Z   submodules: false
+2026-04-16T17:08:02.9622733Z   set-safe-directory: true
+2026-04-16T17:08:02.9623111Z env:
+2026-04-16T17:08:02.9623599Z   DATABASE_URL: ***localhost:5432/averytask_test
+2026-04-16T17:08:02.9623882Z   JWT_SECRET_KEY: test-secret-key
+2026-04-16T17:08:02.9624094Z   ENVIRONMENT: dev
+2026-04-16T17:08:02.9624314Z   ANTHROPIC_API_KEY: test-key
+2026-04-16T17:08:02.9624517Z ##[endgroup]
+2026-04-16T17:08:03.0760531Z Syncing repository: akarlin3/prismTask
+2026-04-16T17:08:03.0761793Z ##[group]Getting Git version info
+2026-04-16T17:08:03.0762169Z Working directory is '/home/runner/work/prismTask/prismTask'
+2026-04-16T17:08:03.0762703Z [command]/usr/bin/git version
+2026-04-16T17:08:03.0762954Z git version 2.53.0
+2026-04-16T17:08:03.0783611Z ##[endgroup]
+2026-04-16T17:08:03.0798238Z Temporarily overriding HOME='/home/runner/work/_temp/3ddc694d-659d-4a18-a498-62bc316a8990' before making global git config changes
+2026-04-16T17:08:03.0799001Z Adding repository directory to the temporary git global config as a safe directory
+2026-04-16T17:08:03.0803835Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/prismTask/prismTask
+2026-04-16T17:08:03.0837019Z Deleting the contents of '/home/runner/work/prismTask/prismTask'
+2026-04-16T17:08:03.0840716Z ##[group]Initializing the repository
+2026-04-16T17:08:03.0844977Z [command]/usr/bin/git init /home/runner/work/prismTask/prismTask
+2026-04-16T17:08:03.0923449Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-04-16T17:08:03.0924407Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-04-16T17:08:03.0925257Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-04-16T17:08:03.0926069Z hint: call:
+2026-04-16T17:08:03.0926360Z hint:
+2026-04-16T17:08:03.0926630Z hint: 	git config --global init.defaultBranch <name>
+2026-04-16T17:08:03.0926923Z hint:
+2026-04-16T17:08:03.0927197Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-04-16T17:08:03.0927665Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-04-16T17:08:03.0928005Z hint:
+2026-04-16T17:08:03.0928183Z hint: 	git branch -m <name>
+2026-04-16T17:08:03.0928376Z hint:
+2026-04-16T17:08:03.0928657Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-04-16T17:08:03.0929221Z Initialized empty Git repository in /home/runner/work/prismTask/prismTask/.git/
+2026-04-16T17:08:03.0935885Z [command]/usr/bin/git remote add origin https://github.com/akarlin3/prismTask
+2026-04-16T17:08:03.0965086Z ##[endgroup]
+2026-04-16T17:08:03.0965471Z ##[group]Disabling automatic garbage collection
+2026-04-16T17:08:03.0969700Z [command]/usr/bin/git config --local gc.auto 0
+2026-04-16T17:08:03.0996917Z ##[endgroup]
+2026-04-16T17:08:03.0997248Z ##[group]Setting up auth
+2026-04-16T17:08:03.1003660Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-04-16T17:08:03.1032359Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-04-16T17:08:03.1309014Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-04-16T17:08:03.1337352Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-04-16T17:08:03.1552739Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-04-16T17:08:03.1581265Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-04-16T17:08:03.1795741Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-04-16T17:08:03.1829383Z ##[endgroup]
+2026-04-16T17:08:03.1829911Z ##[group]Fetching the repository
+2026-04-16T17:08:03.1837278Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +cb1ff242f84299d16f63b57968d65bafdf4eec79:refs/remotes/pull/468/merge
+2026-04-16T17:08:06.0197198Z From https://github.com/akarlin3/prismTask
+2026-04-16T17:08:06.0198221Z  * [new ref]         cb1ff242f84299d16f63b57968d65bafdf4eec79 -> pull/468/merge
+2026-04-16T17:08:06.0231909Z ##[endgroup]
+2026-04-16T17:08:06.0232518Z ##[group]Determining the checkout info
+2026-04-16T17:08:06.0233402Z ##[endgroup]
+2026-04-16T17:08:06.0240066Z [command]/usr/bin/git sparse-checkout disable
+2026-04-16T17:08:06.0280901Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-04-16T17:08:06.0309206Z ##[group]Checking out the ref
+2026-04-16T17:08:06.0313356Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/468/merge
+2026-04-16T17:08:06.1703803Z Note: switching to 'refs/remotes/pull/468/merge'.
+2026-04-16T17:08:06.1704329Z 
+2026-04-16T17:08:06.1704740Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-04-16T17:08:06.1705751Z changes and commit them, and you can discard any commits you make in this
+2026-04-16T17:08:06.1706954Z state without impacting any branches by switching back to a branch.
+2026-04-16T17:08:06.1707535Z 
+2026-04-16T17:08:06.1707864Z If you want to create a new branch to retain commits you create, you may
+2026-04-16T17:08:06.1708682Z do so (now or later) by using -c with the switch command. Example:
+2026-04-16T17:08:06.1708979Z 
+2026-04-16T17:08:06.1709096Z   git switch -c <new-branch-name>
+2026-04-16T17:08:06.1709281Z 
+2026-04-16T17:08:06.1709382Z Or undo this operation with:
+2026-04-16T17:08:06.1709559Z 
+2026-04-16T17:08:06.1709641Z   git switch -
+2026-04-16T17:08:06.1709774Z 
+2026-04-16T17:08:06.1710001Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-04-16T17:08:06.1710353Z 
+2026-04-16T17:08:06.1710744Z HEAD is now at cb1ff24 Merge 86a602566268ef5f41533a63c372bf3a7bd0f4cf into f167ef2a98bf21ce5134854a455e3a207259dd2a
+2026-04-16T17:08:06.1728298Z ##[endgroup]
+2026-04-16T17:08:06.1769961Z [command]/usr/bin/git log -1 --format=%H
+2026-04-16T17:08:06.1792704Z cb1ff242f84299d16f63b57968d65bafdf4eec79
+2026-04-16T17:08:06.2016757Z ##[group]Run actions/setup-python@v5
+2026-04-16T17:08:06.2017049Z with:
+2026-04-16T17:08:06.2017217Z   python-version: 3.11
+2026-04-16T17:08:06.2017425Z   cache: pip
+2026-04-16T17:08:06.2017632Z   cache-dependency-path: backend/requirements.txt
+2026-04-16T17:08:06.2017916Z   check-latest: false
+2026-04-16T17:08:06.2018230Z   token: ***
+2026-04-16T17:08:06.2018404Z   update-environment: true
+2026-04-16T17:08:06.2018620Z   allow-prereleases: false
+2026-04-16T17:08:06.2018813Z   freethreaded: false
+2026-04-16T17:08:06.2018991Z env:
+2026-04-16T17:08:06.2019498Z   DATABASE_URL: ***localhost:5432/averytask_test
+2026-04-16T17:08:06.2019779Z   JWT_SECRET_KEY: test-secret-key
+2026-04-16T17:08:06.2020002Z   ENVIRONMENT: dev
+2026-04-16T17:08:06.2020187Z   ANTHROPIC_API_KEY: test-key
+2026-04-16T17:08:06.2020386Z ##[endgroup]
+2026-04-16T17:08:06.3675863Z ##[group]Installed versions
+2026-04-16T17:08:06.3767351Z Successfully set up CPython (3.11.15)
+2026-04-16T17:08:06.3768123Z ##[endgroup]
+2026-04-16T17:08:06.4078683Z [command]/opt/hostedtoolcache/Python/3.11.15/x64/bin/pip cache dir
+2026-04-16T17:08:06.6926560Z /home/runner/.cache/pip
+2026-04-16T17:08:06.9417441Z Cache hit for: setup-python-Linux-x64-24.04-Ubuntu-python-3.11.15-pip-50bf45ebfdf8fe7d213ab2ed56eeaf223b413499890731098ca2ae5b36134158
+2026-04-16T17:08:08.1774889Z Received 29360128 of 65687708 (44.7%), 28.0 MBs/sec
+2026-04-16T17:08:08.4607780Z Received 65687708 of 65687708 (100.0%), 48.8 MBs/sec
+2026-04-16T17:08:08.4610290Z Cache Size: ~63 MB (65687708 B)
+2026-04-16T17:08:08.4651978Z [command]/usr/bin/tar -xf /home/runner/work/_temp/737566d6-418b-4851-b9f4-863870420b65/cache.tzst -P -C /home/runner/work/prismTask/prismTask --use-compress-program unzstd
+2026-04-16T17:08:08.5855727Z Cache restored successfully
+2026-04-16T17:08:08.5893061Z Cache restored from key: setup-python-Linux-x64-24.04-Ubuntu-python-3.11.15-pip-50bf45ebfdf8fe7d213ab2ed56eeaf223b413499890731098ca2ae5b36134158
+2026-04-16T17:08:08.6048703Z ##[group]Run pip install -r requirements.txt
+2026-04-16T17:08:08.6049083Z [36;1mpip install -r requirements.txt[0m
+2026-04-16T17:08:08.6076777Z shell: /usr/bin/bash -e {0}
+2026-04-16T17:08:08.6077039Z env:
+2026-04-16T17:08:08.6077582Z   DATABASE_URL: ***localhost:5432/averytask_test
+2026-04-16T17:08:08.6077884Z   JWT_SECRET_KEY: test-secret-key
+2026-04-16T17:08:08.6078129Z   ENVIRONMENT: dev
+2026-04-16T17:08:08.6078331Z   ANTHROPIC_API_KEY: test-key
+2026-04-16T17:08:08.6078630Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-04-16T17:08:08.6079069Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+2026-04-16T17:08:08.6079475Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-04-16T17:08:08.6079824Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-04-16T17:08:08.6080199Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-04-16T17:08:08.6080592Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+2026-04-16T17:08:08.6080897Z ##[endgroup]
+2026-04-16T17:08:09.2561533Z Collecting fastapi==0.115.6 (from -r requirements.txt (line 1))
+2026-04-16T17:08:09.2582860Z   Using cached fastapi-0.115.6-py3-none-any.whl.metadata (27 kB)
+2026-04-16T17:08:09.2949618Z Collecting uvicorn==0.34.0 (from uvicorn[standard]==0.34.0->-r requirements.txt (line 2))
+2026-04-16T17:08:09.2964486Z   Using cached uvicorn-0.34.0-py3-none-any.whl.metadata (6.5 kB)
+2026-04-16T17:08:09.5571146Z Collecting sqlalchemy==2.0.36 (from sqlalchemy[asyncio]==2.0.36->-r requirements.txt (line 3))
+2026-04-16T17:08:09.5588765Z   Using cached SQLAlchemy-2.0.36-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (9.7 kB)
+2026-04-16T17:08:09.6143779Z Collecting asyncpg==0.30.0 (from -r requirements.txt (line 4))
+2026-04-16T17:08:09.6159749Z   Using cached asyncpg-0.30.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (5.0 kB)
+2026-04-16T17:08:09.6480078Z Collecting alembic==1.14.1 (from -r requirements.txt (line 5))
+2026-04-16T17:08:09.6494051Z   Using cached alembic-1.14.1-py3-none-any.whl.metadata (7.4 kB)
+2026-04-16T17:08:09.6772143Z Collecting PyJWT==2.10.1 (from -r requirements.txt (line 6))
+2026-04-16T17:08:09.6785879Z   Using cached PyJWT-2.10.1-py3-none-any.whl.metadata (4.0 kB)
+2026-04-16T17:08:09.7054502Z Collecting passlib==1.7.4 (from passlib[bcrypt]==1.7.4->-r requirements.txt (line 7))
+2026-04-16T17:08:09.7068414Z   Using cached passlib-1.7.4-py2.py3-none-any.whl.metadata (1.7 kB)
+2026-04-16T17:08:09.7557961Z Collecting bcrypt==4.0.1 (from -r requirements.txt (line 8))
+2026-04-16T17:08:09.7571878Z   Using cached bcrypt-4.0.1-cp36-abi3-manylinux_2_28_x86_64.whl.metadata (9.0 kB)
+2026-04-16T17:08:09.8848265Z Collecting pydantic==2.10.4 (from pydantic[email]==2.10.4->-r requirements.txt (line 9))
+2026-04-16T17:08:09.8863522Z   Using cached pydantic-2.10.4-py3-none-any.whl.metadata (29 kB)
+2026-04-16T17:08:09.9140039Z Collecting pydantic-settings==2.7.1 (from -r requirements.txt (line 10))
+2026-04-16T17:08:09.9153458Z   Using cached pydantic_settings-2.7.1-py3-none-any.whl.metadata (3.5 kB)
+2026-04-16T17:08:09.9468297Z Collecting httpx==0.28.1 (from -r requirements.txt (line 11))
+2026-04-16T17:08:09.9481874Z   Using cached httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
+2026-04-16T17:08:09.9909053Z Collecting anthropic==0.42.0 (from -r requirements.txt (line 12))
+2026-04-16T17:08:09.9922603Z   Using cached anthropic-0.42.0-py3-none-any.whl.metadata (23 kB)
+2026-04-16T17:08:10.0231191Z Collecting gunicorn==23.0.0 (from -r requirements.txt (line 13))
+2026-04-16T17:08:10.0244757Z   Using cached gunicorn-23.0.0-py3-none-any.whl.metadata (4.4 kB)
+2026-04-16T17:08:10.0497449Z Collecting python-multipart==0.0.24 (from -r requirements.txt (line 14))
+2026-04-16T17:08:10.0511089Z   Using cached python_multipart-0.0.24-py3-none-any.whl.metadata (1.8 kB)
+2026-04-16T17:08:10.1012364Z Collecting google-api-python-client==2.153.0 (from -r requirements.txt (line 15))
+2026-04-16T17:08:10.1028295Z   Using cached google_api_python_client-2.153.0-py2.py3-none-any.whl.metadata (6.7 kB)
+2026-04-16T17:08:10.1418425Z Collecting google-auth==2.36.0 (from -r requirements.txt (line 16))
+2026-04-16T17:08:10.1432754Z   Using cached google_auth-2.36.0-py2.py3-none-any.whl.metadata (4.7 kB)
+2026-04-16T17:08:10.1728695Z Collecting firebase-admin==6.6.0 (from -r requirements.txt (line 17))
+2026-04-16T17:08:10.1742650Z   Using cached firebase_admin-6.6.0-py3-none-any.whl.metadata (1.5 kB)
+2026-04-16T17:08:10.5152571Z Collecting ruff==0.8.6 (from -r requirements.txt (line 18))
+2026-04-16T17:08:10.5168500Z   Using cached ruff-0.8.6-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (25 kB)
+2026-04-16T17:08:10.5550195Z Collecting pytest==8.3.4 (from -r requirements.txt (line 19))
+2026-04-16T17:08:10.5564140Z   Using cached pytest-8.3.4-py3-none-any.whl.metadata (7.5 kB)
+2026-04-16T17:08:10.5864232Z Collecting pytest-asyncio==0.25.0 (from -r requirements.txt (line 20))
+2026-04-16T17:08:10.5878007Z   Using cached pytest_asyncio-0.25.0-py3-none-any.whl.metadata (3.9 kB)
+2026-04-16T17:08:10.6125101Z Collecting aiosqlite==0.20.0 (from -r requirements.txt (line 21))
+2026-04-16T17:08:10.6139064Z   Using cached aiosqlite-0.20.0-py3-none-any.whl.metadata (4.3 kB)
+2026-04-16T17:08:10.6469549Z Collecting pypdf>=4.0.0 (from -r requirements.txt (line 22))
+2026-04-16T17:08:10.6482917Z   Using cached pypdf-6.10.2-py3-none-any.whl.metadata (7.1 kB)
+2026-04-16T17:08:10.6841140Z Collecting starlette<0.42.0,>=0.40.0 (from fastapi==0.115.6->-r requirements.txt (line 1))
+2026-04-16T17:08:10.6855132Z   Using cached starlette-0.41.3-py3-none-any.whl.metadata (6.0 kB)
+2026-04-16T17:08:10.7172716Z Collecting typing-extensions>=4.8.0 (from fastapi==0.115.6->-r requirements.txt (line 1))
+2026-04-16T17:08:10.7186630Z   Using cached typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)
+2026-04-16T17:08:10.7427198Z Collecting annotated-types>=0.6.0 (from pydantic==2.10.4->pydantic[email]==2.10.4->-r requirements.txt (line 9))
+2026-04-16T17:08:10.7441436Z   Using cached annotated_types-0.7.0-py3-none-any.whl.metadata (15 kB)
+2026-04-16T17:08:11.3727464Z Collecting pydantic-core==2.27.2 (from pydantic==2.10.4->pydantic[email]==2.10.4->-r requirements.txt (line 9))
+2026-04-16T17:08:11.3743006Z   Using cached pydantic_core-2.27.2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (6.6 kB)
+2026-04-16T17:08:11.4046061Z Collecting click>=7.0 (from uvicorn==0.34.0->uvicorn[standard]==0.34.0->-r requirements.txt (line 2))
+2026-04-16T17:08:11.4059531Z   Using cached click-8.3.2-py3-none-any.whl.metadata (2.6 kB)
+2026-04-16T17:08:11.4298532Z Collecting h11>=0.8 (from uvicorn==0.34.0->uvicorn[standard]==0.34.0->-r requirements.txt (line 2))
+2026-04-16T17:08:11.4311317Z   Using cached h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+2026-04-16T17:08:11.6121294Z Collecting greenlet!=0.4.17 (from sqlalchemy==2.0.36->sqlalchemy[asyncio]==2.0.36->-r requirements.txt (line 3))
+2026-04-16T17:08:11.6136594Z   Using cached greenlet-3.4.0-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl.metadata (3.7 kB)
+2026-04-16T17:08:11.6448299Z Collecting Mako (from alembic==1.14.1->-r requirements.txt (line 5))
+2026-04-16T17:08:11.6462011Z   Using cached mako-1.3.11-py3-none-any.whl.metadata (2.9 kB)
+2026-04-16T17:08:11.6793293Z Collecting python-dotenv>=0.21.0 (from pydantic-settings==2.7.1->-r requirements.txt (line 10))
+2026-04-16T17:08:11.6807756Z   Using cached python_dotenv-1.2.2-py3-none-any.whl.metadata (27 kB)
+2026-04-16T17:08:11.7126801Z Collecting anyio (from httpx==0.28.1->-r requirements.txt (line 11))
+2026-04-16T17:08:11.7140627Z   Using cached anyio-4.13.0-py3-none-any.whl.metadata (4.5 kB)
+2026-04-16T17:08:11.7448941Z Collecting certifi (from httpx==0.28.1->-r requirements.txt (line 11))
+2026-04-16T17:08:11.7462472Z   Using cached certifi-2026.2.25-py3-none-any.whl.metadata (2.5 kB)
+2026-04-16T17:08:11.7753399Z Collecting httpcore==1.* (from httpx==0.28.1->-r requirements.txt (line 11))
+2026-04-16T17:08:11.7767553Z   Using cached httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
+2026-04-16T17:08:11.8038104Z Collecting idna (from httpx==0.28.1->-r requirements.txt (line 11))
+2026-04-16T17:08:11.8051516Z   Using cached idna-3.11-py3-none-any.whl.metadata (8.4 kB)
+2026-04-16T17:08:11.8314325Z Collecting distro<2,>=1.7.0 (from anthropic==0.42.0->-r requirements.txt (line 12))
+2026-04-16T17:08:11.8328136Z   Using cached distro-1.9.0-py3-none-any.whl.metadata (6.8 kB)
+2026-04-16T17:08:11.9180693Z Collecting jiter<1,>=0.4.0 (from anthropic==0.42.0->-r requirements.txt (line 12))
+2026-04-16T17:08:11.9195212Z   Using cached jiter-0.14.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (5.2 kB)
+2026-04-16T17:08:11.9462459Z Collecting sniffio (from anthropic==0.42.0->-r requirements.txt (line 12))
+2026-04-16T17:08:11.9476401Z   Using cached sniffio-1.3.1-py3-none-any.whl.metadata (3.9 kB)
+2026-04-16T17:08:11.9779210Z Collecting packaging (from gunicorn==23.0.0->-r requirements.txt (line 13))
+2026-04-16T17:08:11.9793203Z   Using cached packaging-26.1-py3-none-any.whl.metadata (3.5 kB)
+2026-04-16T17:08:12.0059036Z Collecting httplib2<1.dev0,>=0.19.0 (from google-api-python-client==2.153.0->-r requirements.txt (line 15))
+2026-04-16T17:08:12.0072402Z   Using cached httplib2-0.31.2-py3-none-any.whl.metadata (2.2 kB)
+2026-04-16T17:08:12.0343616Z Collecting google-auth-httplib2<1.0.0,>=0.2.0 (from google-api-python-client==2.153.0->-r requirements.txt (line 15))
+2026-04-16T17:08:12.0357388Z   Using cached google_auth_httplib2-0.3.1-py3-none-any.whl.metadata (3.0 kB)
+2026-04-16T17:08:12.0853203Z Collecting google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0.dev0,>=1.31.5 (from google-api-python-client==2.153.0->-r requirements.txt (line 15))
+2026-04-16T17:08:12.0866654Z   Using cached google_api_core-2.30.3-py3-none-any.whl.metadata (3.1 kB)
+2026-04-16T17:08:12.1115216Z Collecting uritemplate<5,>=3.0.1 (from google-api-python-client==2.153.0->-r requirements.txt (line 15))
+2026-04-16T17:08:12.1129245Z   Using cached uritemplate-4.2.0-py3-none-any.whl.metadata (2.6 kB)
+2026-04-16T17:08:12.1439522Z Collecting cachetools<6.0,>=2.0.0 (from google-auth==2.36.0->-r requirements.txt (line 16))
+2026-04-16T17:08:12.1453510Z   Using cached cachetools-5.5.2-py3-none-any.whl.metadata (5.4 kB)
+2026-04-16T17:08:12.1752832Z Collecting pyasn1-modules>=0.2.1 (from google-auth==2.36.0->-r requirements.txt (line 16))
+2026-04-16T17:08:12.1766378Z   Using cached pyasn1_modules-0.4.2-py3-none-any.whl.metadata (3.5 kB)
+2026-04-16T17:08:12.2042260Z Collecting rsa<5,>=3.1.4 (from google-auth==2.36.0->-r requirements.txt (line 16))
+2026-04-16T17:08:12.2055631Z   Using cached rsa-4.9.1-py3-none-any.whl.metadata (5.6 kB)
+2026-04-16T17:08:12.2315615Z Collecting cachecontrol>=0.12.14 (from firebase-admin==6.6.0->-r requirements.txt (line 17))
+2026-04-16T17:08:12.2329180Z   Using cached cachecontrol-0.14.4-py3-none-any.whl.metadata (3.1 kB)
+2026-04-16T17:08:12.2716875Z Collecting google-cloud-storage>=1.37.1 (from firebase-admin==6.6.0->-r requirements.txt (line 17))
+2026-04-16T17:08:12.2731117Z   Using cached google_cloud_storage-3.10.1-py3-none-any.whl.metadata (15 kB)
+2026-04-16T17:08:12.3264193Z Collecting google-cloud-firestore>=2.19.0 (from firebase-admin==6.6.0->-r requirements.txt (line 17))
+2026-04-16T17:08:12.3277621Z   Using cached google_cloud_firestore-2.27.0-py3-none-any.whl.metadata (10.0 kB)
+2026-04-16T17:08:12.3535093Z Collecting iniconfig (from pytest==8.3.4->-r requirements.txt (line 19))
+2026-04-16T17:08:12.3557149Z   Using cached iniconfig-2.3.0-py3-none-any.whl.metadata (2.5 kB)
+2026-04-16T17:08:12.3829784Z Collecting pluggy<2,>=1.5 (from pytest==8.3.4->-r requirements.txt (line 19))
+2026-04-16T17:08:12.3843005Z   Using cached pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)
+2026-04-16T17:08:12.4175600Z Collecting email-validator>=2.0.0 (from pydantic[email]==2.10.4->-r requirements.txt (line 9))
+2026-04-16T17:08:12.4188915Z   Using cached email_validator-2.3.0-py3-none-any.whl.metadata (26 kB)
+2026-04-16T17:08:12.4625008Z Collecting httptools>=0.6.3 (from uvicorn[standard]==0.34.0->-r requirements.txt (line 2))
+2026-04-16T17:08:12.4639199Z   Using cached httptools-0.7.1-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (3.5 kB)
+2026-04-16T17:08:12.5106961Z Collecting pyyaml>=5.1 (from uvicorn[standard]==0.34.0->-r requirements.txt (line 2))
+2026-04-16T17:08:12.5120929Z   Using cached pyyaml-6.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)
+2026-04-16T17:08:12.5590815Z Collecting uvloop!=0.15.0,!=0.15.1,>=0.14.0 (from uvicorn[standard]==0.34.0->-r requirements.txt (line 2))
+2026-04-16T17:08:12.5604266Z   Using cached uvloop-0.22.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (4.9 kB)
+2026-04-16T17:08:12.7177759Z Collecting watchfiles>=0.13 (from uvicorn[standard]==0.34.0->-r requirements.txt (line 2))
+2026-04-16T17:08:12.7193236Z   Using cached watchfiles-1.1.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (4.9 kB)
+2026-04-16T17:08:12.8113362Z Collecting websockets>=10.4 (from uvicorn[standard]==0.34.0->-r requirements.txt (line 2))
+2026-04-16T17:08:12.8127616Z   Using cached websockets-16.0-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (6.8 kB)
+2026-04-16T17:08:12.8460983Z Collecting googleapis-common-protos<2.0.0,>=1.63.2 (from google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0.dev0,>=1.31.5->google-api-python-client==2.153.0->-r requirements.txt (line 15))
+2026-04-16T17:08:12.8473606Z   Using cached googleapis_common_protos-1.74.0-py3-none-any.whl.metadata (9.2 kB)
+2026-04-16T17:08:12.9923802Z Collecting protobuf<8.0.0,>=4.25.8 (from google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0.dev0,>=1.31.5->google-api-python-client==2.153.0->-r requirements.txt (line 15))
+2026-04-16T17:08:12.9937991Z   Using cached protobuf-7.34.1-cp310-abi3-manylinux2014_x86_64.whl.metadata (595 bytes)
+2026-04-16T17:08:13.0218939Z Collecting proto-plus<2.0.0,>=1.22.3 (from google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0.dev0,>=1.31.5->google-api-python-client==2.153.0->-r requirements.txt (line 15))
+2026-04-16T17:08:13.0232381Z   Using cached proto_plus-1.27.2-py3-none-any.whl.metadata (2.2 kB)
+2026-04-16T17:08:13.0593011Z Collecting requests<3.0.0,>=2.20.0 (from google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0.dev0,>=1.31.5->google-api-python-client==2.153.0->-r requirements.txt (line 15))
+2026-04-16T17:08:13.0605172Z   Using cached requests-2.33.1-py3-none-any.whl.metadata (4.8 kB)
+2026-04-16T17:08:13.5867246Z Collecting grpcio<2.0.0,>=1.33.2 (from google-api-core[grpc]<3.0.0dev,>=1.22.1; platform_python_implementation != "PyPy"->firebase-admin==6.6.0->-r requirements.txt (line 17))
+2026-04-16T17:08:13.5882955Z   Using cached grpcio-1.80.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (3.8 kB)
+2026-04-16T17:08:13.6354211Z Collecting grpcio-status<2.0.0,>=1.33.2 (from google-api-core[grpc]<3.0.0dev,>=1.22.1; platform_python_implementation != "PyPy"->firebase-admin==6.6.0->-r requirements.txt (line 17))
+2026-04-16T17:08:13.6368024Z   Using cached grpcio_status-1.80.0-py3-none-any.whl.metadata (1.3 kB)
+2026-04-16T17:08:13.6522988Z Collecting protobuf<8.0.0,>=4.25.8 (from google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0.dev0,>=1.31.5->google-api-python-client==2.153.0->-r requirements.txt (line 15))
+2026-04-16T17:08:13.6536794Z   Using cached protobuf-6.33.6-cp39-abi3-manylinux2014_x86_64.whl.metadata (593 bytes)
+2026-04-16T17:08:13.6931106Z Collecting pyparsing<4,>=3.1 (from httplib2<1.dev0,>=0.19.0->google-api-python-client==2.153.0->-r requirements.txt (line 15))
+2026-04-16T17:08:13.6944342Z   Using cached pyparsing-3.3.2-py3-none-any.whl.metadata (5.8 kB)
+2026-04-16T17:08:13.7945227Z Collecting charset_normalizer<4,>=2 (from requests<3.0.0,>=2.20.0->google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0.dev0,>=1.31.5->google-api-python-client==2.153.0->-r requirements.txt (line 15))
+2026-04-16T17:08:13.7960340Z   Using cached charset_normalizer-3.4.7-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (40 kB)
+2026-04-16T17:08:13.8320968Z Collecting urllib3<3,>=1.26 (from requests<3.0.0,>=2.20.0->google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0.dev0,>=1.31.5->google-api-python-client==2.153.0->-r requirements.txt (line 15))
+2026-04-16T17:08:13.8334372Z   Using cached urllib3-2.6.3-py3-none-any.whl.metadata (6.9 kB)
+2026-04-16T17:08:13.8717397Z Collecting pyasn1>=0.1.3 (from rsa<5,>=3.1.4->google-auth==2.36.0->-r requirements.txt (line 16))
+2026-04-16T17:08:13.8730784Z   Using cached pyasn1-0.6.3-py3-none-any.whl.metadata (8.4 kB)
+2026-04-16T17:08:13.9510807Z Collecting msgpack<2.0.0,>=0.5.2 (from cachecontrol>=0.12.14->firebase-admin==6.6.0->-r requirements.txt (line 17))
+2026-04-16T17:08:13.9525307Z   Using cached msgpack-1.1.2-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (8.1 kB)
+2026-04-16T17:08:13.9808073Z Collecting dnspython>=2.0.0 (from email-validator>=2.0.0->pydantic[email]==2.10.4->-r requirements.txt (line 9))
+2026-04-16T17:08:13.9821497Z   Using cached dnspython-2.8.0-py3-none-any.whl.metadata (5.7 kB)
+2026-04-16T17:08:14.0157881Z Collecting google-cloud-core<3.0.0,>=2.0.0 (from google-cloud-firestore>=2.19.0->firebase-admin==6.6.0->-r requirements.txt (line 17))
+2026-04-16T17:08:14.0171299Z   Using cached google_cloud_core-2.5.1-py3-none-any.whl.metadata (2.8 kB)
+2026-04-16T17:08:14.0495233Z Collecting google-resumable-media<3.0.0,>=2.7.2 (from google-cloud-storage>=1.37.1->firebase-admin==6.6.0->-r requirements.txt (line 17))
+2026-04-16T17:08:14.0508944Z   Using cached google_resumable_media-2.8.2-py3-none-any.whl.metadata (2.2 kB)
+2026-04-16T17:08:14.1110730Z Collecting google-crc32c<2.0.0,>=1.1.3 (from google-cloud-storage>=1.37.1->firebase-admin==6.6.0->-r requirements.txt (line 17))
+2026-04-16T17:08:14.1124984Z   Using cached google_crc32c-1.8.0-cp311-cp311-manylinux1_x86_64.manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_5_x86_64.whl.metadata (1.7 kB)
+2026-04-16T17:08:14.2912715Z Collecting cryptography>=3.4.0 (from pyjwt[crypto]>=2.5.0->firebase-admin==6.6.0->-r requirements.txt (line 17))
+2026-04-16T17:08:14.2927568Z   Using cached cryptography-46.0.7-cp311-abi3-manylinux_2_34_x86_64.whl.metadata (5.7 kB)
+2026-04-16T17:08:14.3979085Z Collecting cffi>=2.0.0 (from cryptography>=3.4.0->pyjwt[crypto]>=2.5.0->firebase-admin==6.6.0->-r requirements.txt (line 17))
+2026-04-16T17:08:14.3993307Z   Using cached cffi-2.0.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.6 kB)
+2026-04-16T17:08:14.4263144Z Collecting pycparser (from cffi>=2.0.0->cryptography>=3.4.0->pyjwt[crypto]>=2.5.0->firebase-admin==6.6.0->-r requirements.txt (line 17))
+2026-04-16T17:08:14.4276104Z   Using cached pycparser-3.0-py3-none-any.whl.metadata (8.2 kB)
+2026-04-16T17:08:14.6044435Z Collecting MarkupSafe>=0.9.2 (from Mako->alembic==1.14.1->-r requirements.txt (line 5))
+2026-04-16T17:08:14.6060025Z   Using cached markupsafe-3.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.7 kB)
+2026-04-16T17:08:14.6129194Z Using cached fastapi-0.115.6-py3-none-any.whl (94 kB)
+2026-04-16T17:08:14.6142849Z Using cached pydantic-2.10.4-py3-none-any.whl (431 kB)
+2026-04-16T17:08:14.6157923Z Using cached uvicorn-0.34.0-py3-none-any.whl (62 kB)
+2026-04-16T17:08:14.6171622Z Using cached SQLAlchemy-2.0.36-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.2 MB)
+2026-04-16T17:08:14.6195906Z Using cached asyncpg-0.30.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.1 MB)
+2026-04-16T17:08:14.6221816Z Using cached alembic-1.14.1-py3-none-any.whl (233 kB)
+2026-04-16T17:08:14.6235381Z Using cached PyJWT-2.10.1-py3-none-any.whl (22 kB)
+2026-04-16T17:08:14.6248628Z Using cached passlib-1.7.4-py2.py3-none-any.whl (525 kB)
+2026-04-16T17:08:14.6263571Z Using cached bcrypt-4.0.1-cp36-abi3-manylinux_2_28_x86_64.whl (593 kB)
+2026-04-16T17:08:14.6278691Z Using cached pydantic_settings-2.7.1-py3-none-any.whl (29 kB)
+2026-04-16T17:08:14.6291905Z Using cached httpx-0.28.1-py3-none-any.whl (73 kB)
+2026-04-16T17:08:14.6304730Z Using cached anthropic-0.42.0-py3-none-any.whl (203 kB)
+2026-04-16T17:08:14.6318396Z Using cached gunicorn-23.0.0-py3-none-any.whl (85 kB)
+2026-04-16T17:08:14.6331697Z Using cached python_multipart-0.0.24-py3-none-any.whl (24 kB)
+2026-04-16T17:08:14.6344998Z Using cached google_api_python_client-2.153.0-py2.py3-none-any.whl (12.6 MB)
+2026-04-16T17:08:14.6400735Z Using cached google_auth-2.36.0-py2.py3-none-any.whl (209 kB)
+2026-04-16T17:08:14.6414269Z Using cached firebase_admin-6.6.0-py3-none-any.whl (127 kB)
+2026-04-16T17:08:14.6427855Z Using cached ruff-0.8.6-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (11.3 MB)
+2026-04-16T17:08:14.6479581Z Using cached pytest-8.3.4-py3-none-any.whl (343 kB)
+2026-04-16T17:08:14.6493606Z Using cached pytest_asyncio-0.25.0-py3-none-any.whl (19 kB)
+2026-04-16T17:08:14.6506848Z Using cached aiosqlite-0.20.0-py3-none-any.whl (15 kB)
+2026-04-16T17:08:14.6520472Z Using cached pydantic_core-2.27.2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.0 MB)
+2026-04-16T17:08:14.6540415Z Using cached anyio-4.13.0-py3-none-any.whl (114 kB)
+2026-04-16T17:08:14.6553551Z Using cached cachetools-5.5.2-py3-none-any.whl (10 kB)
+2026-04-16T17:08:14.6566494Z Using cached distro-1.9.0-py3-none-any.whl (20 kB)
+2026-04-16T17:08:14.6579456Z Using cached google_api_core-2.30.3-py3-none-any.whl (173 kB)
+2026-04-16T17:08:14.6592831Z Using cached google_auth_httplib2-0.3.1-py3-none-any.whl (9.5 kB)
+2026-04-16T17:08:14.6606039Z Using cached googleapis_common_protos-1.74.0-py3-none-any.whl (300 kB)
+2026-04-16T17:08:14.6620107Z Using cached grpcio-1.80.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (6.8 MB)
+2026-04-16T17:08:14.6656301Z Using cached grpcio_status-1.80.0-py3-none-any.whl (14 kB)
+2026-04-16T17:08:14.6669360Z Using cached httpcore-1.0.9-py3-none-any.whl (78 kB)
+2026-04-16T17:08:14.6682453Z Using cached httplib2-0.31.2-py3-none-any.whl (91 kB)
+2026-04-16T17:08:14.6695880Z Using cached jiter-0.14.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (358 kB)
+2026-04-16T17:08:14.6710165Z Using cached pluggy-1.6.0-py3-none-any.whl (20 kB)
+2026-04-16T17:08:14.6723552Z Using cached proto_plus-1.27.2-py3-none-any.whl (50 kB)
+2026-04-16T17:08:14.6737285Z Using cached protobuf-6.33.6-cp39-abi3-manylinux2014_x86_64.whl (323 kB)
+2026-04-16T17:08:14.6751547Z Using cached pyparsing-3.3.2-py3-none-any.whl (122 kB)
+2026-04-16T17:08:14.6765127Z Using cached requests-2.33.1-py3-none-any.whl (64 kB)
+2026-04-16T17:08:14.6779579Z Using cached charset_normalizer-3.4.7-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (214 kB)
+2026-04-16T17:08:14.6793370Z Using cached idna-3.11-py3-none-any.whl (71 kB)
+2026-04-16T17:08:14.6806929Z Using cached rsa-4.9.1-py3-none-any.whl (34 kB)
+2026-04-16T17:08:14.6820313Z Using cached starlette-0.41.3-py3-none-any.whl (73 kB)
+2026-04-16T17:08:14.6833851Z Using cached typing_extensions-4.15.0-py3-none-any.whl (44 kB)
+2026-04-16T17:08:14.6847518Z Using cached uritemplate-4.2.0-py3-none-any.whl (11 kB)
+2026-04-16T17:08:14.6860942Z Using cached urllib3-2.6.3-py3-none-any.whl (131 kB)
+2026-04-16T17:08:14.6874419Z Using cached pypdf-6.10.2-py3-none-any.whl (336 kB)
+2026-04-16T17:08:14.6888962Z Using cached annotated_types-0.7.0-py3-none-any.whl (13 kB)
+2026-04-16T17:08:14.6902229Z Using cached cachecontrol-0.14.4-py3-none-any.whl (22 kB)
+2026-04-16T17:08:14.6915914Z Using cached msgpack-1.1.2-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (426 kB)
+2026-04-16T17:08:14.6930686Z Using cached certifi-2026.2.25-py3-none-any.whl (153 kB)
+2026-04-16T17:08:14.6944331Z Using cached click-8.3.2-py3-none-any.whl (108 kB)
+2026-04-16T17:08:14.6958146Z Using cached email_validator-2.3.0-py3-none-any.whl (35 kB)
+2026-04-16T17:08:14.6971611Z Using cached dnspython-2.8.0-py3-none-any.whl (331 kB)
+2026-04-16T17:08:14.6986400Z Using cached google_cloud_firestore-2.27.0-py3-none-any.whl (429 kB)
+2026-04-16T17:08:14.7002287Z Using cached google_cloud_core-2.5.1-py3-none-any.whl (29 kB)
+2026-04-16T17:08:14.7015482Z Using cached google_cloud_storage-3.10.1-py3-none-any.whl (324 kB)
+2026-04-16T17:08:14.7030711Z Using cached google_crc32c-1.8.0-cp311-cp311-manylinux1_x86_64.manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_5_x86_64.whl (33 kB)
+2026-04-16T17:08:14.7043835Z Using cached google_resumable_media-2.8.2-py3-none-any.whl (81 kB)
+2026-04-16T17:08:14.7057889Z Using cached greenlet-3.4.0-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (613 kB)
+2026-04-16T17:08:14.7072778Z Using cached h11-0.16.0-py3-none-any.whl (37 kB)
+2026-04-16T17:08:14.7086563Z Using cached httptools-0.7.1-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (456 kB)
+2026-04-16T17:08:14.7100750Z Using cached pyasn1-0.6.3-py3-none-any.whl (83 kB)
+2026-04-16T17:08:14.7113920Z Using cached pyasn1_modules-0.4.2-py3-none-any.whl (181 kB)
+2026-04-16T17:08:14.7127824Z Using cached cryptography-46.0.7-cp311-abi3-manylinux_2_34_x86_64.whl (4.5 MB)
+2026-04-16T17:08:14.7155992Z Using cached cffi-2.0.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (215 kB)
+2026-04-16T17:08:14.7169683Z Using cached python_dotenv-1.2.2-py3-none-any.whl (22 kB)
+2026-04-16T17:08:14.7183073Z Using cached pyyaml-6.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (806 kB)
+2026-04-16T17:08:14.7198957Z Using cached uvloop-0.22.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (3.8 MB)
+2026-04-16T17:08:14.7224855Z Using cached watchfiles-1.1.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (456 kB)
+2026-04-16T17:08:14.7239504Z Using cached websockets-16.0-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (184 kB)
+2026-04-16T17:08:14.7252852Z Using cached iniconfig-2.3.0-py3-none-any.whl (7.5 kB)
+2026-04-16T17:08:14.7265667Z Using cached mako-1.3.11-py3-none-any.whl (78 kB)
+2026-04-16T17:08:14.7280238Z Using cached markupsafe-3.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (22 kB)
+2026-04-16T17:08:14.7292899Z Using cached packaging-26.1-py3-none-any.whl (95 kB)
+2026-04-16T17:08:14.7306034Z Using cached pycparser-3.0-py3-none-any.whl (48 kB)
+2026-04-16T17:08:14.7319289Z Using cached sniffio-1.3.1-py3-none-any.whl (10 kB)
+2026-04-16T17:08:14.9248363Z Installing collected packages: passlib, websockets, uvloop, urllib3, uritemplate, typing-extensions, sniffio, ruff, pyyaml, python-multipart, python-dotenv, pypdf, pyparsing, PyJWT, pycparser, pyasn1, protobuf, pluggy, packaging, msgpack, MarkupSafe, jiter, iniconfig, idna, httptools, h11, greenlet, google-crc32c, dnspython, distro, click, charset_normalizer, certifi, cachetools, bcrypt, asyncpg, annotated-types, uvicorn, sqlalchemy, rsa, requests, pytest, pydantic-core, pyasn1-modules, proto-plus, Mako, httplib2, httpcore, gunicorn, grpcio, googleapis-common-protos, google-resumable-media, email-validator, cffi, anyio, aiosqlite, watchfiles, starlette, pytest-asyncio, pydantic, httpx, grpcio-status, google-auth, cryptography, cachecontrol, alembic, pydantic-settings, google-auth-httplib2, google-api-core, fastapi, anthropic, google-cloud-core, google-api-python-client, google-cloud-storage, google-cloud-firestore, firebase-admin
+2026-04-16T17:08:20.5926354Z 
+2026-04-16T17:08:20.5961582Z Successfully installed Mako-1.3.11 MarkupSafe-3.0.3 PyJWT-2.10.1 aiosqlite-0.20.0 alembic-1.14.1 annotated-types-0.7.0 anthropic-0.42.0 anyio-4.13.0 asyncpg-0.30.0 bcrypt-4.0.1 cachecontrol-0.14.4 cachetools-5.5.2 certifi-2026.2.25 cffi-2.0.0 charset_normalizer-3.4.7 click-8.3.2 cryptography-46.0.7 distro-1.9.0 dnspython-2.8.0 email-validator-2.3.0 fastapi-0.115.6 firebase-admin-6.6.0 google-api-core-2.30.3 google-api-python-client-2.153.0 google-auth-2.36.0 google-auth-httplib2-0.3.1 google-cloud-core-2.5.1 google-cloud-firestore-2.27.0 google-cloud-storage-3.10.1 google-crc32c-1.8.0 google-resumable-media-2.8.2 googleapis-common-protos-1.74.0 greenlet-3.4.0 grpcio-1.80.0 grpcio-status-1.80.0 gunicorn-23.0.0 h11-0.16.0 httpcore-1.0.9 httplib2-0.31.2 httptools-0.7.1 httpx-0.28.1 idna-3.11 iniconfig-2.3.0 jiter-0.14.0 msgpack-1.1.2 packaging-26.1 passlib-1.7.4 pluggy-1.6.0 proto-plus-1.27.2 protobuf-6.33.6 pyasn1-0.6.3 pyasn1-modules-0.4.2 pycparser-3.0 pydantic-2.10.4 pydantic-core-2.27.2 pydantic-settings-2.7.1 pyparsing-3.3.2 pypdf-6.10.2 pytest-8.3.4 pytest-asyncio-0.25.0 python-dotenv-1.2.2 python-multipart-0.0.24 pyyaml-6.0.3 requests-2.33.1 rsa-4.9.1 ruff-0.8.6 sniffio-1.3.1 sqlalchemy-2.0.36 starlette-0.41.3 typing-extensions-4.15.0 uritemplate-4.2.0 urllib3-2.6.3 uvicorn-0.34.0 uvloop-0.22.1 watchfiles-1.1.1 websockets-16.0
+2026-04-16T17:08:21.2623071Z ##[group]Run ruff check app/ tests/
+2026-04-16T17:08:21.2623381Z [36;1mruff check app/ tests/[0m
+2026-04-16T17:08:21.2646061Z shell: /usr/bin/bash -e {0}
+2026-04-16T17:08:21.2646297Z env:
+2026-04-16T17:08:21.2646848Z   DATABASE_URL: ***localhost:5432/averytask_test
+2026-04-16T17:08:21.2647142Z   JWT_SECRET_KEY: test-secret-key
+2026-04-16T17:08:21.2647379Z   ENVIRONMENT: dev
+2026-04-16T17:08:21.2647577Z   ANTHROPIC_API_KEY: test-key
+2026-04-16T17:08:21.2647856Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-04-16T17:08:21.2648257Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+2026-04-16T17:08:21.2648845Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-04-16T17:08:21.2649189Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-04-16T17:08:21.2649545Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-04-16T17:08:21.2649905Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+2026-04-16T17:08:21.2650235Z ##[endgroup]
+2026-04-16T17:08:21.2860922Z All checks passed!
+2026-04-16T17:08:21.2893648Z ##[group]Run alembic upgrade head
+2026-04-16T17:08:21.2893939Z [36;1malembic upgrade head[0m
+2026-04-16T17:08:21.2915384Z shell: /usr/bin/bash -e {0}
+2026-04-16T17:08:21.2915610Z env:
+2026-04-16T17:08:21.2916522Z   DATABASE_URL: ***localhost:5432/averytask_test
+2026-04-16T17:08:21.2916820Z   JWT_SECRET_KEY: test-secret-key
+2026-04-16T17:08:21.2917051Z   ENVIRONMENT: dev
+2026-04-16T17:08:21.2917246Z   ANTHROPIC_API_KEY: test-key
+2026-04-16T17:08:21.2917529Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-04-16T17:08:21.2917943Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+2026-04-16T17:08:21.2918365Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-04-16T17:08:21.2918720Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-04-16T17:08:21.2919069Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-04-16T17:08:21.2919429Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+2026-04-16T17:08:21.2919767Z ##[endgroup]
+2026-04-16T17:08:21.8074762Z INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+2026-04-16T17:08:21.8075475Z INFO  [alembic.runtime.migration] Will assume transactional DDL.
+2026-04-16T17:08:21.8251598Z INFO  [alembic.runtime.migration] Running upgrade  -> 001, Initial schema
+2026-04-16T17:08:21.8554368Z INFO  [alembic.runtime.migration] Running upgrade 001 -> 002, Add tags, habits, attachments, and extend tasks
+2026-04-16T17:08:21.8885969Z INFO  [alembic.runtime.migration] Running upgrade 002 -> 003, Add app_releases table for self-update system
+2026-04-16T17:08:21.8937235Z INFO  [alembic.runtime.migration] Running upgrade 003 -> 004, Add task_templates table
+2026-04-16T17:08:21.9016141Z INFO  [alembic.runtime.migration] Running upgrade 004 -> 005, Add collaboration tables: project_members, project_invites, activity_logs, task_comments
+2026-04-16T17:08:21.9017069Z and user profile fields (display_name, avatar_url, updated_at)
+2026-04-16T17:08:21.9369509Z INFO  [alembic.runtime.migration] Running upgrade 005 -> 006, Add Eisenhower quadrant columns to tasks table
+2026-04-16T17:08:21.9395462Z INFO  [alembic.runtime.migration] Running upgrade 006 -> 007, Add estimated_duration and actual_duration to tasks
+2026-04-16T17:08:21.9421530Z INFO  [alembic.runtime.migration] Running upgrade 007 -> 008, Add suggested_tasks and integration_configs tables
+2026-04-16T17:08:21.9565202Z INFO  [alembic.runtime.migration] Running upgrade 008 -> 009, Add tier column to users table
+2026-04-16T17:08:21.9587597Z INFO  [alembic.runtime.migration] Running upgrade 009 -> 010, Add neurodivergent preferences table
+2026-04-16T17:08:21.9658856Z INFO  [alembic.runtime.migration] Running upgrade 010 -> 011, Add is_admin column to users table
+2026-04-16T17:08:21.9678610Z INFO  [alembic.runtime.migration] Running upgrade 011 -> 012, Add bug_reports table
+2026-04-16T17:08:22.0613503Z ##[group]Run pytest tests/ -x --tb=short -q
+2026-04-16T17:08:22.0613845Z [36;1mpytest tests/ -x --tb=short -q[0m
+2026-04-16T17:08:22.0635381Z shell: /usr/bin/bash -e {0}
+2026-04-16T17:08:22.0635616Z env:
+2026-04-16T17:08:22.0636490Z   DATABASE_URL: ***localhost:5432/averytask_test
+2026-04-16T17:08:22.0636803Z   JWT_SECRET_KEY: test-secret-key
+2026-04-16T17:08:22.0637051Z   ENVIRONMENT: dev
+2026-04-16T17:08:22.0637249Z   ANTHROPIC_API_KEY: test-key
+2026-04-16T17:08:22.0637533Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-04-16T17:08:22.0637943Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib/pkgconfig
+2026-04-16T17:08:22.0638544Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-04-16T17:08:22.0638896Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-04-16T17:08:22.0639252Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.15/x64
+2026-04-16T17:08:22.0639643Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.15/x64/lib
+2026-04-16T17:08:22.0639939Z ##[endgroup]
+2026-04-16T17:08:23.8807842Z /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/pytest_asyncio/plugin.py:207: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+2026-04-16T17:08:23.8810708Z The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+2026-04-16T17:08:23.8812308Z 
+2026-04-16T17:08:23.8812709Z   warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+2026-04-16T17:08:58.9157064Z ........................................................................ [ 33%]
+2026-04-16T17:09:31.0662652Z .....................................................................F
+2026-04-16T17:09:31.0663341Z =================================== FAILURES ===================================
+2026-04-16T17:09:31.0663955Z ______________________ TestNlpParser.test_missing_api_key ______________________
+2026-04-16T17:09:31.0664567Z app/services/nlp_parser.py:106: in parse_task_input
+2026-04-16T17:09:31.0664996Z     parsed = json.loads(content)
+2026-04-16T17:09:31.0665550Z /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/json/__init__.py:339: in loads
+2026-04-16T17:09:31.0666552Z     raise TypeError(f'the JSON object must be str, bytes or bytearray, '
+2026-04-16T17:09:31.0667249Z E   TypeError: the JSON object must be str, bytes or bytearray, not MagicMock
+2026-04-16T17:09:31.0667733Z 
+2026-04-16T17:09:31.0668001Z The above exception was the direct cause of the following exception:
+2026-04-16T17:09:31.0668596Z tests/test_nlp_parser.py:236: in test_missing_api_key
+2026-04-16T17:09:31.0669075Z     parse_task_input("Test task", [], date(2026, 4, 6))
+2026-04-16T17:09:31.0669553Z app/services/nlp_parser.py:117: in parse_task_input
+2026-04-16T17:09:31.0669965Z     raise ValueError(
+2026-04-16T17:09:31.0670618Z E   ValueError: Failed to parse NLP response after retry: the JSON object must be str, bytes or bytearray, not MagicMock
+2026-04-16T17:09:31.0671514Z ----------------------------- Captured stdout call -----------------------------
+2026-04-16T17:09:31.0672015Z NLP: API key length: 8
+2026-04-16T17:09:31.0672425Z NLP: Sending to Anthropic (model=claude-haiku-4-5-20251001)...
+2026-04-16T17:09:31.0672976Z NLP: Raw response type: <class 'unittest.mock.MagicMock'>
+2026-04-16T17:09:31.0673649Z NLP: Content blocks: <MagicMock name='mock.messages.create().content' id='140083558443664'>
+2026-04-16T17:09:31.0674613Z NLP: Extracted text: <MagicMock name='mock.messages.create().content.__getitem__().text' id='140083556705872'>
+2026-04-16T17:09:31.0675501Z NLP ERROR: TypeError: the JSON object must be str, bytes or bytearray, not MagicMock
+2026-04-16T17:09:31.0676723Z NLP: Sending to Anthropic (model=claude-haiku-4-5-20251001)...
+2026-04-16T17:09:31.0677283Z NLP: Raw response type: <class 'unittest.mock.MagicMock'>
+2026-04-16T17:09:31.0677957Z NLP: Content blocks: <MagicMock name='mock.messages.create().content' id='140083558443664'>
+2026-04-16T17:09:31.0678875Z NLP: Extracted text: <MagicMock name='mock.messages.create().content.__getitem__().text' id='140083556705872'>
+2026-04-16T17:09:31.0679768Z NLP ERROR: TypeError: the JSON object must be str, bytes or bytearray, not MagicMock
+2026-04-16T17:09:31.0680460Z ------------------------------ Captured log call -------------------------------
+2026-04-16T17:09:31.0681578Z ERROR    app.services.nlp_parser:nlp_parser.py:110 Failed to parse NLP response (attempt 1): TypeError: the JSON object must be str, bytes or bytearray, not MagicMock
+2026-04-16T17:09:31.0682809Z Traceback (most recent call last):
+2026-04-16T17:09:31.0690763Z   File "/home/runner/work/prismTask/prismTask/backend/app/services/nlp_parser.py", line 106, in parse_task_input
+2026-04-16T17:09:31.0691638Z     parsed = json.loads(content)
+2026-04-16T17:09:31.0691994Z              ^^^^^^^^^^^^^^^^^^^
+2026-04-16T17:09:31.0692708Z   File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/json/__init__.py", line 339, in loads
+2026-04-16T17:09:31.0693586Z     raise TypeError(f'the JSON object must be str, bytes or bytearray, '
+2026-04-16T17:09:31.0694252Z TypeError: the JSON object must be str, bytes or bytearray, not MagicMock
+2026-04-16T17:09:31.0694676Z 
+2026-04-16T17:09:31.0695399Z ERROR    app.services.nlp_parser:nlp_parser.py:110 Failed to parse NLP response (attempt 2): TypeError: the JSON object must be str, bytes or bytearray, not MagicMock
+2026-04-16T17:09:31.0696703Z Traceback (most recent call last):
+2026-04-16T17:09:31.0697489Z   File "/home/runner/work/prismTask/prismTask/backend/app/services/nlp_parser.py", line 106, in parse_task_input
+2026-04-16T17:09:31.0698247Z     parsed = json.loads(content)
+2026-04-16T17:09:31.0698561Z              ^^^^^^^^^^^^^^^^^^^
+2026-04-16T17:09:31.0699200Z   File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/json/__init__.py", line 339, in loads
+2026-04-16T17:09:31.0700059Z     raise TypeError(f'the JSON object must be str, bytes or bytearray, '
+2026-04-16T17:09:31.0700706Z TypeError: the JSON object must be str, bytes or bytearray, not MagicMock
+2026-04-16T17:09:31.0701313Z =============================== warnings summary ===============================
+2026-04-16T17:09:31.0702104Z ../../../../../../opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/passlib/utils/__init__.py:854
+2026-04-16T17:09:31.0703554Z   /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/passlib/utils/__init__.py:854: DeprecationWarning: 'crypt' is deprecated and slated for removal in Python 3.13
+2026-04-16T17:09:31.0704639Z     from crypt import crypt as _crypt
+2026-04-16T17:09:31.0704895Z 
+2026-04-16T17:09:31.0705220Z tests/test_admin_debug_logs.py::test_list_debug_logs_returns_403_for_non_admin
+2026-04-16T17:09:31.0706673Z   /opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/pytest_asyncio/plugin.py:854: DeprecationWarning: The event_loop fixture provided by pytest-asyncio has been redefined in
+2026-04-16T17:09:31.0707956Z   /home/runner/work/prismTask/prismTask/backend/tests/conftest.py:20
+2026-04-16T17:09:31.0708627Z   Replacing the event_loop fixture with a custom implementation is deprecated
+2026-04-16T17:09:31.0709188Z   and will lead to errors in the future.
+2026-04-16T17:09:31.0709702Z   If you want to request an asyncio event loop with a scope other than function
+2026-04-16T17:09:31.0710366Z   scope, use the "scope" argument to the asyncio mark when marking the tests.
+2026-04-16T17:09:31.0711068Z   If you want to return different types of event loops, use the event_loop_policy
+2026-04-16T17:09:31.0711599Z   fixture.
+2026-04-16T17:09:31.0711832Z   
+2026-04-16T17:09:31.0712057Z     warnings.warn(
+2026-04-16T17:09:31.0712222Z 
+2026-04-16T17:09:31.0712731Z -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+2026-04-16T17:09:31.0713352Z =========================== short test summary info ============================
+2026-04-16T17:09:31.0714533Z FAILED tests/test_nlp_parser.py::TestNlpParser::test_missing_api_key - ValueError: Failed to parse NLP response after retry: the JSON object must be str, bytes or bytearray, not MagicMock
+2026-04-16T17:09:31.0715696Z !!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+2026-04-16T17:09:31.0716393Z 1 failed, 141 passed, 2 warnings in 67.16s (0:01:07)
+2026-04-16T17:09:31.3947094Z ##[error]Process completed with exit code 1.
+2026-04-16T17:09:31.4032714Z Post job cleanup.
+2026-04-16T17:09:31.4968348Z [command]/usr/bin/git version
+2026-04-16T17:09:31.5011199Z git version 2.53.0
+2026-04-16T17:09:31.5054470Z Temporarily overriding HOME='/home/runner/work/_temp/18e6ec35-39c3-46f2-9839-b269f6d0aa51' before making global git config changes
+2026-04-16T17:09:31.5056059Z Adding repository directory to the temporary git global config as a safe directory
+2026-04-16T17:09:31.5060682Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/prismTask/prismTask
+2026-04-16T17:09:31.5094058Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-04-16T17:09:31.5126736Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-04-16T17:09:31.5348066Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-04-16T17:09:31.5367377Z http.https://github.com/.extraheader
+2026-04-16T17:09:31.5379551Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-04-16T17:09:31.5408779Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-04-16T17:09:31.5621309Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-04-16T17:09:31.5650384Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-04-16T17:09:31.5956642Z Print service container logs: e51eaea247fe40caadc6e8a75c3d303b_postgres16_f14279
+2026-04-16T17:09:31.5961089Z ##[command]/usr/bin/docker logs --details 9f4b4d4f214e8bd194127ab2be9f96d14e6fed698f82702a8cac2be4ec7d6bfb
+2026-04-16T17:09:31.6088493Z  The files belonging to this database system will be owned by user "postgres".
+2026-04-16T17:09:31.6090459Z  initdb: warning: enabling "trust" authentication for local connections
+2026-04-16T17:09:31.6091208Z  This user must also own the server process.
+2026-04-16T17:09:31.6092182Z  initdb: hint: You can change this by editing pg_hba.conf or using the option -A, or --auth-local and --auth-host, the next time you run initdb.
+2026-04-16T17:09:31.6093312Z  2026-04-16 17:07:49.762 UTC [1] LOG:  starting PostgreSQL 16.13 (Debian 16.13-1.pgdg13+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+2026-04-16T17:09:31.6094213Z  2026-04-16 17:07:49.762 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+2026-04-16T17:09:31.6094810Z  2026-04-16 17:07:49.762 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+2026-04-16T17:09:31.6095402Z  2026-04-16 17:07:49.763 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-04-16T17:09:31.6096353Z  2026-04-16 17:07:49.766 UTC [64] LOG:  database system was shut down at 2026-04-16 17:07:49 UTC
+2026-04-16T17:09:31.6096909Z  2026-04-16 17:07:49.769 UTC [1] LOG:  database system is ready to accept connections
+2026-04-16T17:09:31.6107053Z  
+2026-04-16T17:09:31.6107656Z  The database cluster will be initialized with locale "en_US.utf8".
+2026-04-16T17:09:31.6108478Z  The default database encoding has accordingly been set to "UTF8".
+2026-04-16T17:09:31.6109219Z  The default text search configuration will be set to "english".
+2026-04-16T17:09:31.6109741Z  
+2026-04-16T17:09:31.6110029Z  Data page checksums are disabled.
+2026-04-16T17:09:31.6110425Z  
+2026-04-16T17:09:31.6110903Z  fixing permissions on existing directory /var/lib/postgresql/data ... ok
+2026-04-16T17:09:31.6111583Z  creating subdirectories ... ok
+2026-04-16T17:09:31.6112102Z  selecting dynamic shared memory implementation ... posix
+2026-04-16T17:09:31.6112687Z  selecting default max_connections ... 100
+2026-04-16T17:09:31.6113173Z  selecting default shared_buffers ... 128MB
+2026-04-16T17:09:31.6113624Z  selecting default time zone ... Etc/UTC
+2026-04-16T17:09:31.6114074Z  creating configuration files ... ok
+2026-04-16T17:09:31.6114832Z  running bootstrap script ... ok
+2026-04-16T17:09:31.6115331Z  performing post-bootstrap initialization ... ok
+2026-04-16T17:09:31.6116103Z  syncing data to disk ... ok
+2026-04-16T17:09:31.6116477Z  
+2026-04-16T17:09:31.6116739Z  
+2026-04-16T17:09:31.6117105Z  Success. You can now start the database server using:
+2026-04-16T17:09:31.6117599Z  
+2026-04-16T17:09:31.6117971Z      pg_ctl -D /var/lib/postgresql/data -l logfile start
+2026-04-16T17:09:31.6118462Z  
+2026-04-16T17:09:31.6119549Z  waiting for server to start....2026-04-16 17:07:49.459 UTC [48] LOG:  starting PostgreSQL 16.13 (Debian 16.13-1.pgdg13+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+2026-04-16T17:09:31.6121045Z  2026-04-16 17:07:49.460 UTC [48] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-04-16T17:09:31.6121956Z  2026-04-16 17:07:49.462 UTC [51] LOG:  database system was shut down at 2026-04-16 17:07:49 UTC
+2026-04-16T17:09:31.6122773Z  2026-04-16 17:07:49.466 UTC [48] LOG:  database system is ready to accept connections
+2026-04-16T17:09:31.6123360Z   done
+2026-04-16T17:09:31.6123620Z  server started
+2026-04-16T17:09:31.6123909Z  CREATE DATABASE
+2026-04-16T17:09:31.6124182Z  
+2026-04-16T17:09:31.6124422Z  
+2026-04-16T17:09:31.6124898Z  /usr/local/bin/docker-entrypoint.sh: ignoring /docker-entrypoint-initdb.d/*
+2026-04-16T17:09:31.6125511Z  
+2026-04-16T17:09:31.6126087Z  2026-04-16 17:07:49.643 UTC [48] LOG:  received fast shutdown request
+2026-04-16T17:09:31.6126886Z  waiting for server to shut down....2026-04-16 17:07:49.644 UTC [48] LOG:  aborting any active transactions
+2026-04-16T17:09:31.6127646Z  2026-04-16 17:07:49.646 UTC [48] LOG:  background worker "logical replication launcher" (PID 54) exited with exit code 1
+2026-04-16T17:09:31.6128175Z  2026-04-16 17:07:49.646 UTC [49] LOG:  shutting down
+2026-04-16T17:09:31.6128550Z  2026-04-16 17:07:49.647 UTC [49] LOG:  checkpoint starting: shutdown immediate
+2026-04-16T17:09:31.6129626Z  2026-04-16 17:07:49.660 UTC [49] LOG:  checkpoint complete: wrote 926 buffers (5.7%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.011 s, sync=0.002 s, total=0.014 s; sync files=301, longest=0.001 s, average=0.001 s; distance=4273 kB, estimate=4273 kB; lsn=0/191F0F0, redo lsn=0/191F0F0
+2026-04-16T17:09:31.6130675Z  2026-04-16 17:07:49.666 UTC [48] LOG:  database system is shut down
+2026-04-16T17:09:31.6130972Z   done
+2026-04-16T17:09:31.6131128Z  server stopped
+2026-04-16T17:09:31.6131301Z  
+2026-04-16T17:09:31.6131513Z  PostgreSQL init process complete; ready for start up.
+2026-04-16T17:09:31.6131792Z  
+2026-04-16T17:09:31.6137447Z Stop and remove container: e51eaea247fe40caadc6e8a75c3d303b_postgres16_f14279
+2026-04-16T17:09:31.6141723Z ##[command]/usr/bin/docker rm --force 9f4b4d4f214e8bd194127ab2be9f96d14e6fed698f82702a8cac2be4ec7d6bfb
+2026-04-16T17:09:31.7215061Z 9f4b4d4f214e8bd194127ab2be9f96d14e6fed698f82702a8cac2be4ec7d6bfb
+2026-04-16T17:09:31.7244430Z Remove container network: github_network_62999e71e02446aaa5b5d78bc9a8953a
+2026-04-16T17:09:31.7249813Z ##[command]/usr/bin/docker network rm github_network_62999e71e02446aaa5b5d78bc9a8953a
+2026-04-16T17:09:31.8241100Z github_network_62999e71e02446aaa5b5d78bc9a8953a
+2026-04-16T17:09:31.8313628Z Cleaning up orphan processes
+2026-04-16T17:09:31.8662716Z ##[warning]Node.js 20 actions are deprecated. The following actions are running on Node.js 20 and may not work as expected: actions/checkout@v4, actions/setup-python@v5. Actions will be forced to run with Node.js 24 by default starting June 2nd, 2026. Node.js 20 will be removed from the runner on September 16th, 2026. Please check if updated versions of these actions are available that support Node.js 24. To opt into Node.js 24 now, set the FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true environment variable on the runner or in your workflow file. Once Node.js 24 becomes the default, you can temporarily opt out by setting ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
