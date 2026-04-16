@@ -15,6 +15,9 @@ on:
     # GitHub's push-event path filtering can miss squash-merge changes and
     # doesn't trigger when auto-merge uses GITHUB_TOKEN.
 
+env:
+  WAIT_INTERVAL: 30  # seconds between CI check polls
+
 permissions:
   contents: write
   pull-requests: write
@@ -31,12 +34,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Wait for all other CI checks to pass
-        uses: lewagon/wait-on-check-action@v1.3.4
+        # Pinned to v1.3.4 SHA for supply-chain safety
+        uses: lewagon/wait-on-check-action@ccfb013c15c8afb7bf2b7c028fb74dc5a068cccc
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           running-workflow-name: Auto-merge
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-          wait-interval: 30
+          wait-interval: ${{ env.WAIT_INTERVAL }}
           allowed-conclusions: success,skipped
 
       - name: Merge PR (squash)
@@ -114,6 +118,7 @@ jobs:
         if: steps.skip_check.outputs.skip != 'true' && steps.changes.outputs.has_android == 'true'
         run: chmod +x gradlew
 
+      # Patch bump only. release.yml owns release (minor/major) versionCode.
       - name: Bump versionCode and versionName
         if: steps.skip_check.outputs.skip != 'true' && steps.changes.outputs.has_android == 'true'
         id: version
