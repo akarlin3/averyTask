@@ -16,7 +16,6 @@ import java.time.ZoneOffset
  * previous day (in zones east of UTC) or the next day (in zones west of UTC).
  */
 class CalendarSyncServiceTest {
-
     private fun localMidnightMillis(date: LocalDate, zone: ZoneId): Long =
         date.atStartOfDay(zone).toInstant().toEpochMilli()
 

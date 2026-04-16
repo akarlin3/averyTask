@@ -3,9 +3,8 @@ name: Backend CI
 on:
   push:
     branches: [main]
-    paths:
-      - 'backend/**'
-      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -13,7 +12,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      relevant: ${{ steps.filter.outputs.relevant }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            relevant:
+              - 'backend/**'
+              - '.github/workflows/backend-ci.yml'
+
   test:
+    needs: changes
     runs-on: ubuntu-latest
 
     services:
@@ -41,9 +55,16 @@ jobs:
       ENVIRONMENT: dev
 
     steps:
+      - name: Skip (no relevant changes)
+        if: needs.changes.outputs.relevant != 'true'
+        working-directory: .
+        run: echo "No backend or workflow changes detected; reporting success without running tests."
+
       - uses: actions/checkout@v4
+        if: needs.changes.outputs.relevant == 'true'
 
       - name: Set up Python 3.11
+        if: needs.changes.outputs.relevant == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -51,13 +72,17 @@ jobs:
           cache-dependency-path: backend/requirements.txt
 
       - name: Install dependencies
+        if: needs.changes.outputs.relevant == 'true'
         run: pip install -r requirements.txt
 
       - name: Lint with ruff
+        if: needs.changes.outputs.relevant == 'true'
         run: ruff check app/ tests/
 
       - name: Run Alembic migrations
+        if: needs.changes.outputs.relevant == 'true'
         run: alembic upgrade head
 
       - name: Run tests
+        if: needs.changes.outputs.relevant == 'true'
         run: pytest tests/ -x --tb=short -q
