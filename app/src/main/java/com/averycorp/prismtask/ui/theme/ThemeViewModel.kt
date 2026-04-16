@@ -23,7 +23,6 @@ class ThemeViewModel
 constructor(
     private val themePreferences: ThemePreferences
 ) : ViewModel() {
-
     /**
      * The [PrismTheme] the user has selected. Falls back to [PrismTheme.VOID]
      * both for first launch (no stored value) and for any malformed stored
