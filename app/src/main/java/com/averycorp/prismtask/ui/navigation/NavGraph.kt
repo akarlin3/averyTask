@@ -270,6 +270,14 @@ fun PrismTaskNavGraph(
         if (initialLaunchAction == com.averycorp.prismtask.MainActivity.ACTION_OPEN_TEMPLATES) {
             navController.navigate(PrismTaskRoute.TemplateList.route)
         }
+        if (initialLaunchAction == com.averycorp.prismtask.MainActivity.ACTION_OPEN_HABITS) {
+            val habitIndex = bottomNavItems.indexOfFirst {
+                it.route == PrismTaskRoute.HabitList.route
+            }
+            if (habitIndex >= 0) {
+                pagerState.scrollToPage(habitIndex)
+            }
+        }
     }
     // v1.4.0 V9: route incoming shared text into the Paste Conversation
     // screen with a pre-filled input. The screen observes its
