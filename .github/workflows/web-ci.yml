@@ -3,44 +3,81 @@ name: Web CI
 on:
   push:
     branches: [main]
-    paths: ['web/**']
+  pull_request:
+    branches: [main]
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      relevant: ${{ steps.filter.outputs.relevant }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            relevant:
+              - 'web/**'
+              - '.github/workflows/web-ci.yml'
+
   lint-and-test:
+    needs: changes
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: web
     steps:
+      - name: Skip (no relevant changes)
+        if: needs.changes.outputs.relevant != 'true'
+        working-directory: .
+        run: echo "No web or workflow changes detected; reporting success without running lint/tests."
+
       - uses: actions/checkout@v4
+        if: needs.changes.outputs.relevant == 'true'
       - uses: actions/setup-node@v4
+        if: needs.changes.outputs.relevant == 'true'
         with:
           node-version: 22
           cache: 'npm'
           cache-dependency-path: web/package-lock.json
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run test:run
-      - run: npm run build
+      - if: needs.changes.outputs.relevant == 'true'
+        run: npm ci
+      - if: needs.changes.outputs.relevant == 'true'
+        run: npm run lint
+      - if: needs.changes.outputs.relevant == 'true'
+        run: npm run test:run
+      - if: needs.changes.outputs.relevant == 'true'
+        run: npm run build
 
   e2e:
-    needs: lint-and-test
+    needs: [changes, lint-and-test]
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: web
     steps:
+      - name: Skip (no relevant changes)
+        if: needs.changes.outputs.relevant != 'true'
+        working-directory: .
+        run: echo "No web or workflow changes detected; reporting success without running e2e."
+
       - uses: actions/checkout@v4
+        if: needs.changes.outputs.relevant == 'true'
       - uses: actions/setup-node@v4
+        if: needs.changes.outputs.relevant == 'true'
         with:
           node-version: 22
           cache: 'npm'
           cache-dependency-path: web/package-lock.json
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - run: npx playwright test
+      - if: needs.changes.outputs.relevant == 'true'
+        run: npm ci
+      - if: needs.changes.outputs.relevant == 'true'
+        run: npx playwright install --with-deps chromium
+      - if: needs.changes.outputs.relevant == 'true'
+        run: npx playwright test
       - uses: actions/upload-artifact@v4
-        if: failure()
+        if: needs.changes.outputs.relevant == 'true' && failure()
         with:
           name: playwright-report
           path: web/playwright-report/
