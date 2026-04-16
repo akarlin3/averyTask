@@ -47,6 +47,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -427,6 +428,7 @@ fun PrismTaskNavGraph(
                                     Text(
                                         text = item.label,
                                         fontFamily = prismFonts,
+                                        fontSize = 10.sp,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                         softWrap = false
