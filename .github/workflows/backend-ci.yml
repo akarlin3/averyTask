@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - 'backend/**'
-      - '.github/workflows/ci.yml'
+      - '.github/workflows/backend-ci.yml'
   workflow_dispatch:
 
 concurrency:
@@ -60,4 +60,4 @@ jobs:
         run: alembic upgrade head
 
       - name: Run tests
-        run: pytest -v
+        run: pytest tests/ -x --tb=short -q
