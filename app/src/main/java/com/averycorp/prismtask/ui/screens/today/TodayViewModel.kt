@@ -339,13 +339,19 @@ constructor(
     val snackbarHostState = SnackbarHostState()
 
     /**
-     * Reactive "start of current day" timestamp. Re-emits whenever the user
-     * changes their day-start hour in settings, so that downstream task/habit
-     * queries automatically refresh and reset to the new day's window.
+     * "Start of current day" timestamp used by every Today-screen filter.
+     *
+     * Intentionally fixed at the device's calendar midnight (dayStartHour = 0)
+     * rather than the user-configured day-start hour. The "Today"/"Tomorrow"
+     * chips in the task editor and the habit booking dialog both store dates
+     * at local calendar midnight, so applying a non-zero day-start hour here
+     * would shift the filter window past midnight and let tomorrow's midnight
+     * timestamps leak into "Scheduled Today" / "Planned". dayStartHour still
+     * governs rollover for habits, reminders, and the daily reset worker.
      */
     private val dayStart: StateFlow<Long> = taskBehaviorPreferences
         .getDayStartHour()
-        .map { DayBoundary.startOfCurrentDay(it) }
+        .map { DayBoundary.startOfCurrentDay(0) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DayBoundary.startOfCurrentDay(0))
 
     val sectionOrder: StateFlow<List<String>> = dashboardPreferences
@@ -371,8 +377,10 @@ constructor(
         }
     }
 
+    // Matches [dayStart]: calendar midnight so that plan/due dates written
+    // here sit inside the same window the Today filters read from.
     private suspend fun currentStartOfToday(): Long =
-        DayBoundary.startOfCurrentDay(taskBehaviorPreferences.getDayStartHour().first())
+        DayBoundary.startOfCurrentDay(0)
 
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading
