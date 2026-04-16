@@ -8,7 +8,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg)](https://fastapi.tiangolo.com)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791.svg)](https://postgresql.org)
 [![Android CI](https://github.com/akarlin3/prismTask/actions/workflows/android-ci.yml/badge.svg)](https://github.com/akarlin3/prismTask/actions/workflows/android-ci.yml)
-[![Backend CI](https://github.com/akarlin3/prismTask/actions/workflows/ci.yml/badge.svg)](https://github.com/akarlin3/prismTask/actions/workflows/ci.yml)
+[![Backend CI](https://github.com/akarlin3/prismTask/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/akarlin3/prismTask/actions/workflows/backend-ci.yml)
 [![Web CI](https://github.com/akarlin3/prismTask/actions/workflows/web-ci.yml/badge.svg)](https://github.com/akarlin3/prismTask/actions/workflows/web-ci.yml)
 
 A cross-platform task manager with a Python API backend featuring AI-powered natural language processing, voice input, full accessibility support, deep customization, productivity analytics, and first-class integrations with Gmail, Slack, and Google Calendar. Available as a native Android app (Kotlin/Jetpack Compose) and a web app (React/TypeScript/Vite), both powered by a shared FastAPI/PostgreSQL backend.
