@@ -112,7 +112,7 @@ constructor(
         const val DEBOUNCE_MILLIS = 500L
 
         /**
-         * Refreshes habit-related widgets from an [ActionCallback] context
+         * Refreshes habit-related widgets from a Glance ActionCallback
          * where Hilt injection is unavailable. Mirrors [updateHabitWidgets]
          * but runs synchronously without debounce.
          */
