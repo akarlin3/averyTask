@@ -557,6 +557,7 @@ constructor(
         val houseworkOn = values[5] as Boolean
         val globalAfter = values[6] as Int
         val globalBefore = values[7] as Int
+
         @Suppress("UNCHECKED_CAST")
         val lastCompletions = values[8] as Map<Long, Long>
         val disabledNames = mutableSetOf<String>()
