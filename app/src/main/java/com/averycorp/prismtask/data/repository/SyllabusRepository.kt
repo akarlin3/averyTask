@@ -7,12 +7,12 @@ import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.data.remote.api.SyllabusConfirmRequest
 import com.averycorp.prismtask.data.remote.api.SyllabusConfirmResponse
 import com.averycorp.prismtask.data.remote.api.SyllabusParseResponse
-import java.io.ByteArrayOutputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.ByteArrayOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
