@@ -76,7 +76,44 @@ jobs:
         run: ./gradlew lint --continue
         continue-on-error: true
       - name: Unit tests
-        run: ./gradlew testDebugUnitTest --continue 2>&1 | tee unit-test-output.log
+        # `set -o pipefail` is on by default in GitHub's bash shell, but we
+        # make it explicit so a regression in the shell config can't hide a
+        # non-zero Gradle exit behind `tee`. `--continue` lets Gradle finish
+        # every test task so the XML reports we inspect below are complete.
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew testDebugUnitTest --continue 2>&1 | tee unit-test-output.log
+      - name: Verify unit-test results (XML)
+        # Belt-and-suspenders: even if Gradle's exit code somehow ends up zero,
+        # a single <testsuite> reporting non-zero `failures` or `errors` fails
+        # the step. Catches configurations where `ignoreFailures = true` is
+        # added to a module, `tee`/shell changes swallow the exit code, or a
+        # custom test task reports failures via XML without propagating them.
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s globstar nullglob
+          xmls=(app/build/test-results/**/*.xml)
+          if [ ${#xmls[@]} -eq 0 ]; then
+            echo "::error::No JUnit XML results found under app/build/test-results/. Did the test task run?"
+            exit 1
+          fi
+          failed=0
+          for f in "${xmls[@]}"; do
+            fails=$(grep -oE 'failures="[0-9]+"' "$f" | head -n1 | grep -oE '[0-9]+' || echo 0)
+            errs=$(grep -oE 'errors="[0-9]+"' "$f" | head -n1 | grep -oE '[0-9]+' || echo 0)
+            if [ "${fails:-0}" -gt 0 ] || [ "${errs:-0}" -gt 0 ]; then
+              echo "::error file=${f}::${fails} failure(s), ${errs} error(s) in ${f}"
+              failed=$((failed + fails + errs))
+            fi
+          done
+          if [ "$failed" -gt 0 ]; then
+            echo "::error::${failed} unit-test failure(s)/error(s) detected. See annotations and the test-results artifact."
+            exit 1
+          fi
+          echo "All ${#xmls[@]} JUnit XML reports clean."
       - name: Post failure details to PR
         if: failure() && github.event_name == 'pull_request'
         uses: actions/github-script@v7
