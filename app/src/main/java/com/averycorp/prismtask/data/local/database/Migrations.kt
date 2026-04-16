@@ -738,8 +738,15 @@ val MIGRATION_39_40 = object : Migration(39, 40) {
     }
 }
 
-// Habit nag suppression: per-habit override columns for notification delay
+// v1.4.0: add per-profile volume override to notification profiles
 val MIGRATION_40_41 = object : Migration(40, 41) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE reminder_profiles ADD COLUMN volume_override INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
+// Habit nag suppression: per-habit override columns for notification delay
+val MIGRATION_41_42 = object : Migration(41, 42) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE habits ADD COLUMN nag_suppression_override_enabled INTEGER NOT NULL DEFAULT 0")
         db.execSQL("ALTER TABLE habits ADD COLUMN nag_suppression_days_override INTEGER NOT NULL DEFAULT -1")
@@ -786,5 +793,6 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_37_38,
     MIGRATION_38_39,
     MIGRATION_39_40,
-    MIGRATION_40_41
+    MIGRATION_40_41,
+    MIGRATION_41_42
 )
