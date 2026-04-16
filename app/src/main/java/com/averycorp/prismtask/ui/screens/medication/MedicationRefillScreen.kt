@@ -220,8 +220,8 @@ private fun AddMedicationDialog(
         pillsPerDose: Int,
         dosesPerDay: Int,
         pharmacy: String?,
-        phone: String?,
-    ) -> Unit,
+        phone: String?
+    ) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
     var pillCount by remember { mutableStateOf("30") }
