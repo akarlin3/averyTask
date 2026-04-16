@@ -38,16 +38,16 @@ data class TaskTemplateEntity(
     val templatePriority: Int? = null,
     @ColumnInfo(name = "templateProjectId")
     val templateProjectId: Long? = null,
-    @ColumnInfo(name = "template_tags_json")
     // JSON array of tag IDs
+    @ColumnInfo(name = "template_tags_json")
     val templateTagsJson: String? = null,
     @ColumnInfo(name = "template_recurrence_json")
     val templateRecurrenceJson: String? = null,
-    @ColumnInfo(name = "template_duration")
     // minutes
+    @ColumnInfo(name = "template_duration")
     val templateDuration: Int? = null,
-    @ColumnInfo(name = "template_subtasks_json")
     // JSON array of subtask titles
+    @ColumnInfo(name = "template_subtasks_json")
     val templateSubtasksJson: String? = null,
     @ColumnInfo(name = "is_built_in")
     val isBuiltIn: Boolean = false,
