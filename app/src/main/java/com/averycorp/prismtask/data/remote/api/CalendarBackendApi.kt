@@ -19,7 +19,7 @@ interface CalendarBackendApi {
     suspend fun getAuthorizationUrl(): CalendarAuthorizeResponse
 
     @DELETE("api/v1/integrations/calendar/disconnect")
-    suspend fun disconnect(): Unit
+    suspend fun disconnect()
 
     @GET("api/v1/integrations/calendar/status")
     suspend fun status(): CalendarStatusResponse
@@ -37,7 +37,7 @@ interface CalendarBackendApi {
         @Path("taskId") taskId: Long,
         @Query("calendar_id") calendarId: String,
         @Query("event_id") eventId: String
-    ): Unit
+    )
 
     @POST("api/v1/calendar/sync/pull")
     suspend fun pullEvents(
@@ -45,7 +45,7 @@ interface CalendarBackendApi {
     ): EventsPullResponse
 
     @POST("api/v1/calendar/sync/full")
-    suspend fun fullSync(): Unit
+    suspend fun fullSync()
 
     @GET("api/v1/calendar/events/today")
     suspend fun listTodayEvents(
