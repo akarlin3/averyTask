@@ -7,11 +7,13 @@ import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.entity.TaskEntity
+import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.remote.api.ChatActionResponse
 import com.averycorp.prismtask.data.repository.ChatMessage
 import com.averycorp.prismtask.data.repository.ChatRepository
 import com.averycorp.prismtask.data.repository.HabitRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
+import com.averycorp.prismtask.data.repository.toCalendarDayOfWeek
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -20,6 +22,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -36,7 +39,8 @@ constructor(
     private val taskDao: TaskDao,
     private val habitRepository: HabitRepository,
     private val habitCompletionDao: HabitCompletionDao,
-    private val proFeatureGate: ProFeatureGate
+    private val proFeatureGate: ProFeatureGate,
+    private val taskBehaviorPreferences: TaskBehaviorPreferences
 ) : ViewModel() {
     val userTier: StateFlow<UserTier> = proFeatureGate.userTier
     val messages: StateFlow<List<ChatMessage>> = chatRepository.messages
@@ -185,7 +189,7 @@ constructor(
         }
     }
 
-    private fun resolveDate(dateStr: String?): Long? {
+    private suspend fun resolveDate(dateStr: String?): Long? {
         if (dateStr == null) return null
         val cal = Calendar.getInstance()
         cal.set(Calendar.HOUR_OF_DAY, 23)
@@ -200,8 +204,10 @@ constructor(
                 cal.timeInMillis
             }
             "next_week" -> {
+                val calDow = taskBehaviorPreferences.getFirstDayOfWeek().first().toCalendarDayOfWeek()
+                cal.firstDayOfWeek = calDow
                 cal.add(Calendar.WEEK_OF_YEAR, 1)
-                cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+                cal.set(Calendar.DAY_OF_WEEK, calDow)
                 cal.timeInMillis
             }
             else -> {
