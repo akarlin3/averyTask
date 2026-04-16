@@ -137,6 +137,8 @@ object SyncMapper {
         "showStreak" to habit.showStreak,
         "nagSuppressionOverrideEnabled" to habit.nagSuppressionOverrideEnabled,
         "nagSuppressionDaysOverride" to habit.nagSuppressionDaysOverride,
+        "todaySkipAfterCompleteDays" to habit.todaySkipAfterCompleteDays,
+        "todaySkipBeforeScheduleDays" to habit.todaySkipBeforeScheduleDays,
         "createdAt" to habit.createdAt,
         "updatedAt" to habit.updatedAt
     )
@@ -167,6 +169,8 @@ object SyncMapper {
         showStreak = data["showStreak"] as? Boolean ?: false,
         nagSuppressionOverrideEnabled = data["nagSuppressionOverrideEnabled"] as? Boolean ?: false,
         nagSuppressionDaysOverride = (data["nagSuppressionDaysOverride"] as? Number)?.toInt() ?: -1,
+        todaySkipAfterCompleteDays = (data["todaySkipAfterCompleteDays"] as? Number)?.toInt() ?: -1,
+        todaySkipBeforeScheduleDays = (data["todaySkipBeforeScheduleDays"] as? Number)?.toInt() ?: -1,
         createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
         updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
     )

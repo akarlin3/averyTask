@@ -9,6 +9,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.data.local.entity.HabitEntity
+import com.averycorp.prismtask.data.preferences.HabitListPreferences
 import com.averycorp.prismtask.data.preferences.NotificationPreferences
 import com.averycorp.prismtask.data.repository.HabitRepository
 import com.averycorp.prismtask.notifications.MedicationReminderScheduler
@@ -16,6 +17,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -26,6 +28,7 @@ constructor(
     private val habitRepository: HabitRepository,
     private val medicationReminderScheduler: MedicationReminderScheduler,
     private val notificationPreferences: NotificationPreferences,
+    private val habitListPreferences: HabitListPreferences,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     private val _errorMessages = MutableSharedFlow<String>()
@@ -82,6 +85,18 @@ constructor(
         private set
     var globalSuppressionDays by mutableIntStateOf(NotificationPreferences.DEFAULT_HABIT_NAG_SUPPRESSION_DAYS)
         private set
+    var todaySkipAfterCompleteOverrideEnabled by mutableStateOf(false)
+        private set
+    var todaySkipAfterCompleteDays by mutableIntStateOf(0)
+        private set
+    var todaySkipBeforeScheduleOverrideEnabled by mutableStateOf(false)
+        private set
+    var todaySkipBeforeScheduleDays by mutableIntStateOf(0)
+        private set
+    var globalSkipAfterCompleteDays by mutableIntStateOf(HabitListPreferences.DEFAULT_TODAY_SKIP_AFTER_COMPLETE_DAYS)
+        private set
+    var globalSkipBeforeScheduleDays by mutableIntStateOf(HabitListPreferences.DEFAULT_TODAY_SKIP_BEFORE_SCHEDULE_DAYS)
+        private set
     var nameError by mutableStateOf(false)
         private set
     var customCategories by mutableStateOf<List<String>>(emptyList())
@@ -91,6 +106,8 @@ constructor(
         viewModelScope.launch {
             customCategories = habitRepository.getAllCategories()
             globalSuppressionDays = notificationPreferences.getHabitNagSuppressionDaysOnce()
+            globalSkipAfterCompleteDays = habitListPreferences.getTodaySkipAfterCompleteDays().first()
+            globalSkipBeforeScheduleDays = habitListPreferences.getTodaySkipBeforeScheduleDays().first()
         }
         if (habitId != null) {
             viewModelScope.launch {
@@ -112,6 +129,10 @@ constructor(
                     nagSuppressionOverrideEnabled = habit.nagSuppressionOverrideEnabled
                     nagSuppressionDaysOverride = habit.nagSuppressionDaysOverride
                     nagSuppressionDisableForHabit = habit.nagSuppressionDaysOverride == 0
+                    todaySkipAfterCompleteOverrideEnabled = habit.todaySkipAfterCompleteDays >= 0
+                    todaySkipAfterCompleteDays = habit.todaySkipAfterCompleteDays.coerceAtLeast(0)
+                    todaySkipBeforeScheduleOverrideEnabled = habit.todaySkipBeforeScheduleDays >= 0
+                    todaySkipBeforeScheduleDays = habit.todaySkipBeforeScheduleDays.coerceAtLeast(0)
                     if (habit.reminderTime != null) {
                         reminderEnabled = true
                         reminderHour = (habit.reminderTime / (60 * 60 * 1000)).toInt()
@@ -248,6 +269,28 @@ constructor(
         nagSuppressionDisableForHabit = false
     }
 
+    fun onTodaySkipAfterCompleteOverrideEnabledChange(value: Boolean) {
+        todaySkipAfterCompleteOverrideEnabled = value
+        if (value && todaySkipAfterCompleteDays == 0) {
+            todaySkipAfterCompleteDays = globalSkipAfterCompleteDays.coerceAtLeast(1)
+        }
+    }
+
+    fun onTodaySkipAfterCompleteDaysChange(value: Int) {
+        todaySkipAfterCompleteDays = value.coerceIn(0, HabitListPreferences.MAX_TODAY_SKIP_DAYS)
+    }
+
+    fun onTodaySkipBeforeScheduleOverrideEnabledChange(value: Boolean) {
+        todaySkipBeforeScheduleOverrideEnabled = value
+        if (value && todaySkipBeforeScheduleDays == 0) {
+            todaySkipBeforeScheduleDays = globalSkipBeforeScheduleDays.coerceAtLeast(1)
+        }
+    }
+
+    fun onTodaySkipBeforeScheduleDaysChange(value: Int) {
+        todaySkipBeforeScheduleDays = value.coerceIn(0, HabitListPreferences.MAX_TODAY_SKIP_DAYS)
+    }
+
     suspend fun saveHabit(): Boolean {
         if (name.isBlank()) {
             nameError = true
@@ -287,6 +330,18 @@ constructor(
                 -1
             }
 
+            val effectiveSkipAfterComplete = if (todaySkipAfterCompleteOverrideEnabled) {
+                todaySkipAfterCompleteDays.coerceIn(0, HabitListPreferences.MAX_TODAY_SKIP_DAYS)
+            } else {
+                -1
+            }
+
+            val effectiveSkipBeforeSchedule = if (todaySkipBeforeScheduleOverrideEnabled) {
+                todaySkipBeforeScheduleDays.coerceIn(0, HabitListPreferences.MAX_TODAY_SKIP_DAYS)
+            } else {
+                -1
+            }
+
             val existing = existingHabit
             if (existing != null) {
                 habitRepository.updateHabit(
@@ -308,7 +363,9 @@ constructor(
                         isBookable = effectiveIsBookable,
                         showStreak = showStreak,
                         nagSuppressionOverrideEnabled = nagSuppressionOverrideEnabled,
-                        nagSuppressionDaysOverride = effectiveNagOverride
+                        nagSuppressionDaysOverride = effectiveNagOverride,
+                        todaySkipAfterCompleteDays = effectiveSkipAfterComplete,
+                        todaySkipBeforeScheduleDays = effectiveSkipBeforeSchedule
                     )
                 )
                 // Cancel or reschedule medication reminder on edit
@@ -337,7 +394,9 @@ constructor(
                         isBookable = effectiveIsBookable,
                         showStreak = showStreak,
                         nagSuppressionOverrideEnabled = nagSuppressionOverrideEnabled,
-                        nagSuppressionDaysOverride = effectiveNagOverride
+                        nagSuppressionDaysOverride = effectiveNagOverride,
+                        todaySkipAfterCompleteDays = effectiveSkipAfterComplete,
+                        todaySkipBeforeScheduleDays = effectiveSkipBeforeSchedule
                     )
                 )
             }

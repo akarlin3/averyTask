@@ -51,6 +51,21 @@ data class HabitEntity(
     val nagSuppressionOverrideEnabled: Boolean = false,
     @ColumnInfo(name = "nag_suppression_days_override", defaultValue = "-1")
     val nagSuppressionDaysOverride: Int = -1,
+    /**
+     * Per-habit override for the Today-screen "skip if completed within N days"
+     * window. -1 = inherit the global default; 0 = explicitly disabled for this
+     * habit; >=1 = use this many days as the window. See
+     * [com.averycorp.prismtask.domain.usecase.HabitTodayVisibilityResolver].
+     */
+    @ColumnInfo(name = "today_skip_after_complete_days", defaultValue = "-1")
+    val todaySkipAfterCompleteDays: Int = -1,
+    /**
+     * Per-habit override for the Today-screen "skip if next scheduled
+     * occurrence is within N days" window. -1 = inherit the global default;
+     * 0 = explicitly disabled for this habit; >=1 = use this many days.
+     */
+    @ColumnInfo(name = "today_skip_before_schedule_days", defaultValue = "-1")
+    val todaySkipBeforeScheduleDays: Int = -1,
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis(),
     @ColumnInfo(name = "updated_at")

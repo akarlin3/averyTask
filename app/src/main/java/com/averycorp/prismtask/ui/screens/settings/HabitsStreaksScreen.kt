@@ -35,6 +35,8 @@ fun HabitsStreaksScreen(
     val streakMaxMissedDays by viewModel.streakMaxMissedDays.collectAsStateWithLifecycle()
     val forgivenessPrefs by viewModel.forgivenessPrefs.collectAsStateWithLifecycle()
     val checkInStreak by viewModel.checkInStreak.collectAsStateWithLifecycle()
+    val todaySkipAfterCompleteDays by viewModel.todaySkipAfterCompleteDays.collectAsStateWithLifecycle()
+    val todaySkipBeforeScheduleDays by viewModel.todaySkipBeforeScheduleDays.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -57,7 +59,11 @@ fun HabitsStreaksScreen(
         ) {
             HabitsSection(
                 streakMaxMissedDays = streakMaxMissedDays,
-                onStreakMaxMissedDaysChange = viewModel::setStreakMaxMissedDays
+                onStreakMaxMissedDaysChange = viewModel::setStreakMaxMissedDays,
+                todaySkipAfterCompleteDays = todaySkipAfterCompleteDays,
+                onTodaySkipAfterCompleteDaysChange = viewModel::setTodaySkipAfterCompleteDays,
+                todaySkipBeforeScheduleDays = todaySkipBeforeScheduleDays,
+                onTodaySkipBeforeScheduleDaysChange = viewModel::setTodaySkipBeforeScheduleDays
             )
 
             ForgivenessStreakSection(

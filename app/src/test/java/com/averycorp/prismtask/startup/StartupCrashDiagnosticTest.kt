@@ -8,6 +8,7 @@ import com.averycorp.prismtask.data.local.database.MIGRATION_39_40
 import com.averycorp.prismtask.data.local.database.MIGRATION_40_41
 import com.averycorp.prismtask.data.local.database.MIGRATION_41_42
 import com.averycorp.prismtask.data.local.database.MIGRATION_42_43
+import com.averycorp.prismtask.data.local.database.MIGRATION_43_44
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -139,6 +140,14 @@ class StartupCrashDiagnosticTest {
         assertTrue(
             "MIGRATION_42_43 must be in ALL_MIGRATIONS",
             ALL_MIGRATIONS.contains(MIGRATION_42_43)
+        )
+    }
+
+    @Test
+    fun `MIGRATION_43_44 is included in ALL_MIGRATIONS`() {
+        assertTrue(
+            "MIGRATION_43_44 must be in ALL_MIGRATIONS",
+            ALL_MIGRATIONS.contains(MIGRATION_43_44)
         )
     }
 

@@ -722,6 +722,130 @@ fun AddEditHabitScreen(
                 }
             }
 
+            SectionLabel("Today Page Visibility")
+
+            // "Skip on Today after recent completion" override
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Hide After Completion",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = if (viewModel.todaySkipAfterCompleteOverrideEnabled) {
+                            "Override global setting for this habit"
+                        } else if (viewModel.globalSkipAfterCompleteDays > 0) {
+                            "Using global setting (${viewModel.globalSkipAfterCompleteDays} days)"
+                        } else {
+                            "Global setting: disabled"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = viewModel.todaySkipAfterCompleteOverrideEnabled,
+                    onCheckedChange = viewModel::onTodaySkipAfterCompleteOverrideEnabledChange
+                )
+            }
+
+            if (viewModel.todaySkipAfterCompleteOverrideEnabled) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 4.dp, end = 4.dp)
+                ) {
+                    Text(
+                        text = "Hide on Today for",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        text = if (viewModel.todaySkipAfterCompleteDays == 0) {
+                            "Disabled for this habit"
+                        } else {
+                            "${viewModel.todaySkipAfterCompleteDays} days"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Slider(
+                    value = viewModel.todaySkipAfterCompleteDays.toFloat(),
+                    onValueChange = { viewModel.onTodaySkipAfterCompleteDaysChange(it.toInt()) },
+                    valueRange = 0f..30f,
+                    steps = 29,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp)
+                )
+            }
+
+            // "Skip on Today before next scheduled occurrence" override
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Hide Before Next Schedule",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = if (viewModel.todaySkipBeforeScheduleOverrideEnabled) {
+                            "Override global setting for this habit"
+                        } else if (viewModel.globalSkipBeforeScheduleDays > 0) {
+                            "Using global setting (${viewModel.globalSkipBeforeScheduleDays} days)"
+                        } else {
+                            "Global setting: disabled"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = viewModel.todaySkipBeforeScheduleOverrideEnabled,
+                    onCheckedChange = viewModel::onTodaySkipBeforeScheduleOverrideEnabledChange
+                )
+            }
+
+            if (viewModel.todaySkipBeforeScheduleOverrideEnabled) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 4.dp, end = 4.dp)
+                ) {
+                    Text(
+                        text = "Hide if next occurrence within",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        text = if (viewModel.todaySkipBeforeScheduleDays == 0) {
+                            "Disabled for this habit"
+                        } else {
+                            "${viewModel.todaySkipBeforeScheduleDays} days"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Slider(
+                    value = viewModel.todaySkipBeforeScheduleDays.toFloat(),
+                    onValueChange = { viewModel.onTodaySkipBeforeScheduleDaysChange(it.toInt()) },
+                    valueRange = 0f..30f,
+                    steps = 29,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp)
+                )
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
 
             Button(

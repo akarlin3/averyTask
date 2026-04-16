@@ -27,9 +27,15 @@ import com.averycorp.prismtask.ui.components.settings.SettingsRowWithSubtitle
 @Composable
 fun HabitsSection(
     streakMaxMissedDays: Int,
-    onStreakMaxMissedDaysChange: (Int) -> Unit
+    onStreakMaxMissedDaysChange: (Int) -> Unit,
+    todaySkipAfterCompleteDays: Int,
+    onTodaySkipAfterCompleteDaysChange: (Int) -> Unit,
+    todaySkipBeforeScheduleDays: Int,
+    onTodaySkipBeforeScheduleDaysChange: (Int) -> Unit
 ) {
     var showStreakDialog by remember { mutableStateOf(false) }
+    var showSkipAfterDialog by remember { mutableStateOf(false) }
+    var showSkipBeforeDialog by remember { mutableStateOf(false) }
 
     if (showStreakDialog) {
         StreakMaxMissedDaysDialog(
@@ -42,6 +48,36 @@ fun HabitsSection(
         )
     }
 
+    if (showSkipAfterDialog) {
+        TodaySkipDaysDialog(
+            title = "Hide After Completion",
+            description = "Hide a recurring habit from the Today screen for this many days " +
+                "after it was completed. Set to 0 to disable; per-habit overrides take " +
+                "precedence over this default.",
+            current = todaySkipAfterCompleteDays,
+            onConfirm = {
+                onTodaySkipAfterCompleteDaysChange(it)
+                showSkipAfterDialog = false
+            },
+            onDismiss = { showSkipAfterDialog = false }
+        )
+    }
+
+    if (showSkipBeforeDialog) {
+        TodaySkipDaysDialog(
+            title = "Hide Before Next Schedule",
+            description = "Hide a recurring habit from the Today screen if its next " +
+                "scheduled occurrence falls within this many days. Set to 0 to disable; " +
+                "per-habit overrides take precedence over this default.",
+            current = todaySkipBeforeScheduleDays,
+            onConfirm = {
+                onTodaySkipBeforeScheduleDaysChange(it)
+                showSkipBeforeDialog = false
+            },
+            onDismiss = { showSkipBeforeDialog = false }
+        )
+    }
+
     SectionHeader("Habits")
 
     SettingsRowWithSubtitle(
@@ -50,12 +86,96 @@ fun HabitsSection(
         onClick = { showStreakDialog = true }
     )
 
+    SettingsRowWithSubtitle(
+        title = "Hide After Completion",
+        subtitle = subtitleForSkipDays(todaySkipAfterCompleteDays, "after a recent completion"),
+        onClick = { showSkipAfterDialog = true }
+    )
+
+    SettingsRowWithSubtitle(
+        title = "Hide Before Next Schedule",
+        subtitle = subtitleForSkipDays(
+            todaySkipBeforeScheduleDays,
+            "before the next scheduled occurrence"
+        ),
+        onClick = { showSkipBeforeDialog = true }
+    )
+
     HorizontalDivider()
 }
 
 private fun subtitleForMissedDays(days: Int): String = when (days) {
     1 -> "1 missed day ends a streak"
     else -> "$days missed days end a streak"
+}
+
+private fun subtitleForSkipDays(days: Int, scopeText: String): String = when {
+    days <= 0 -> "Disabled"
+    days == 1 -> "Hide on Today for 1 day $scopeText"
+    else -> "Hide on Today for $days days $scopeText"
+}
+
+@Composable
+private fun TodaySkipDaysDialog(
+    title: String,
+    description: String,
+    current: Int,
+    onConfirm: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val max = HabitListPreferences.MAX_TODAY_SKIP_DAYS
+    var value by remember(current) { mutableIntStateOf(current.coerceIn(0, max)) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column {
+                Text(
+                    text = if (value == 0) "Disabled" else if (value == 1) "1 day" else "$value days",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp)
+                )
+                Slider(
+                    value = value.toFloat(),
+                    onValueChange = { value = it.toInt().coerceIn(0, max) },
+                    valueRange = 0f..max.toFloat(),
+                    steps = max - 1
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        "Off",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "$max days",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(value) }) { Text("Save") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }
 
 @Composable

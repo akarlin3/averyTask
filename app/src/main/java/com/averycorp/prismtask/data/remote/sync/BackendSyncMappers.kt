@@ -111,6 +111,8 @@ internal fun habitToOperation(habit: HabitEntity): SyncOperation {
         addProperty("show_streak", habit.showStreak)
         addProperty("nag_suppression_override_enabled", habit.nagSuppressionOverrideEnabled)
         addProperty("nag_suppression_days_override", habit.nagSuppressionDaysOverride)
+        addProperty("today_skip_after_complete_days", habit.todaySkipAfterCompleteDays)
+        addProperty("today_skip_before_schedule_days", habit.todaySkipBeforeScheduleDays)
         addProperty("created_at", habit.createdAt)
         addProperty("updated_at", habit.updatedAt)
     }
