@@ -98,6 +98,7 @@ fun TodayScreen(
     onVoiceAutoStartConsumed: () -> Unit = {},
     onNavigateToHabits: () -> Unit = {}
 ) {
+    val uiTier by viewModel.uiTier.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val overdueTasks by viewModel.overdueTasks.collectAsStateWithLifecycle()
     val todayTasks by viewModel.todayTasks.collectAsStateWithLifecycle()
@@ -302,7 +303,9 @@ fun TodayScreen(
                         }
                     }
 
-                    if (workLifeBalancePrefs.showBalanceBar) {
+                    if (workLifeBalancePrefs.showBalanceBar &&
+                        uiTier.isAtLeast(com.averycorp.prismtask.domain.model.UiComplexityTier.STANDARD)
+                    ) {
                         item(key = "balance_bar") {
                             TodayBalanceSection(
                                 state = balanceState,
@@ -365,6 +368,8 @@ fun TodayScreen(
                         }
                     }
 
+                    // Quick action chips — STANDARD+
+                    if (uiTier.isAtLeast(com.averycorp.prismtask.domain.model.UiComplexityTier.STANDARD)) {
                     item(key = "quick_actions") {
                         val chipColors = AssistChipDefaults.assistChipColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -405,6 +410,7 @@ fun TodayScreen(
                             )
                         }
                     }
+                    } // end STANDARD+ quick actions gate
 
                     if (SECTION_OVERDUE !in hiddenSections && overdueTasks.isNotEmpty()) {
                         val expanded = SECTION_OVERDUE !in collapsedSections
