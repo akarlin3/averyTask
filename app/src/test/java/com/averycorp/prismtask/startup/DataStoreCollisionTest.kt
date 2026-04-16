@@ -51,6 +51,7 @@ class DataStoreCollisionTest {
         "leisure_prefs",
         "auth_token_prefs",
         "morning_checkin_prefs",
+        "notification_prefs",
         "reengagement_prefs",
         "shake_prefs",
         "timer_widget_state",
