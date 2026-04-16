@@ -76,7 +76,35 @@ jobs:
         run: ./gradlew lint --continue
         continue-on-error: true
       - name: Unit tests
-        run: ./gradlew testDebugUnitTest --continue
+        run: ./gradlew testDebugUnitTest --continue 2>&1 | tee unit-test-output.log
+      - name: Post failure details to PR
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let body = '### CI Unit Test Failure\n\n';
+            try {
+              const raw = fs.readFileSync('unit-test-output.log', 'utf8');
+              const lines = raw.split('\n');
+              const errorLines = lines.filter(l =>
+                /\be:\b|FAILED|Compilation error|Unresolved reference|not abstract|does not implement/.test(l)
+              );
+              const tail = lines.slice(-30).join('\n');
+              const errors = errorLines.length > 0
+                ? errorLines.join('\n')
+                : 'No specific error lines matched. Last 30 lines shown.';
+              body += '**Error lines:**\n```\n' + errors.slice(0, 2000) + '\n```\n';
+              body += '\n**Build tail:**\n```\n' + tail.slice(0, 2000) + '\n```';
+            } catch (e) {
+              body += 'Could not read unit-test-output.log: ' + e.message;
+            }
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body
+            });
       - name: Upload lint report
         if: always()
         uses: actions/upload-artifact@v4
