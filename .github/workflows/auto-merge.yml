@@ -2,6 +2,8 @@ name: Auto-merge & Release
 
 # Combined workflow:
 #   1. On pull_request → waits for CI, then squash-merges via auto-merge.
+#      Also runs the version/build job for validation (without bumping,
+#      uploading to Firebase, or committing).
 #   2. On push to main (the merge) → bumps version, builds debug APK,
 #      distributes to Firebase App Distribution, and commits the bump.
 
@@ -51,10 +53,11 @@ jobs:
           gh pr merge --auto --squash "$PR_URL" || \
             echo "Auto-merge could not be enabled (already enabled, already merged, or repo setting disabled)."
 
-  # ── Post-merge: Version Bump + Firebase Distribution ──────────────
+  # ── Version Bump + Firebase Distribution ──────────────────────────
+  # Runs on both PRs (build validation) and pushes to main (full
+  # version bump, Firebase upload, and commit).
   version-bump-and-distribute:
     name: Version Bump, Build & Firebase Distribute
-    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     concurrency:
       group: version-firebase-${{ github.ref }}
@@ -65,7 +68,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          ref: ${{ github.ref_name }}
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
           fetch-depth: 0
 
       - name: Skip if triggered by version bump commit
@@ -112,7 +115,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Bump versionCode and versionName
-        if: steps.skip_check.outputs.skip != 'true' && steps.changes.outputs.has_android == 'true'
+        if: github.event_name == 'push' && steps.skip_check.outputs.skip != 'true' && steps.changes.outputs.has_android == 'true'
         id: version
         run: |
           set -euo pipefail
@@ -166,7 +169,7 @@ jobs:
         run: ./gradlew assembleDebug --no-configuration-cache
 
       - name: Upload to Firebase App Distribution
-        if: steps.skip_check.outputs.skip != 'true' && steps.changes.outputs.has_android == 'true' && steps.firebase.outputs.has_credentials == 'true'
+        if: github.event_name == 'push' && steps.skip_check.outputs.skip != 'true' && steps.changes.outputs.has_android == 'true' && steps.firebase.outputs.has_credentials == 'true'
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
           RELEASE_NOTES_FILE: ${{ runner.temp }}/release_notes.txt
@@ -181,7 +184,7 @@ jobs:
           retention-days: 14
 
       - name: Commit version bump
-        if: steps.skip_check.outputs.skip != 'true' && steps.changes.outputs.has_android == 'true' && success()
+        if: github.event_name == 'push' && steps.skip_check.outputs.skip != 'true' && steps.changes.outputs.has_android == 'true' && success()
         run: |
           set -euo pipefail
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
