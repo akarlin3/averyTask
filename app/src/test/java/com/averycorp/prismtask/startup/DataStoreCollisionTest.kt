@@ -49,7 +49,12 @@ class DataStoreCollisionTest {
         "dashboard_prefs",
         "habit_list_prefs",
         "leisure_prefs",
-        "auth_token_prefs"
+        "auth_token_prefs",
+        "morning_checkin_prefs",
+        "reengagement_prefs",
+        "shake_prefs",
+        "timer_widget_state",
+        "widget_config"
     )
 
     @Test
