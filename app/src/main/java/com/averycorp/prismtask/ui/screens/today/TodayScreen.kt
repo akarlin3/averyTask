@@ -52,6 +52,7 @@ import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.repository.LeisureRepository
 import com.averycorp.prismtask.data.repository.SchoolworkRepository
 import com.averycorp.prismtask.data.repository.SelfCareRepository
+import com.averycorp.prismtask.domain.model.isAtLeast
 import com.averycorp.prismtask.ui.components.EnergyCheckInCard
 import com.averycorp.prismtask.ui.components.HabitChipRowSkeleton
 import com.averycorp.prismtask.ui.components.MoveToProjectSheet
