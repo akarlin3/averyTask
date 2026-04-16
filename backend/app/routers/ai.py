@@ -394,9 +394,51 @@ async def time_block(
             ),
         )
 
-    # Calendar events are not stored in the backend DB currently,
-    # so pass an empty list (can be extended when calendar sync is added)
+    # Fetch real Google Calendar events for the target date so the AI
+    # planner can schedule around them. The call is best-effort: if the
+    # user hasn't connected Calendar, their settings disable sync, or
+    # the backend can't reach Google right now, fall back to an empty
+    # list and let the planner schedule as if the day were clear.
+    from datetime import datetime, timedelta, timezone
+    import json as _json
+
+    from app.models import CalendarSyncSettings as _CalSettings
+    from app.services import calendar_service as _calendar_service
+
     calendar_events: list[dict] = []
+    try:
+        cal_settings_result = await db.execute(
+            select(_CalSettings).where(_CalSettings.user_id == current_user.id)
+        )
+        cal_settings = cal_settings_result.scalar_one_or_none()
+        if cal_settings is not None and cal_settings.enabled and cal_settings.show_events:
+            try:
+                display_ids = _json.loads(cal_settings.display_calendar_ids_json or "[]")
+            except ValueError:
+                display_ids = []
+            calendar_ids = display_ids or [cal_settings.target_calendar_id]
+            day_start_dt = datetime.combine(
+                target_date, datetime.min.time(), tzinfo=timezone.utc
+            )
+            raw_events = await _calendar_service.list_events_in_window(
+                db,
+                current_user.id,
+                calendar_ids,
+                time_min=day_start_dt,
+                time_max=day_start_dt + timedelta(days=1),
+                limit=50,
+            )
+            calendar_events = [
+                {
+                    "title": e["title"],
+                    "start_millis": e["start_millis"],
+                    "end_millis": e["end_millis"],
+                    "all_day": e["all_day"],
+                }
+                for e in raw_events
+            ]
+    except Exception:  # noqa: BLE001
+        calendar_events = []
 
     try:
         from app.services.ai_productivity import generate_time_blocks as ai_time_block

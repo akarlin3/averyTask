@@ -2,6 +2,7 @@ package com.averycorp.prismtask.di
 
 import com.averycorp.prismtask.BuildConfig
 import com.averycorp.prismtask.data.remote.api.AuthInterceptor
+import com.averycorp.prismtask.data.remote.api.CalendarBackendApi
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.data.remote.api.TokenAuthenticator
 import com.google.gson.Gson
@@ -84,6 +85,11 @@ object NetworkModule {
     @Singleton
     fun providePrismTaskApi(retrofit: Retrofit): PrismTaskApi =
         retrofit.create(PrismTaskApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideCalendarBackendApi(retrofit: Retrofit): CalendarBackendApi =
+        retrofit.create(CalendarBackendApi::class.java)
 
     private fun normalizeBaseUrl(url: String): String =
         if (url.endsWith("/")) url else "$url/"

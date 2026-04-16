@@ -121,7 +121,8 @@ constructor(
         val BUILT_IN_TEMPLATES: List<BuiltInTemplateSpec> = listOf(
             BuiltInTemplateSpec(
                 name = "Morning Routine",
-                icon = "\uD83C\uDF05", // 🌅
+                // 🌅
+                icon = "\uD83C\uDF05",
                 category = "Routines",
                 templateTitle = "Morning Routine",
                 templatePriority = 2,
@@ -137,7 +138,8 @@ constructor(
             ),
             BuiltInTemplateSpec(
                 name = "Weekly Review",
-                icon = "\uD83D\uDCCA", // 📊
+                // 📊
+                icon = "\uD83D\uDCCA",
                 category = "Routines",
                 templateTitle = "Weekly Review",
                 templatePriority = 2,
@@ -157,7 +159,8 @@ constructor(
             ),
             BuiltInTemplateSpec(
                 name = "Meeting Prep",
-                icon = "\uD83E\uDD1D", // 🤝
+                // 🤝
+                icon = "\uD83E\uDD1D",
                 category = "Work",
                 templateTitle = "Prepare for Meeting",
                 templatePriority = 3,
@@ -171,7 +174,8 @@ constructor(
             ),
             BuiltInTemplateSpec(
                 name = "Grocery Run",
-                icon = "\uD83D\uDED2", // 🛒
+                // 🛒
+                icon = "\uD83D\uDED2",
                 category = "Personal",
                 templateTitle = "Grocery Shopping",
                 templatePriority = 1,
@@ -185,7 +189,8 @@ constructor(
             ),
             BuiltInTemplateSpec(
                 name = "Assignment",
-                icon = "\uD83D\uDCDA", // 📚
+                // 📚
+                icon = "\uD83D\uDCDA",
                 category = "School",
                 templateTitle = "Complete Assignment",
                 templatePriority = 3,
@@ -201,7 +206,8 @@ constructor(
             ),
             BuiltInTemplateSpec(
                 name = "Deep Clean",
-                icon = "\uD83E\uDDF9", // 🧹
+                // 🧹
+                icon = "\uD83E\uDDF9",
                 category = "Home",
                 templateTitle = "Deep Clean",
                 templatePriority = 2,

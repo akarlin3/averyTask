@@ -69,7 +69,8 @@ class RecurrenceEngineTest {
     fun weekly_multipleDays_monWedFri() {
         val rule = RecurrenceRule(
             type = RecurrenceType.WEEKLY,
-            daysOfWeek = listOf(1, 3, 5) // Mon, Wed, Fri
+            // Mon, Wed, Fri
+            daysOfWeek = listOf(1, 3, 5)
         )
 
         // From Monday -> next is Wednesday

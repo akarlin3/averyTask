@@ -103,7 +103,8 @@ class ParalysisBreakerTest {
         val tasks = listOf(
             makeTask(id = 1, priority = 3, dueDate = now + 1000000),
             makeTask(id = 2, priority = 3, dueDate = now + 100),
-            makeTask(id = 3, priority = 3, dueDate = null) // null goes last
+            // null goes last
+            makeTask(id = 3, priority = 3, dueDate = null)
         )
         val result = ParalysisBreaker.suggestNextTask(tasks, frPrefs)
         assertNotNull(result)

@@ -97,7 +97,7 @@ import com.averycorp.prismtask.data.local.entity.WeeklyReviewEntity
         TaskCompletionEntity::class,
         FocusReleaseLogEntity::class
     ],
-    version = 42,
+    version = 43,
     exportSchema = false
 )
 abstract class PrismTaskDatabase : RoomDatabase() {

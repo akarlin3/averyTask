@@ -753,6 +753,33 @@ val MIGRATION_41_42 = object : Migration(41, 42) {
     }
 }
 
+// Calendar sync: the device-calendar path was hard-deprecated and replaced
+// by backend-mediated Google Calendar sync. Existing `calendar_sync` rows
+// were written by the device path and reference device-provider event IDs
+// that no longer resolve anywhere, so we drop them as part of the bump.
+// The new schema adds `calendar_id` (which Google calendar the event lives
+// on), `sync_state` (SYNCED / PENDING_PUSH / PENDING_DELETE / ERROR) and
+// `etag` (for incremental change detection against the Google API).
+val MIGRATION_42_43 = object : Migration(42, 43) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("DROP TABLE IF EXISTS `calendar_sync`")
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS `calendar_sync` (
+                `task_id` INTEGER NOT NULL PRIMARY KEY,
+                `calendar_event_id` TEXT NOT NULL,
+                `calendar_id` TEXT NOT NULL DEFAULT 'primary',
+                `last_synced_at` INTEGER NOT NULL,
+                `last_synced_version` INTEGER NOT NULL DEFAULT 0,
+                `sync_state` TEXT NOT NULL DEFAULT 'SYNCED',
+                `etag` TEXT,
+                FOREIGN KEY(`task_id`) REFERENCES `tasks`(`id`) ON DELETE CASCADE
+            )"""
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_calendar_sync_calendar_id` ON `calendar_sync` (`calendar_id`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_calendar_sync_sync_state` ON `calendar_sync` (`sync_state`)")
+    }
+}
+
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
@@ -794,5 +821,6 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_38_39,
     MIGRATION_39_40,
     MIGRATION_40_41,
-    MIGRATION_41_42
+    MIGRATION_41_42,
+    MIGRATION_42_43
 )

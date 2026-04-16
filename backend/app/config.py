@@ -23,6 +23,15 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     ANTHROPIC_API_KEY: str = ""
     DEPLOY_API_KEY: str = ""
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    GOOGLE_CALENDAR_REDIRECT_URI: str = ""
+    GOOGLE_CALENDAR_WEBHOOK_URL: str = ""
+    # Symmetric key used to encrypt Google OAuth refresh tokens at rest.
+    # Production MUST set this; dev auto-generates a per-process key which
+    # means tokens stored across restarts cannot be decrypted — acceptable
+    # locally.
+    INTEGRATION_ENCRYPTION_KEY: str = ""
     FIREBASE_SERVICE_ACCOUNT_KEY: str = ""
     FIREBASE_SERVICE_ACCOUNT_KEY_PATH: str = ""
     FIREBASE_STORAGE_BUCKET: str = "prismtask-app.firebasestorage.app"

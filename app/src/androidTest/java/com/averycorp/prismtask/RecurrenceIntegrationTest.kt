@@ -129,7 +129,8 @@ class RecurrenceIntegrationTest {
         val dueDate = LocalDate.of(2025, 1, 6).toMillis() // Monday
         val rule = RecurrenceRule(
             type = RecurrenceType.WEEKLY,
-            daysOfWeek = listOf(1, 3, 5) // Mon, Wed, Fri
+            // Mon, Wed, Fri
+            daysOfWeek = listOf(1, 3, 5)
         )
         val ruleJson = RecurrenceConverter.toJson(rule)
 

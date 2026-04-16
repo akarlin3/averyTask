@@ -23,7 +23,8 @@ data class TimerWidgetState(
     val currentTaskTitle: String? = null,
     val remainingSeconds: Int = 0,
     val totalSeconds: Int = 0,
-    val sessionType: String = "work", // "work" or "break"
+    // "work" or "break"
+    val sessionType: String = "work",
     val currentSession: Int = 0,
     val totalSessions: Int = 4
 )

@@ -601,14 +601,22 @@ internal val TAG_COLORS = listOf(
 
 /** Compact emoji palette offered to the Save-As-Template dialog. */
 internal val TEMPLATE_ICON_CHOICES = listOf(
-    "\uD83D\uDCCB", // 📋
-    "\uD83D\uDCDD", // 📝
-    "\u2B50", // ⭐
-    "\uD83D\uDD25", // 🔥
-    "\uD83C\uDFAF", // 🎯
-    "\uD83D\uDCC5", // 📅
-    "\uD83D\uDCBC", // 💼
-    "\uD83C\uDFE0" // 🏠
+    // 📋
+    "\uD83D\uDCCB",
+    // 📝
+    "\uD83D\uDCDD",
+    // ⭐
+    "\u2B50",
+    // 🔥
+    "\uD83D\uDD25",
+    // 🎯
+    "\uD83C\uDFAF",
+    // 📅
+    "\uD83D\uDCC5",
+    // 💼
+    "\uD83D\uDCBC",
+    // 🏠
+    "\uD83C\uDFE0"
 )
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)

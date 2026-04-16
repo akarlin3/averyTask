@@ -64,14 +64,22 @@ private val iconOptions = listOf(
 )
 
 private val colorOptions = listOf(
-    Color(0xFFCFB87C), // CU Gold
-    Color(0xFF4A90D9), // Blue
-    Color(0xFF10B981), // Green
-    Color(0xFFEF4444), // Red
-    Color(0xFF8B5CF6), // Purple
-    Color(0xFFF59E0B), // Amber
-    Color(0xFFEC4899), // Pink
-    Color(0xFF06B6D4) // Cyan
+    // CU Gold
+    Color(0xFFCFB87C),
+    // Blue
+    Color(0xFF4A90D9),
+    // Green
+    Color(0xFF10B981),
+    // Red
+    Color(0xFFEF4444),
+    // Purple
+    Color(0xFF8B5CF6),
+    // Amber
+    Color(0xFFF59E0B),
+    // Pink
+    Color(0xFFEC4899),
+    // Cyan
+    Color(0xFF06B6D4)
 )
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)

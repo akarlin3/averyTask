@@ -20,7 +20,8 @@ class EscalationChainTest {
                 EscalationStep(EscalationStepAction.STANDARD_ALERT, delayMs = 60_000L),
                 EscalationStep(EscalationStepAction.LOUD_VIBRATE, delayMs = 60_000L)
             ),
-            maxAttempts = 0 // unlimited
+            // unlimited
+            maxAttempts = 0
         )
         val offsets = chain.absoluteOffsets(UrgencyTier.MEDIUM)
         assertEquals(listOf(0L, 60_000L, 120_000L), offsets)

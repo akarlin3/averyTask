@@ -3,7 +3,8 @@ package com.averycorp.prismtask.domain.model
 data class RecurrenceRule(
     val type: RecurrenceType,
     val interval: Int = 1,
-    val daysOfWeek: List<Int>? = null, // 1=Mon..7=Sun
+    // 1=Mon..7=Sun
+    val daysOfWeek: List<Int>? = null,
     val dayOfMonth: Int? = null,
     val endDate: Long? = null,
     val maxOccurrences: Int? = null,

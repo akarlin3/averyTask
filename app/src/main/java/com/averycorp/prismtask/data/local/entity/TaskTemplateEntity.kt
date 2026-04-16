@@ -21,11 +21,14 @@ import androidx.room.PrimaryKey
 data class TaskTemplateEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
-    val userId: String? = null, // Firebase UID for sync
-    val remoteId: Int? = null, // Backend ID for sync
+    // Firebase UID for sync
+    val userId: String? = null,
+    // Backend ID for sync
+    val remoteId: Int? = null,
     val name: String,
     val description: String? = null,
-    val icon: String? = null, // emoji
+    // emoji
+    val icon: String? = null,
     val category: String? = null,
     @ColumnInfo(name = "template_title")
     val templateTitle: String? = null,
@@ -35,14 +38,17 @@ data class TaskTemplateEntity(
     val templatePriority: Int? = null,
     @ColumnInfo(name = "templateProjectId")
     val templateProjectId: Long? = null,
+    // JSON array of tag IDs
     @ColumnInfo(name = "template_tags_json")
-    val templateTagsJson: String? = null, // JSON array of tag IDs
+    val templateTagsJson: String? = null,
     @ColumnInfo(name = "template_recurrence_json")
     val templateRecurrenceJson: String? = null,
+    // minutes
     @ColumnInfo(name = "template_duration")
-    val templateDuration: Int? = null, // minutes
+    val templateDuration: Int? = null,
+    // JSON array of subtask titles
     @ColumnInfo(name = "template_subtasks_json")
-    val templateSubtasksJson: String? = null, // JSON array of subtask titles
+    val templateSubtasksJson: String? = null,
     @ColumnInfo(name = "is_built_in")
     val isBuiltIn: Boolean = false,
     @ColumnInfo(name = "usage_count")

@@ -10,7 +10,6 @@ import com.averycorp.prismtask.data.local.dao.TagDao
 import com.averycorp.prismtask.data.local.dao.TaskCompletionDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.preferences.ArchivePreferences
-import com.averycorp.prismtask.data.preferences.CalendarPreferences
 import com.averycorp.prismtask.data.preferences.DashboardPreferences
 import com.averycorp.prismtask.data.preferences.HabitListPreferences
 import com.averycorp.prismtask.data.preferences.LeisurePreferences
@@ -69,7 +68,6 @@ constructor(
     private val dashboardPreferences: DashboardPreferences,
     private val tabPreferences: TabPreferences,
     private val taskBehaviorPreferences: TaskBehaviorPreferences,
-    private val calendarPreferences: CalendarPreferences,
     private val habitListPreferences: HabitListPreferences,
     private val leisurePreferences: LeisurePreferences,
     private val medicationPreferences: MedicationPreferences,
@@ -241,13 +239,6 @@ constructor(
         medication.addProperty("scheduleMode", medicationPreferences.getScheduleModeOnce().name)
         medication.add("specificTimes", gson.toJsonTree(medicationPreferences.getSpecificTimesOnce()))
         config.add("medication", medication)
-
-        // Calendar
-        val calendar = JsonObject()
-        calendar.addProperty("enabled", calendarPreferences.isEnabled().first())
-        calendar.addProperty("calendarId", calendarPreferences.getCalendarId().first())
-        calendar.addProperty("calendarName", calendarPreferences.getCalendarName().first())
-        config.add("calendar", calendar)
 
         // User Preferences (v1.3.0 customizability)
         val userPrefs = JsonObject()

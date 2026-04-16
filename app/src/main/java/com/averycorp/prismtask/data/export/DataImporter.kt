@@ -23,7 +23,6 @@ import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.local.entity.TaskTagCrossRef
 import com.averycorp.prismtask.data.preferences.ArchivePreferences
 import com.averycorp.prismtask.data.preferences.BuiltInSortOrders
-import com.averycorp.prismtask.data.preferences.CalendarPreferences
 import com.averycorp.prismtask.data.preferences.CustomLeisureActivity
 import com.averycorp.prismtask.data.preferences.DashboardPreferences
 import com.averycorp.prismtask.data.preferences.HabitListPreferences
@@ -100,7 +99,6 @@ constructor(
     private val dashboardPreferences: DashboardPreferences,
     private val tabPreferences: TabPreferences,
     private val taskBehaviorPreferences: TaskBehaviorPreferences,
-    private val calendarPreferences: CalendarPreferences,
     private val habitListPreferences: HabitListPreferences,
     private val leisurePreferences: LeisurePreferences,
     private val medicationPreferences: MedicationPreferences,
@@ -618,7 +616,6 @@ constructor(
                 importHabitListConfig(config)
                 importLeisureConfig(ctx, config)
                 importMedicationConfig(config)
-                importCalendarConfig(config)
                 importUserPreferencesConfig(config)
                 ctx.configImported = true
             } catch (e: Exception) {
@@ -853,26 +850,6 @@ constructor(
             med.getAsJsonArray("specificTimes")?.let { arr ->
                 medicationPreferences.setSpecificTimes(arr.mapNotNull { if (it.isJsonNull) null else it.asString }.toSet())
             }
-        }
-    }
-
-    private suspend fun importCalendarConfig(config: JsonObject) {
-        config.getAsJsonObject("calendar")?.let { cal ->
-            cal
-                .get("enabled")
-                ?.takeIf { !it.isJsonNull }
-                ?.asBoolean
-                ?.let { calendarPreferences.setEnabled(it) }
-            cal
-                .get("calendarId")
-                ?.takeIf { !it.isJsonNull }
-                ?.asLong
-                ?.let { calendarPreferences.setCalendarId(it) }
-            cal
-                .get("calendarName")
-                ?.takeIf { !it.isJsonNull }
-                ?.asString
-                ?.let { calendarPreferences.setCalendarName(it) }
         }
     }
 

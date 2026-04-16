@@ -85,7 +85,8 @@ constructor(
                 color = "#43A047",
                 category = "Productivity",
                 frequency = "WEEKLY",
-                activeDaysCsv = "7" // Sunday
+                // Sunday
+                activeDaysCsv = "7"
             )
         )
     }

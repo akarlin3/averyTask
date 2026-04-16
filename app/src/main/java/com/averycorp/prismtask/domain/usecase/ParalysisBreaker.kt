@@ -74,9 +74,12 @@ object ParalysisBreaker {
      * Maps 3 user-facing levels to internal priority values.
      */
     fun simplifiedPriorities(): List<SimplifiedPriority> = listOf(
-        SimplifiedPriority("Not Urgent", 1), // Low
-        SimplifiedPriority("Normal", 2), // Medium
-        SimplifiedPriority("Urgent", 3) // High
+        // Low
+        SimplifiedPriority("Not Urgent", 1),
+        // Medium
+        SimplifiedPriority("Normal", 2),
+        // High
+        SimplifiedPriority("Urgent", 3)
     )
 
     /**

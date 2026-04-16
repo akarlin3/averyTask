@@ -84,7 +84,8 @@ class BalanceTrackerTest {
     @Test
     fun `tasks outside the 7 day window are excluded from current ratios`() {
         val tasks = listOf(
-            task(1, LifeCategory.WORK, dueDate = now - 30 * oneDay), // too old
+            // too old
+            task(1, LifeCategory.WORK, dueDate = now - 30 * oneDay),
             task(2, LifeCategory.SELF_CARE, dueDate = now - 2 * oneDay)
         )
         val state = tracker.compute(tasks, BalanceConfig(), now, utc)

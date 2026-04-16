@@ -50,7 +50,8 @@ class SmartDefaultsEngineTest {
                 id = i.toLong(),
                 title = "t$i",
                 priority = 1,
-                projectId = i.toLong(), // each task has a distinct project
+                // each task has a distinct project
+                projectId = i.toLong(),
                 isCompleted = true
             )
         }

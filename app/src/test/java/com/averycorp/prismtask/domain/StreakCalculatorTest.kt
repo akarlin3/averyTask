@@ -55,7 +55,8 @@ class StreakCalculatorTest {
         val today = LocalDate.of(2025, 6, 10)
         val completions = listOf(
             completion(date = today),
-            completion(date = today.minusDays(2)) // missing yesterday
+            // missing yesterday
+            completion(date = today.minusDays(2))
         )
         val streak = StreakCalculator.calculateCurrentStreak(completions, dailyHabit(), today)
         assertEquals(1, streak)
@@ -158,8 +159,10 @@ class StreakCalculatorTest {
         val monday = LocalDate.of(2025, 6, 9)
         val completions = listOf(
             completion(date = monday),
-            completion(date = monday.plusDays(2)), // Wed
-            completion(date = monday.plusDays(4)) // Fri
+            // Wed
+            completion(date = monday.plusDays(2)),
+            // Fri
+            completion(date = monday.plusDays(4))
         )
         val rate = StreakCalculator.calculateCompletionRate(completions, habit, 5, today)
         assertEquals(1.0f, rate, 0.01f)
@@ -170,9 +173,12 @@ class StreakCalculatorTest {
     @Test
     fun test_bestDay() {
         val completions = listOf(
-            completion(date = LocalDate.of(2025, 6, 9)), // Monday
-            completion(date = LocalDate.of(2025, 6, 9)), // Monday (2nd)
-            completion(date = LocalDate.of(2025, 6, 10)) // Tuesday
+            // Monday
+            completion(date = LocalDate.of(2025, 6, 9)),
+            // Monday (2nd)
+            completion(date = LocalDate.of(2025, 6, 9)),
+            // Tuesday
+            completion(date = LocalDate.of(2025, 6, 10))
         )
         val best = StreakCalculator.getBestDay(completions)
         assertEquals(DayOfWeek.MONDAY, best)
@@ -181,8 +187,10 @@ class StreakCalculatorTest {
     @Test
     fun test_worstDay() {
         val completions = listOf(
-            completion(date = LocalDate.of(2025, 6, 9)), // Monday
-            completion(date = LocalDate.of(2025, 6, 10)) // Tuesday
+            // Monday
+            completion(date = LocalDate.of(2025, 6, 9)),
+            // Tuesday
+            completion(date = LocalDate.of(2025, 6, 10))
         )
         val worst = StreakCalculator.getWorstDay(completions)
         assertNotNull(worst)
@@ -209,7 +217,8 @@ class StreakCalculatorTest {
         val end = LocalDate.of(2025, 6, 15) // Sunday
         val completions = listOf(
             completion(date = LocalDate.of(2025, 6, 10)),
-            completion(date = LocalDate.of(2025, 6, 10)), // double completion
+            // double completion
+            completion(date = LocalDate.of(2025, 6, 10)),
             completion(date = LocalDate.of(2025, 6, 13))
         )
         val byDay = StreakCalculator.getCompletionsByDay(completions, start, end)
@@ -369,13 +378,19 @@ class StreakCalculatorTest {
         // With MONDAY first-day: week starts Jun 9, so Jun 8 is previous week.
         val today = LocalDate.of(2025, 6, 14) // Saturday
         val completions = listOf(
-            completion(date = LocalDate.of(2025, 6, 8)), // Sunday
-            completion(date = LocalDate.of(2025, 6, 9)), // Monday
-            completion(date = LocalDate.of(2025, 6, 10)), // Tuesday
+            // Sunday
+            completion(date = LocalDate.of(2025, 6, 8)),
+            // Monday
+            completion(date = LocalDate.of(2025, 6, 9)),
+            // Tuesday
+            completion(date = LocalDate.of(2025, 6, 10)),
             // New week (with Sunday first-day: Jun 15 is next week start; with Monday: Jun 9)
-            completion(date = LocalDate.of(2025, 6, 2)), // Monday prev week (Mon-first)
-            completion(date = LocalDate.of(2025, 6, 3)), // Tuesday
-            completion(date = LocalDate.of(2025, 6, 4)) // Wednesday
+            // Monday prev week (Mon-first)
+            completion(date = LocalDate.of(2025, 6, 2)),
+            // Tuesday
+            completion(date = LocalDate.of(2025, 6, 3)),
+            // Wednesday
+            completion(date = LocalDate.of(2025, 6, 4))
         )
         val habit = weeklyHabit(target = 3)
 
