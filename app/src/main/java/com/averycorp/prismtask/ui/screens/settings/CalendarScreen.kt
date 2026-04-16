@@ -25,7 +25,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.averycorp.prismtask.ui.screens.settings.sections.DeviceCalendarSection
 import com.averycorp.prismtask.ui.screens.settings.sections.GoogleCalendarSection
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,10 +33,6 @@ fun CalendarScreen(
     navController: NavController,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
-    val calendarSyncEnabled by viewModel.calendarSyncEnabled.collectAsStateWithLifecycle()
-    val calendarName by viewModel.calendarName.collectAsStateWithLifecycle()
-    val availableCalendars by viewModel.availableCalendars.collectAsStateWithLifecycle()
-
     val isGCalConnected by viewModel.isGCalConnected.collectAsStateWithLifecycle()
     val gCalAccountEmail by viewModel.gCalAccountEmail.collectAsStateWithLifecycle()
     val gCalSyncEnabled by viewModel.gCalSyncEnabled.collectAsStateWithLifecycle()
@@ -81,15 +76,6 @@ fun CalendarScreen(
                 .padding(padding)
                 .padding(horizontal = 16.dp)
         ) {
-            DeviceCalendarSection(
-                calendarSyncEnabled = calendarSyncEnabled,
-                calendarName = calendarName,
-                availableCalendars = availableCalendars,
-                onLoadCalendars = viewModel::loadCalendars,
-                onSelectCalendar = viewModel::selectCalendar,
-                onSetCalendarSyncEnabled = viewModel::setCalendarSyncEnabled
-            )
-
             GoogleCalendarSection(
                 isGCalConnected = isGCalConnected,
                 gCalAccountEmail = gCalAccountEmail,

@@ -8,6 +8,7 @@ import android.content.Intent
 import com.averycorp.prismtask.data.calendar.CalendarManager
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
+import com.averycorp.prismtask.data.repository.CalendarSyncRepository
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.preferences.MedicationPreferences
 import com.averycorp.prismtask.data.preferences.MedicationScheduleMode
@@ -34,7 +35,8 @@ constructor(
     private val medicationPreferences: MedicationPreferences,
     private val taskBehaviorPreferences: TaskBehaviorPreferences,
     private val notificationPreferences: NotificationPreferences,
-    private val calendarManager: CalendarManager
+    private val calendarManager: CalendarManager,
+    private val calendarSyncRepository: CalendarSyncRepository
 ) {
     private val alarmManager: AlarmManager
         get() = context.getSystemService(AlarmManager::class.java)
@@ -198,11 +200,14 @@ constructor(
         }
 
         // Check 2: habit is linked to a calendar event within the window
-        // (fuzzy match by habit name since no direct FK exists)
+        // (fuzzy match by habit name since no direct FK exists). The
+        // lookup now goes through the backend so the Android client
+        // doesn't need the Calendar OAuth scope; `calendarManager` is
+        // still consulted to short-circuit when the user hasn't
+        // connected Calendar at all.
         if (calendarManager.isCalendarConnected.value) {
             val events = getCalendarEventsForHabit(habit, now, windowEnd)
             if (events.isNotEmpty()) {
-                // Use the earliest matching event; follow-up 1 hour after its start
                 val earliestStart = events.minOf { it }
                 return earliestStart.plusHours(1)
             }
@@ -221,40 +226,22 @@ constructor(
      * Known limitation: this is a fuzzy title-match fallback since habits
      * are not directly linked to calendar events via a foreign key.
      */
-    private fun getCalendarEventsForHabit(
+    private suspend fun getCalendarEventsForHabit(
         habit: HabitEntity,
         from: LocalDate,
         to: LocalDate
     ): List<LocalDateTime> {
-        val service = calendarManager.getCalendarService() ?: return emptyList()
-        return try {
-            val zone = ZoneId.systemDefault()
-            val timeMin = com.google.api.client.util.DateTime(
-                from.atStartOfDay(zone).toInstant().toEpochMilli()
-            )
-            val timeMax = com.google.api.client.util.DateTime(
-                to.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
-            )
-            val events = service.events().list("primary")
-                .setTimeMin(timeMin)
-                .setTimeMax(timeMax)
-                .setQ(habit.name)
-                .setMaxResults(10)
-                .setSingleEvents(true)
-                .setOrderBy("startTime")
-                .execute()
-
-            events.items?.mapNotNull { event ->
-                val summary = event.summary ?: return@mapNotNull null
-                if (!summary.contains(habit.name, ignoreCase = true)) return@mapNotNull null
-                val startMillis = event.start?.dateTime?.value
-                    ?: event.start?.date?.value
-                    ?: return@mapNotNull null
-                Instant.ofEpochMilli(startMillis).atZone(zone).toLocalDateTime()
-            } ?: emptyList()
-        } catch (_: Exception) {
-            emptyList()
-        }
+        val zone = ZoneId.systemDefault()
+        val timeMin = from.atStartOfDay(zone).toInstant().toEpochMilli()
+        val timeMax = to.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        val events = calendarSyncRepository.searchEventsBySummary(
+            pattern = habit.name,
+            timeMinMillis = timeMin,
+            timeMaxMillis = timeMax
+        )
+        return events
+            .filter { it.summary.contains(habit.name, ignoreCase = true) }
+            .map { Instant.ofEpochMilli(it.startMillis).atZone(zone).toLocalDateTime() }
     }
 
     /**

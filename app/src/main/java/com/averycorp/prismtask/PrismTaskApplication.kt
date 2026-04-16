@@ -14,6 +14,7 @@ import com.averycorp.prismtask.data.seed.TemplateSeeder
 import com.averycorp.prismtask.notifications.OverloadCheckWorker
 import com.averycorp.prismtask.widget.WidgetRefreshWorker
 import com.averycorp.prismtask.workers.AutoArchiveWorker
+import com.averycorp.prismtask.workers.CalendarSyncScheduler
 import com.averycorp.prismtask.workers.DailyResetWorker
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import dagger.hilt.android.HiltAndroidApp
@@ -47,6 +48,9 @@ class PrismTaskApplication :
     @Inject
     lateinit var templateSeeder: TemplateSeeder
 
+    @Inject
+    lateinit var calendarSyncScheduler: CalendarSyncScheduler
+
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override val workManagerConfiguration: Configuration
@@ -63,6 +67,7 @@ class PrismTaskApplication :
             scheduleDailyReset()
             scheduleOverloadCheck()
             scheduleWidgetRefresh()
+            scheduleCalendarSync()
         } catch (e: Exception) {
             android.util.Log.e("PrismTaskApp", "Worker scheduling failed", e)
             try {
@@ -138,6 +143,15 @@ class PrismTaskApplication :
 
     private fun scheduleWidgetRefresh() {
         WidgetRefreshWorker.schedule(WorkManager.getInstance(this))
+    }
+
+    /**
+     * Applies calendar-sync preferences on startup. Uses a unique-periodic
+     * work request with UPDATE policy inside [CalendarSyncScheduler] so
+     * restarts don't pile up duplicate jobs.
+     */
+    private fun scheduleCalendarSync() {
+        calendarSyncScheduler.applyPreferences()
     }
 
     private fun scheduleAutoArchive() {

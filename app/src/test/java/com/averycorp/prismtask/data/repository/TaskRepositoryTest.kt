@@ -6,7 +6,7 @@ import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.local.entity.TaskTagCrossRef
 import com.averycorp.prismtask.data.local.entity.TaskWithTags
-import com.averycorp.prismtask.data.remote.CalendarSyncService
+import com.averycorp.prismtask.data.calendar.CalendarPushDispatcher
 import com.averycorp.prismtask.data.remote.SyncTracker
 import com.averycorp.prismtask.notifications.ReminderScheduler
 import com.averycorp.prismtask.widget.WidgetUpdateManager
@@ -28,7 +28,7 @@ import java.util.TimeZone
 /**
  * End-to-end style tests for [TaskRepository] using in-memory fake DAOs +
  * relaxed mocks for the side-effect collaborators (SyncTracker,
- * CalendarSyncService, ReminderScheduler). We exercise the repository through
+ * CalendarPushDispatcher, ReminderScheduler). We exercise the repository through
  * its public API and assert on the DAO state to make sure the right rows
  * landed in the right tables.
  */
@@ -36,7 +36,7 @@ class TaskRepositoryTest {
     private lateinit var taskDao: FakeTaskDao
     private lateinit var tagDao: FakeTagDao
     private lateinit var syncTracker: SyncTracker
-    private lateinit var calendarSyncService: CalendarSyncService
+    private lateinit var calendarPushDispatcher: CalendarPushDispatcher
     private lateinit var reminderScheduler: ReminderScheduler
     private lateinit var widgetUpdateManager: WidgetUpdateManager
     private lateinit var taskCompletionRepository: TaskCompletionRepository
@@ -47,7 +47,7 @@ class TaskRepositoryTest {
         taskDao = FakeTaskDao()
         tagDao = FakeTagDao()
         syncTracker = mockk(relaxed = true)
-        calendarSyncService = mockk(relaxed = true)
+        calendarPushDispatcher = mockk(relaxed = true)
         reminderScheduler = mockk(relaxed = true)
         widgetUpdateManager = mockk(relaxed = true)
         taskCompletionRepository = mockk(relaxed = true)
@@ -56,7 +56,7 @@ class TaskRepositoryTest {
                 taskDao,
                 tagDao,
                 syncTracker,
-                calendarSyncService,
+                calendarPushDispatcher,
                 reminderScheduler,
                 widgetUpdateManager,
                 taskCompletionRepository
@@ -174,7 +174,7 @@ class TaskRepositoryTest {
 
         assertTrue(taskDao.tasks.none { it.id == id })
         coVerify { syncTracker.trackDelete(id, "task") }
-        coVerify { calendarSyncService.removeEventForTask(id) }
+        coVerify { calendarPushDispatcher.enqueueDeleteTaskEvent(id) }
     }
 
     // ---------------------------------------------------------------------

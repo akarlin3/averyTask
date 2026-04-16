@@ -1,17 +1,13 @@
 package com.averycorp.prismtask.widget
 
-import android.Manifest
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.provider.CalendarContract
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
@@ -96,51 +92,11 @@ class CalendarWidget : GlanceAppWidget() {
     }
 }
 
-private fun getCalendarEventsForWidget(context: Context): List<WidgetCalendarEvent> {
-    if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALENDAR) !=
-        PackageManager.PERMISSION_GRANTED
-    ) {
-        return emptyList()
-    }
-    val events = mutableListOf<WidgetCalendarEvent>()
-    val cal = Calendar.getInstance()
-    cal.set(Calendar.HOUR_OF_DAY, 0)
-    cal.set(Calendar.MINUTE, 0)
-    cal.set(Calendar.SECOND, 0)
-    cal.set(Calendar.MILLISECOND, 0)
-    val dayStart = cal.timeInMillis
-    val dayEnd = dayStart + 86_400_000L
-    val projection =
-        arrayOf(
-            CalendarContract.Instances.TITLE,
-            CalendarContract.Instances.BEGIN,
-            CalendarContract.Instances.END,
-            CalendarContract.Instances.ALL_DAY,
-            CalendarContract.Instances.CALENDAR_COLOR
-        )
-    val uri = CalendarContract.Instances.CONTENT_URI
-        .buildUpon()
-        .appendPath(dayStart.toString())
-        .appendPath(dayEnd.toString())
-        .build()
-    try {
-        context.contentResolver.query(uri, projection, null, null, "${CalendarContract.Instances.BEGIN} ASC")?.use { cursor ->
-            while (cursor.moveToNext()) {
-                events.add(
-                    WidgetCalendarEvent(
-                        cursor.getString(0) ?: "(No Title)",
-                        cursor.getLong(1),
-                        cursor.getLong(2),
-                        cursor.getInt(3) != 0,
-                        cursor.getInt(4)
-                    )
-                )
-            }
-        }
-    } catch (_: Exception) {
-    }
-    return events
-}
+// After the device calendar path was removed, the widget cannot query
+// CalendarContract directly. Backend-backed event fetching for widgets
+// is tracked in docs/FUTURE-CALENDAR-WORK.md. Returning an empty list
+// keeps the widget rendering tasks-only timeline.
+private fun getCalendarEventsForWidget(@Suppress("unused") context: Context): List<WidgetCalendarEvent> = emptyList()
 
 @Composable
 private fun CalendarContent(
@@ -152,9 +108,7 @@ private fun CalendarContent(
     val isLarge = size.width >= 350.dp
     val timeFormat = remember { SimpleDateFormat("h:mm a", Locale.getDefault()) }
     val todayItems = buildMergedTimeline(data.today, calendarEvents)
-    val hasCalendarPermission =
-        calendarEvents.isNotEmpty() ||
-            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED
+    val hasCalendarPermission = calendarEvents.isNotEmpty()
     val openAppIntent = Intent(context, MainActivity::class.java).apply {
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
     }

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import ai, analytics, app_update, auth, dashboard, export, feedback, goals, habits, integrations, nd_preferences, projects, search, syllabus, sync, tags, tasks, templates
+from app.routers import ai, analytics, app_update, auth, calendar, dashboard, export, feedback, goals, habits, integrations, nd_preferences, projects, search, syllabus, sync, tags, tasks, templates
 from app.routers.admin import activity_logs as admin_activity_logs
 from app.routers.admin import debug_logs as admin_debug_logs
 
@@ -45,9 +45,34 @@ app.include_router(sync.router, prefix="/api/v1")
 app.include_router(export.router, prefix="/api/v1")
 app.include_router(feedback.router, prefix="/api/v1")
 app.include_router(integrations.router, prefix="/api/v1")
+app.include_router(calendar.router, prefix="/api/v1")
 app.include_router(nd_preferences.router, prefix="/api/v1")
 app.include_router(admin_activity_logs.router, prefix="/api/v1")
 app.include_router(admin_debug_logs.router, prefix="/api/v1")
+
+
+@app.on_event("startup")
+async def _start_calendar_sync_scheduler() -> None:
+    try:
+        from app.services.calendar_periodic_sync import start_scheduler
+
+        start_scheduler()
+    except Exception as exc:  # noqa: BLE001
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "Failed to start calendar sync scheduler: %s", exc
+        )
+
+
+@app.on_event("shutdown")
+async def _stop_calendar_sync_scheduler() -> None:
+    try:
+        from app.services.calendar_periodic_sync import stop_scheduler
+
+        stop_scheduler()
+    except Exception:  # noqa: BLE001
+        pass
 
 
 @app.get("/")

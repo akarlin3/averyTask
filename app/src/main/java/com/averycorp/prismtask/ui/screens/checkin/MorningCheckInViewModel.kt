@@ -2,14 +2,14 @@ package com.averycorp.prismtask.ui.screens.checkin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.averycorp.prismtask.data.calendar.CalendarEventInfo
 import com.averycorp.prismtask.data.calendar.CalendarManager
 import com.averycorp.prismtask.data.local.entity.MedicationRefillEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 import com.averycorp.prismtask.data.preferences.WorkLifeBalancePrefs
-import com.averycorp.prismtask.data.remote.CalendarEventInfo
-import com.averycorp.prismtask.data.remote.CalendarSyncService
+import com.averycorp.prismtask.data.repository.CalendarEventRepository
 import com.averycorp.prismtask.data.repository.CheckInLogRepository
 import com.averycorp.prismtask.data.repository.HabitRepository
 import com.averycorp.prismtask.data.repository.HabitWithStatus
@@ -66,7 +66,7 @@ constructor(
     private val checkInLogRepository: CheckInLogRepository,
     private val medicationRefillRepository: MedicationRefillRepository,
     private val calendarManager: CalendarManager,
-    private val calendarSyncService: CalendarSyncService,
+    private val calendarEventRepository: CalendarEventRepository,
     private val userPreferencesDataStore: UserPreferencesDataStore,
     private val taskBehaviorPreferences: TaskBehaviorPreferences
 ) : ViewModel() {
@@ -178,7 +178,13 @@ constructor(
             val now = System.currentTimeMillis()
             val dayEnd = DayBoundary.endOfCurrentDay(dayStartHour)
             val events = withContext(Dispatchers.IO) {
-                calendarSyncService.getTodayUpcomingEvents(now = now, dayEnd = dayEnd, limit = 3)
+                runCatching {
+                    calendarEventRepository.getTodayUpcomingEvents(
+                        now = now,
+                        dayEnd = dayEnd,
+                        limit = 3
+                    )
+                }.getOrDefault(emptyList())
             }
             _calendarEvents.value = events
         }
