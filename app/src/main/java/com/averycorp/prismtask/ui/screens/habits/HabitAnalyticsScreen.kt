@@ -54,6 +54,8 @@ import com.averycorp.prismtask.ui.components.ContributionGrid
 import com.averycorp.prismtask.ui.components.StreakBadge
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import java.time.DayOfWeek
+import java.time.format.TextStyle
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -294,7 +296,7 @@ private fun DayOfWeekChart(
     modifier: Modifier = Modifier
 ) {
     val days = (0 until 7).map { DayOfWeek.of((firstDayOfWeek.value - 1 + it) % 7 + 1) }
-    val labels = days.map { it.getDisplayName(java.time.format.TextStyle.NARROW, java.util.Locale.getDefault()) }
+    val labels = days.map { it.getDisplayName(TextStyle.NARROW, Locale.getDefault()) }
     val maxVal = averages.values.maxOrNull()?.coerceAtLeast(0.1f) ?: 0.1f
 
     Card(

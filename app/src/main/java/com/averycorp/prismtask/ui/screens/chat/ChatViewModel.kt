@@ -24,7 +24,6 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -190,7 +189,7 @@ constructor(
         }
     }
 
-    private fun resolveDate(dateStr: String?): Long? {
+    private suspend fun resolveDate(dateStr: String?): Long? {
         if (dateStr == null) return null
         val cal = Calendar.getInstance()
         cal.set(Calendar.HOUR_OF_DAY, 23)
@@ -205,7 +204,7 @@ constructor(
                 cal.timeInMillis
             }
             "next_week" -> {
-                val calDow = runBlocking { taskBehaviorPreferences.getFirstDayOfWeek().first() }.toCalendarDayOfWeek()
+                val calDow = taskBehaviorPreferences.getFirstDayOfWeek().first().toCalendarDayOfWeek()
                 cal.firstDayOfWeek = calDow
                 cal.add(Calendar.WEEK_OF_YEAR, 1)
                 cal.set(Calendar.DAY_OF_WEEK, calDow)

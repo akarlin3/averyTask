@@ -14,7 +14,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -86,15 +85,21 @@ constructor(
     private val _showUpgradePrompt = MutableStateFlow(false)
     val showUpgradePrompt: StateFlow<Boolean> = _showUpgradePrompt
 
-    private val _weekStart = MutableStateFlow(computeNextWeekStart())
+    private val _weekStart = MutableStateFlow(computeNextWeekStart(DayOfWeek.MONDAY))
     val weekStart: StateFlow<LocalDate> = _weekStart
 
     private val _planApplied = MutableStateFlow(false)
     val planApplied: StateFlow<Boolean> = _planApplied
 
-    private fun computeNextWeekStart(): LocalDate {
+    init {
+        viewModelScope.launch {
+            val fdow = taskBehaviorPreferences.getFirstDayOfWeek().first()
+            _weekStart.value = computeNextWeekStart(fdow)
+        }
+    }
+
+    private fun computeNextWeekStart(fdow: DayOfWeek): LocalDate {
         val today = LocalDate.now()
-        val fdow = runBlocking { taskBehaviorPreferences.getFirstDayOfWeek().first() }
         return if (today.dayOfWeek == fdow) {
             today
         } else {

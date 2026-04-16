@@ -55,8 +55,6 @@ constructor(
 ) {
     private suspend fun currentDayStartHour(): Int = taskBehaviorPreferences.getDayStartHour().first()
 
-    private suspend fun currentFirstDayOfWeek(): DayOfWeek = taskBehaviorPreferences.getFirstDayOfWeek().first()
-
     private suspend fun normalizeForToday(timestamp: Long): Long =
         DayBoundary.normalizeToDayStart(timestamp, currentDayStartHour())
 
