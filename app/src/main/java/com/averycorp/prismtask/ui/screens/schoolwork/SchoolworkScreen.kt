@@ -118,6 +118,8 @@ fun SchoolworkScreen(
                 )
             } catch (_: SecurityException) {
                 // Some providers don't support persistable permissions
+            } catch (_: IllegalArgumentException) {
+                // URI not backed by a DocumentsProvider
             }
             navController.navigate(PrismTaskRoute.SyllabusReview.createRoute(it.toString()))
         }
