@@ -108,7 +108,9 @@ constructor(
         val default = LeisureSlotConfig.defaultFor(slot)
         val keys = keysFor(slot)
         val hidden: List<String> = prefs[keys.hiddenKey]?.let { gson.fromJson<List<String>>(it, stringListType) } ?: emptyList()
-        val custom: List<CustomLeisureActivity> = prefs[keys.customKey]?.let { gson.fromJson<List<CustomLeisureActivity>>(it, activityListType) } ?: emptyList()
+        val custom: List<CustomLeisureActivity> = prefs[keys.customKey]?.let {
+            gson.fromJson<List<CustomLeisureActivity>>(it, activityListType)
+        } ?: emptyList()
         return LeisureSlotConfig(
             enabled = prefs[keys.enabledKey]?.toBooleanStrictOrNull() ?: default.enabled,
             label = prefs[keys.labelKey]?.takeIf { it.isNotBlank() } ?: default.label,
@@ -235,12 +237,24 @@ constructor(
 
     private fun keysFor(slot: LeisureSlotId): SlotKeys = when (slot) {
         LeisureSlotId.MUSIC -> SlotKeys(
-            MUSIC_ENABLED_KEY, MUSIC_LABEL_KEY, MUSIC_EMOJI_KEY, MUSIC_DURATION_KEY,
-            MUSIC_COLUMNS_KEY, MUSIC_AUTO_KEY, MUSIC_HIDDEN_KEY, CUSTOM_MUSIC_KEY
+            MUSIC_ENABLED_KEY,
+            MUSIC_LABEL_KEY,
+            MUSIC_EMOJI_KEY,
+            MUSIC_DURATION_KEY,
+            MUSIC_COLUMNS_KEY,
+            MUSIC_AUTO_KEY,
+            MUSIC_HIDDEN_KEY,
+            CUSTOM_MUSIC_KEY
         )
         LeisureSlotId.FLEX -> SlotKeys(
-            FLEX_ENABLED_KEY, FLEX_LABEL_KEY, FLEX_EMOJI_KEY, FLEX_DURATION_KEY,
-            FLEX_COLUMNS_KEY, FLEX_AUTO_KEY, FLEX_HIDDEN_KEY, CUSTOM_FLEX_KEY
+            FLEX_ENABLED_KEY,
+            FLEX_LABEL_KEY,
+            FLEX_EMOJI_KEY,
+            FLEX_DURATION_KEY,
+            FLEX_COLUMNS_KEY,
+            FLEX_AUTO_KEY,
+            FLEX_HIDDEN_KEY,
+            CUSTOM_FLEX_KEY
         )
     }
 }
