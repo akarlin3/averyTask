@@ -1,6 +1,7 @@
 package com.averycorp.prismtask.data.repository
 
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
+import com.averycorp.prismtask.data.local.dao.HabitLastCompletion
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.dao.HabitLogDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
@@ -418,6 +419,15 @@ class HabitRepositoryTest {
 
         override fun getLastCompletion(habitId: Long): Flow<HabitCompletionEntity?> =
             flowOf(completions.filter { it.habitId == habitId }.maxByOrNull { it.completedDate })
+
+        override fun getLastCompletionDatesPerHabit(): Flow<List<HabitLastCompletion>> =
+            flowOf(
+                completions
+                    .groupBy { it.habitId }
+                    .map { (habitId, entries) ->
+                        HabitLastCompletion(habitId, entries.maxOf { it.completedDate })
+                    }
+            )
 
         override suspend fun getLastCompletionOnce(habitId: Long): HabitCompletionEntity? =
             completions.filter { it.habitId == habitId }.maxByOrNull { it.completedAt }

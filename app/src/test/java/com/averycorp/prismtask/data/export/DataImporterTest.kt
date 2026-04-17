@@ -52,6 +52,7 @@ class DataImporterTest {
     private lateinit var leisureDao: LeisureDao
     private lateinit var selfCareDao: SelfCareDao
     private lateinit var schoolworkDao: SchoolworkDao
+    private lateinit var database: com.averycorp.prismtask.data.local.database.PrismTaskDatabase
     private lateinit var themePreferences: ThemePreferences
     private lateinit var archivePreferences: ArchivePreferences
     private lateinit var dashboardPreferences: DashboardPreferences
@@ -76,6 +77,7 @@ class DataImporterTest {
         selfCareDao = mockk(relaxed = true)
         schoolworkDao = mockk(relaxed = true)
         taskCompletionDao = mockk(relaxed = true)
+        database = mockk(relaxed = true)
         themePreferences = mockk(relaxed = true)
         archivePreferences = mockk(relaxed = true)
         dashboardPreferences = mockk(relaxed = true)
@@ -100,6 +102,7 @@ class DataImporterTest {
             leisureDao,
             selfCareDao,
             schoolworkDao,
+            database,
             themePreferences,
             archivePreferences,
             dashboardPreferences,

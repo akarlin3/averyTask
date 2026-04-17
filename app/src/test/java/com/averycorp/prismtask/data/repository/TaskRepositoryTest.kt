@@ -568,6 +568,9 @@ class TaskRepositoryTest {
         override fun getTasksByProject(projectId: Long): Flow<List<TaskEntity>> =
             flowOf(tasks.filter { it.projectId == projectId })
 
+        override suspend fun getTasksByProjectOnce(projectId: Long): List<TaskEntity> =
+            tasks.filter { it.projectId == projectId }
+
         override suspend fun deleteTasksByProjectId(projectId: Long) {
             tasks.removeAll { it.projectId == projectId }
         }

@@ -512,6 +512,8 @@ class TaskTemplateRepositoryTest {
 
         override fun getTasksByProject(projectId: Long): Flow<List<TaskEntity>> = unsupported()
 
+        override suspend fun getTasksByProjectOnce(projectId: Long): List<TaskEntity> = unsupported()
+
         override suspend fun deleteTasksByProjectId(projectId: Long) = unsupported()
 
         override fun getSubtasks(parentTaskId: Long): Flow<List<TaskEntity>> = unsupported()
