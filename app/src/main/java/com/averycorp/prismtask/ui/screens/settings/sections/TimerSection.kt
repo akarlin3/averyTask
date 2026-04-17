@@ -37,12 +37,14 @@ fun TimerSection(
     timerWorkSeconds: Int,
     timerBreakSeconds: Int,
     timerLongBreakSeconds: Int,
+    timerCustomSeconds: Int,
     pomodoroAvailableMinutes: Int,
     pomodoroFocusPreference: String,
     buzzUntilDismissed: Boolean,
     onTimerWorkMinutesChange: (Int) -> Unit,
     onTimerBreakMinutesChange: (Int) -> Unit,
     onTimerLongBreakMinutesChange: (Int) -> Unit,
+    onTimerCustomMinutesChange: (Int) -> Unit,
     onPomodoroAvailableMinutesChange: (Int) -> Unit,
     onPomodoroFocusPreferenceChange: (String) -> Unit,
     onBuzzUntilDismissedChange: (Boolean) -> Unit
@@ -50,6 +52,7 @@ fun TimerSection(
     var showTimerWorkDialog by remember { mutableStateOf(false) }
     var showTimerBreakDialog by remember { mutableStateOf(false) }
     var showTimerLongBreakDialog by remember { mutableStateOf(false) }
+    var showTimerCustomDialog by remember { mutableStateOf(false) }
     var showAvailableTimeDialog by remember { mutableStateOf(false) }
     var showFocusDialog by remember { mutableStateOf(false) }
 
@@ -86,6 +89,18 @@ fun TimerSection(
                 showTimerLongBreakDialog = false
             },
             onDismiss = { showTimerLongBreakDialog = false }
+        )
+    }
+
+    if (showTimerCustomDialog) {
+        DurationPickerDialog(
+            title = "Custom Duration",
+            currentMinutes = timerCustomSeconds / 60,
+            onConfirm = {
+                onTimerCustomMinutesChange(it)
+                showTimerCustomDialog = false
+            },
+            onDismiss = { showTimerCustomDialog = false }
         )
     }
 
@@ -127,6 +142,11 @@ fun TimerSection(
         title = "Long Break Duration",
         subtitle = "${timerLongBreakSeconds / 60} min",
         onClick = { showTimerLongBreakDialog = true }
+    )
+    SettingsRowWithSubtitle(
+        title = "Custom Duration",
+        subtitle = "${timerCustomSeconds / 60} min",
+        onClick = { showTimerCustomDialog = true }
     )
     SettingsRowWithSubtitle(
         title = "Available Focus Time",

@@ -109,7 +109,12 @@ private fun TimerContent(
 ) {
     val accent = MaterialTheme.colorScheme.primary
     val breakAccent = MaterialTheme.colorScheme.tertiary
-    val activeColor = if (uiState.mode == TimerMode.WORK) accent else breakAccent
+    val customAccent = MaterialTheme.colorScheme.secondary
+    val activeColor = when (uiState.mode) {
+        TimerMode.WORK -> accent
+        TimerMode.BREAK -> breakAccent
+        TimerMode.CUSTOM -> customAccent
+    }
 
     Column(
         modifier = Modifier
@@ -154,6 +159,7 @@ private fun TimerContent(
         // Timer ring display
         val modeLabel = when {
             !uiState.pomodoroEnabled && uiState.mode == TimerMode.WORK -> "Focus"
+            !uiState.pomodoroEnabled && uiState.mode == TimerMode.CUSTOM -> "Custom"
             !uiState.pomodoroEnabled -> "Break"
             uiState.mode == TimerMode.WORK -> "Focus"
             uiState.isLongBreak -> "Long Break"
@@ -256,7 +262,11 @@ private fun ModeSelector(
     uiState: TimerUiState,
     onSetMode: (TimerMode) -> Unit
 ) {
-    val options = listOf(TimerMode.WORK to "Work", TimerMode.BREAK to "Break")
+    val options = listOf(
+        TimerMode.WORK to "Work",
+        TimerMode.BREAK to "Break",
+        TimerMode.CUSTOM to "Custom"
+    )
     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
         options.forEachIndexed { index, (mode, label) ->
             SegmentedButton(

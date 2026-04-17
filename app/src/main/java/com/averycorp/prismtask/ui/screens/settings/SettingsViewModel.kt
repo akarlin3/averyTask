@@ -733,6 +733,10 @@ constructor(
         .getLongBreakDurationSeconds()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TimerPreferences.DEFAULT_LONG_BREAK_SECONDS)
 
+    val timerCustomDurationSeconds: StateFlow<Int> = timerPreferences
+        .getCustomDurationSeconds()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TimerPreferences.DEFAULT_CUSTOM_SECONDS)
+
     val pomodoroAvailableMinutes: StateFlow<Int> = timerPreferences
         .getPomodoroAvailableMinutes()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TimerPreferences.DEFAULT_AVAILABLE_MINUTES)
@@ -755,6 +759,10 @@ constructor(
 
     fun setTimerLongBreakDurationMinutes(minutes: Int) {
         viewModelScope.launch { timerPreferences.setLongBreakDurationSeconds(minutes * 60) }
+    }
+
+    fun setTimerCustomDurationMinutes(minutes: Int) {
+        viewModelScope.launch { timerPreferences.setCustomDurationSeconds(minutes * 60) }
     }
 
     fun setPomodoroAvailableMinutes(minutes: Int) {

@@ -26,6 +26,7 @@ constructor(
         private val WORK_DURATION_SECONDS = intPreferencesKey("work_duration_seconds")
         private val BREAK_DURATION_SECONDS = intPreferencesKey("break_duration_seconds")
         private val LONG_BREAK_DURATION_SECONDS = intPreferencesKey("long_break_duration_seconds")
+        private val CUSTOM_DURATION_SECONDS = intPreferencesKey("custom_duration_seconds")
         private val POMODORO_ENABLED = intPreferencesKey("pomodoro_enabled")
         private val SESSIONS_UNTIL_LONG_BREAK = intPreferencesKey("sessions_until_long_break")
         private val AUTO_START_BREAKS = intPreferencesKey("auto_start_breaks")
@@ -37,6 +38,7 @@ constructor(
         const val DEFAULT_WORK_SECONDS = 25 * 60
         const val DEFAULT_BREAK_SECONDS = 5 * 60
         const val DEFAULT_LONG_BREAK_SECONDS = 15 * 60
+        const val DEFAULT_CUSTOM_SECONDS = 10 * 60
         const val DEFAULT_SESSIONS_UNTIL_LONG_BREAK = 4
         const val MIN_SECONDS = 60
         const val MAX_SECONDS = 180 * 60
@@ -59,6 +61,10 @@ constructor(
 
     fun getLongBreakDurationSeconds(): Flow<Int> = context.timerDataStore.data.map { prefs ->
         prefs[LONG_BREAK_DURATION_SECONDS] ?: DEFAULT_LONG_BREAK_SECONDS
+    }
+
+    fun getCustomDurationSeconds(): Flow<Int> = context.timerDataStore.data.map { prefs ->
+        prefs[CUSTOM_DURATION_SECONDS] ?: DEFAULT_CUSTOM_SECONDS
     }
 
     fun getPomodoroEnabled(): Flow<Boolean> = context.timerDataStore.data.map { prefs ->
@@ -92,6 +98,12 @@ constructor(
     suspend fun setLongBreakDurationSeconds(seconds: Int) {
         context.timerDataStore.edit { prefs ->
             prefs[LONG_BREAK_DURATION_SECONDS] = seconds.coerceIn(MIN_SECONDS, MAX_SECONDS)
+        }
+    }
+
+    suspend fun setCustomDurationSeconds(seconds: Int) {
+        context.timerDataStore.edit { prefs ->
+            prefs[CUSTOM_DURATION_SECONDS] = seconds.coerceIn(MIN_SECONDS, MAX_SECONDS)
         }
     }
 

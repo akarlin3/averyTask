@@ -33,6 +33,7 @@ fun FocusTimerScreen(
     val timerWorkSeconds by viewModel.timerWorkDurationSeconds.collectAsStateWithLifecycle()
     val timerBreakSeconds by viewModel.timerBreakDurationSeconds.collectAsStateWithLifecycle()
     val timerLongBreakSeconds by viewModel.timerLongBreakDurationSeconds.collectAsStateWithLifecycle()
+    val timerCustomSeconds by viewModel.timerCustomDurationSeconds.collectAsStateWithLifecycle()
     val pomodoroAvailableMinutes by viewModel.pomodoroAvailableMinutes.collectAsStateWithLifecycle()
     val pomodoroFocusPreference by viewModel.pomodoroFocusPreference.collectAsStateWithLifecycle()
     val timerBuzzUntilDismissed by viewModel.timerBuzzUntilDismissed.collectAsStateWithLifecycle()
@@ -60,12 +61,14 @@ fun FocusTimerScreen(
                 timerWorkSeconds = timerWorkSeconds,
                 timerBreakSeconds = timerBreakSeconds,
                 timerLongBreakSeconds = timerLongBreakSeconds,
+                timerCustomSeconds = timerCustomSeconds,
                 pomodoroAvailableMinutes = pomodoroAvailableMinutes,
                 pomodoroFocusPreference = pomodoroFocusPreference,
                 buzzUntilDismissed = timerBuzzUntilDismissed,
                 onTimerWorkMinutesChange = viewModel::setTimerWorkDurationMinutes,
                 onTimerBreakMinutesChange = viewModel::setTimerBreakDurationMinutes,
                 onTimerLongBreakMinutesChange = viewModel::setTimerLongBreakDurationMinutes,
+                onTimerCustomMinutesChange = viewModel::setTimerCustomDurationMinutes,
                 onPomodoroAvailableMinutesChange = viewModel::setPomodoroAvailableMinutes,
                 onPomodoroFocusPreferenceChange = viewModel::setPomodoroFocusPreference,
                 onBuzzUntilDismissedChange = viewModel::setTimerBuzzUntilDismissed
