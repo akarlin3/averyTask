@@ -3,6 +3,7 @@ package com.averycorp.prismtask.ui.screens.timer
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,6 +44,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,6 +62,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.averycorp.prismtask.ui.components.settings.DurationPickerDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,7 +93,8 @@ fun TimerScreen(
             onResetPomodoro = viewModel::resetPomodoro,
             onTogglePomodoroEnabled = viewModel::togglePomodoroEnabled,
             onToggleAutoStartBreaks = viewModel::toggleAutoStartBreaks,
-            onToggleAutoStartWork = viewModel::toggleAutoStartWork
+            onToggleAutoStartWork = viewModel::toggleAutoStartWork,
+            onSetCustomDurationMinutes = viewModel::setCustomDurationMinutes
         )
     }
 }
@@ -105,7 +111,8 @@ private fun TimerContent(
     onResetPomodoro: () -> Unit,
     onTogglePomodoroEnabled: () -> Unit,
     onToggleAutoStartBreaks: () -> Unit,
-    onToggleAutoStartWork: () -> Unit
+    onToggleAutoStartWork: () -> Unit,
+    onSetCustomDurationMinutes: (Int) -> Unit
 ) {
     val accent = MaterialTheme.colorScheme.primary
     val breakAccent = MaterialTheme.colorScheme.tertiary
@@ -249,7 +256,8 @@ private fun TimerContent(
             uiState = uiState,
             onTogglePomodoroEnabled = onTogglePomodoroEnabled,
             onToggleAutoStartBreaks = onToggleAutoStartBreaks,
-            onToggleAutoStartWork = onToggleAutoStartWork
+            onToggleAutoStartWork = onToggleAutoStartWork,
+            onSetCustomDurationMinutes = onSetCustomDurationMinutes
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -308,8 +316,23 @@ private fun PomodoroSettings(
     uiState: TimerUiState,
     onTogglePomodoroEnabled: () -> Unit,
     onToggleAutoStartBreaks: () -> Unit,
-    onToggleAutoStartWork: () -> Unit
+    onToggleAutoStartWork: () -> Unit,
+    onSetCustomDurationMinutes: (Int) -> Unit
 ) {
+    var showCustomDurationDialog by remember { mutableStateOf(false) }
+
+    if (showCustomDurationDialog) {
+        DurationPickerDialog(
+            title = "Custom Duration",
+            currentMinutes = uiState.customDurationSeconds / 60,
+            onConfirm = {
+                onSetCustomDurationMinutes(it)
+                showCustomDurationDialog = false
+            },
+            onDismiss = { showCustomDurationDialog = false }
+        )
+    }
+
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -341,6 +364,42 @@ private fun PomodoroSettings(
             checked = uiState.autoStartWork,
             onToggle = onToggleAutoStartWork
         )
+
+        SettingsClickableRow(
+            label = "Custom Duration",
+            description = "${uiState.customDurationSeconds / 60} min",
+            onClick = { showCustomDurationDialog = true }
+        )
+    }
+}
+
+@Composable
+private fun SettingsClickableRow(
+    label: String,
+    description: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 
