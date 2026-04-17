@@ -270,9 +270,6 @@ class NdPreferencesDataStore(
             "quiet_mode" -> bool()?.let { setQuietMode(it) }
             "reduce_haptics" -> bool()?.let { setReduceHaptics(it) }
             "soft_contrast" -> bool()?.let { setSoftContrast(it) }
-            "task_decomposition" -> bool()?.let { setTaskDecomposition(it) }
-            "focus_guard" -> bool()?.let { setFocusGuard(it) }
-            "body_doubling" -> bool()?.let { setBodyDoubling(it) }
             "check_in_interval_minutes" -> int()?.let { setCheckInIntervalMinutes(it) }
             "completion_animations" -> bool()?.let { setCompletionAnimations(it) }
             "streak_celebrations" -> bool()?.let { setStreakCelebrations(it) }
@@ -280,10 +277,10 @@ class NdPreferencesDataStore(
             "forgiveness_streaks" -> bool()?.let { setForgivenessStreaks(it) }
             "good_enough_timers_enabled" -> bool()?.let { setGoodEnoughTimersEnabled(it) }
             "default_good_enough_minutes" -> int()?.let { setDefaultGoodEnoughMinutes(it) }
-            "good_enough_escalation" -> str()?.let {
-                runCatching { GoodEnoughEscalation.valueOf(it) }
+            "good_enough_escalation" -> str()?.let { name ->
+                runCatching { GoodEnoughEscalation.valueOf(name) }
                     .getOrNull()
-                    ?.let(::setGoodEnoughEscalation)
+                    ?.let { setGoodEnoughEscalation(it) }
             }
             "anti_rework_enabled" -> bool()?.let { setAntiReworkEnabled(it) }
             "soft_warning_enabled" -> bool()?.let { setSoftWarningEnabled(it) }
@@ -292,15 +289,11 @@ class NdPreferencesDataStore(
             "revision_counter_enabled" -> bool()?.let { setRevisionCounterEnabled(it) }
             "max_revisions" -> int()?.let { setMaxRevisions(it) }
             "ship_it_celebrations_enabled" -> bool()?.let { setShipItCelebrationsEnabled(it) }
-            "celebration_intensity" -> str()?.let {
-                runCatching { CelebrationIntensity.valueOf(it) }
+            "celebration_intensity" -> str()?.let { name ->
+                runCatching { CelebrationIntensity.valueOf(name) }
                     .getOrNull()
-                    ?.let(::setCelebrationIntensity)
+                    ?.let { setCelebrationIntensity(it) }
             }
-            "paralysis_breakers_enabled" -> bool()?.let { setParalysisBreakersEnabled(it) }
-            "auto_suggest_enabled" -> bool()?.let { setAutoSuggestEnabled(it) }
-            "simplify_choices_enabled" -> bool()?.let { setSimplifyChoicesEnabled(it) }
-            "stuck_detection_minutes" -> int()?.let { setStuckDetectionMinutes(it) }
             else -> throw IllegalArgumentException("Unknown ND preference key: $key")
         }
     }
