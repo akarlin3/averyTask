@@ -21,22 +21,24 @@ A cross-platform task manager with a Python API backend featuring AI-powered nat
 
 ## Free vs Pro
 
-PrismTask ships with a two-tier pricing model.
+PrismTask ships with a two-tier pricing model. Pro is $7.99/mo, or $4.99/mo
+billed annually ($59.88/year) with a 7-day free trial on the annual plan.
 
 | Feature | Free | Pro |
 |---------|------|-----|
 | Task management, projects, tags, subtasks | Yes | Yes |
-| Habit tracking with streaks | Yes | Yes |
+| Habit tracking with streaks & analytics | Yes | Yes |
 | Templates, widgets, voice, accessibility | Yes | Yes |
-| Work-Life Balance Engine | Yes | Yes |
+| NLP quick-add & calendar sync | Yes | Yes |
+| Work-Life Balance Engine (v1.4.0) | Yes | Yes |
 | Cloud sync across devices | -- | Yes |
-| AI Eisenhower & Pomodoro | -- | Yes |
-| AI briefing, weekly planner, time blocking | -- | Yes |
-| AI coach, task breakdown, daily planning | -- | Yes |
-| Syllabus import | -- | Yes |
-
-Pro is available as an annual subscription ($4.99/mo billed $59.88/year with a
-7-day free trial) or month-to-month at $7.99/mo.
+| AI Eisenhower & Smart Pomodoro | -- | Yes |
+| AI daily briefing, weekly planner, time blocking | -- | Yes |
+| Full analytics & time tracking | -- | Yes |
+| Shared projects & collaboration | -- | Yes |
+| Gmail, Slack, Zapier integrations | -- | Yes |
+| Unlimited saved filters & custom templates | -- | Yes |
+| Google Drive backup/restore | -- | Yes |
 
 AI features run on Claude Haiku; the weekly planner and monthly review use
 Claude Sonnet for higher-quality output. Debug builds expose a tier override
