@@ -6,6 +6,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
@@ -36,6 +37,7 @@ import com.averycorp.prismtask.domain.usecase.BurnoutResult
 import com.averycorp.prismtask.domain.usecase.BurnoutScorer
 import com.averycorp.prismtask.domain.usecase.DailyEssentialsUiState
 import com.averycorp.prismtask.domain.usecase.DailyEssentialsUseCase
+import com.averycorp.prismtask.domain.usecase.HabitTodayVisibilityResolver
 import com.averycorp.prismtask.domain.usecase.MedicationDose
 import com.averycorp.prismtask.domain.usecase.SelfCareNudge
 import com.averycorp.prismtask.domain.usecase.SelfCareNudgeEngine
@@ -65,6 +67,7 @@ constructor(
     private val taskRepository: TaskRepository,
     private val tagRepository: TagRepository,
     private val taskDao: TaskDao,
+    private val habitCompletionDao: HabitCompletionDao,
     private val habitRepository: HabitRepository,
     private val projectRepository: ProjectRepository,
     private val templateRepository: TaskTemplateRepository,
@@ -511,13 +514,39 @@ constructor(
         .isHouseworkEnabled()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
+    private val visibilityResolver = HabitTodayVisibilityResolver()
+
+    private val skipAfterCompleteDays: StateFlow<Int> = habitListPreferences
+        .getTodaySkipAfterCompleteDays()
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            com.averycorp.prismtask.data.preferences.HabitListPreferences.DEFAULT_TODAY_SKIP_AFTER_COMPLETE_DAYS
+        )
+
+    private val skipBeforeScheduleDays: StateFlow<Int> = habitListPreferences
+        .getTodaySkipBeforeScheduleDays()
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            com.averycorp.prismtask.data.preferences.HabitListPreferences.DEFAULT_TODAY_SKIP_BEFORE_SCHEDULE_DAYS
+        )
+
+    private val lastCompletionByHabit: StateFlow<Map<Long, Long>> = habitCompletionDao
+        .getLastCompletionDatesPerHabit()
+        .map { rows -> rows.associate { it.habitId to it.lastCompletedDate } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
     private val allTodayHabits: StateFlow<List<HabitWithStatus>> = combine(
         habitRepository.getHabitsWithTodayStatus(),
         selfCareEnabled,
         medicationEnabled,
         schoolEnabled,
         leisureEnabled,
-        houseworkEnabled
+        houseworkEnabled,
+        skipAfterCompleteDays,
+        skipBeforeScheduleDays,
+        lastCompletionByHabit
     ) { values ->
         @Suppress("UNCHECKED_CAST")
         val habits = values[0] as List<HabitWithStatus>
@@ -526,6 +555,11 @@ constructor(
         val schoolOn = values[3] as Boolean
         val leisureOn = values[4] as Boolean
         val houseworkOn = values[5] as Boolean
+        val globalAfter = values[6] as Int
+        val globalBefore = values[7] as Int
+
+        @Suppress("UNCHECKED_CAST")
+        val lastCompletions = values[8] as Map<Long, Long>
         val disabledNames = mutableSetOf<String>()
         if (!selfCareOn) {
             disabledNames.add(SelfCareRepository.MORNING_HABIT_NAME)
@@ -537,6 +571,21 @@ constructor(
         if (!leisureOn) disabledNames.add(LeisureRepository.LEISURE_HABIT_NAME)
         habits
             .filter { it.habit.name !in disabledNames }
+            .filter { hws ->
+                // Always keep already-completed habits visible so the user
+                // sees their "Done" badge; only suppress habits that are
+                // still pending today.
+                if (hws.isCompletedToday) return@filter true
+                val after = visibilityResolver.resolveSkipAfterCompleteDays(hws.habit, globalAfter)
+                val before = visibilityResolver.resolveSkipBeforeScheduleDays(hws.habit, globalBefore)
+                if (after <= 0 && before <= 0) return@filter true
+                !visibilityResolver.isHidden(
+                    habit = hws.habit,
+                    lastCompletionDate = lastCompletions[hws.habit.id],
+                    skipAfterCompleteDays = after,
+                    skipBeforeScheduleDays = before
+                )
+            }
             .sortedBy { it.habit.sortOrder }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 

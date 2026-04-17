@@ -238,6 +238,8 @@ class Habit(Base):
     is_active = Column(Boolean, default=True)
     nag_suppression_override_enabled = Column(Boolean, default=False)
     nag_suppression_days_override = Column(Integer, default=-1)
+    today_skip_after_complete_days = Column(Integer, default=-1)
+    today_skip_before_schedule_days = Column(Integer, default=-1)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

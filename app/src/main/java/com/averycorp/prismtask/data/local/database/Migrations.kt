@@ -780,6 +780,16 @@ val MIGRATION_42_43 = object : Migration(42, 43) {
     }
 }
 
+// Today-screen habit skip windows: per-habit "skip if completed within N days"
+// and "skip if scheduled within N days" overrides. -1 = inherit global default
+// configured in HabitListPreferences.
+val MIGRATION_43_44 = object : Migration(43, 44) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE habits ADD COLUMN today_skip_after_complete_days INTEGER NOT NULL DEFAULT -1")
+        db.execSQL("ALTER TABLE habits ADD COLUMN today_skip_before_schedule_days INTEGER NOT NULL DEFAULT -1")
+    }
+}
+
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
@@ -822,5 +832,6 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_39_40,
     MIGRATION_40_41,
     MIGRATION_41_42,
-    MIGRATION_42_43
+    MIGRATION_42_43,
+    MIGRATION_43_44
 )

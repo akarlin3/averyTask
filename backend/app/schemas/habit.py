@@ -15,6 +15,8 @@ class HabitCreate(BaseModel):
     active_days_json: Optional[str] = None
     nag_suppression_override_enabled: bool = False
     nag_suppression_days_override: int = -1
+    today_skip_after_complete_days: int = -1
+    today_skip_before_schedule_days: int = -1
 
 
 class HabitUpdate(BaseModel):
@@ -29,6 +31,8 @@ class HabitUpdate(BaseModel):
     is_active: Optional[bool] = None
     nag_suppression_override_enabled: Optional[bool] = None
     nag_suppression_days_override: Optional[int] = None
+    today_skip_after_complete_days: Optional[int] = None
+    today_skip_before_schedule_days: Optional[int] = None
 
 
 class HabitResponse(BaseModel):
@@ -45,6 +49,8 @@ class HabitResponse(BaseModel):
     is_active: bool
     nag_suppression_override_enabled: bool = False
     nag_suppression_days_override: int = -1
+    today_skip_after_complete_days: int = -1
+    today_skip_before_schedule_days: int = -1
     created_at: datetime
     updated_at: datetime
 

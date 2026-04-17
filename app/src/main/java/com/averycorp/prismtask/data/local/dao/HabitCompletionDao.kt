@@ -7,6 +7,16 @@ import androidx.room.Query
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * Projection used by [HabitCompletionDao.getLastCompletionDatesPerHabit].
+ * Top-level so Room's KSP processor can reflect on its constructor without
+ * the awkwardness of a nested class on an interface.
+ */
+data class HabitLastCompletion(
+    val habitId: Long,
+    val lastCompletedDate: Long
+)
+
 @Dao
 interface HabitCompletionDao {
     @Query("SELECT * FROM habit_completions WHERE habit_id = :habitId ORDER BY completed_date DESC")
@@ -55,6 +65,15 @@ interface HabitCompletionDao {
 
     @Query("SELECT * FROM habit_completions WHERE habit_id = :habitId ORDER BY completed_date DESC LIMIT 1")
     fun getLastCompletion(habitId: Long): Flow<HabitCompletionEntity?>
+
+    /**
+     * Returns the most recent completion date (one row per habit). Drives the
+     * Today-screen "skip if completed within N days" visibility window — the
+     * resolver indexes the result by habit_id and computes day-of-the-month
+     * deltas without re-querying per habit.
+     */
+    @Query("SELECT habit_id AS habitId, MAX(completed_date) AS lastCompletedDate FROM habit_completions GROUP BY habit_id")
+    fun getLastCompletionDatesPerHabit(): Flow<List<HabitLastCompletion>>
 
     @Query("SELECT * FROM habit_completions WHERE habit_id = :habitId ORDER BY completed_date DESC")
     suspend fun getCompletionsForHabitOnce(habitId: Long): List<HabitCompletionEntity>

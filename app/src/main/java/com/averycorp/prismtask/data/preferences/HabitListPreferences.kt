@@ -43,6 +43,10 @@ constructor(
         private val LEISURE_ENABLED = booleanPreferencesKey("leisure_enabled")
         private val HOUSEWORK_ENABLED = booleanPreferencesKey("housework_enabled")
         private val STREAK_MAX_MISSED_DAYS = intPreferencesKey("streak_max_missed_days")
+        private val TODAY_SKIP_AFTER_COMPLETE_DAYS =
+            intPreferencesKey("today_skip_after_complete_days")
+        private val TODAY_SKIP_BEFORE_SCHEDULE_DAYS =
+            intPreferencesKey("today_skip_before_schedule_days")
         const val DEFAULT_MORNING_ORDER = -6
         const val DEFAULT_BEDTIME_ORDER = -5
         const val DEFAULT_MEDICATION_ORDER = -4
@@ -52,6 +56,14 @@ constructor(
         const val DEFAULT_STREAK_MAX_MISSED_DAYS = 1
         const val MIN_STREAK_MAX_MISSED_DAYS = 1
         const val MAX_STREAK_MAX_MISSED_DAYS = 7
+
+        /** Default global "skip on Today if completed within N days" window. 0 = disabled. */
+        const val DEFAULT_TODAY_SKIP_AFTER_COMPLETE_DAYS = 0
+
+        /** Default global "skip on Today if next occurrence is within N days" window. 0 = disabled. */
+        const val DEFAULT_TODAY_SKIP_BEFORE_SCHEDULE_DAYS = 0
+
+        const val MAX_TODAY_SKIP_DAYS = 30
     }
 
     fun getAutoHabitSortOrders(): Flow<Triple<Int, Int, Int>> = context.habitListDataStore.data.map { prefs ->
@@ -139,6 +151,37 @@ constructor(
     suspend fun setStreakMaxMissedDays(days: Int) {
         context.habitListDataStore.edit { prefs ->
             prefs[STREAK_MAX_MISSED_DAYS] = days.coerceIn(MIN_STREAK_MAX_MISSED_DAYS, MAX_STREAK_MAX_MISSED_DAYS)
+        }
+    }
+
+    /**
+     * Global default for the Today-screen "skip if completed within N days"
+     * window. A per-habit override of -1 (the default for new habits) inherits
+     * this value. 0 = the feature is disabled and habits are never hidden on
+     * Today based on a recent completion.
+     */
+    fun getTodaySkipAfterCompleteDays(): Flow<Int> = context.habitListDataStore.data.map { prefs ->
+        prefs[TODAY_SKIP_AFTER_COMPLETE_DAYS] ?: DEFAULT_TODAY_SKIP_AFTER_COMPLETE_DAYS
+    }
+
+    suspend fun setTodaySkipAfterCompleteDays(days: Int) {
+        context.habitListDataStore.edit { prefs ->
+            prefs[TODAY_SKIP_AFTER_COMPLETE_DAYS] = days.coerceIn(0, MAX_TODAY_SKIP_DAYS)
+        }
+    }
+
+    /**
+     * Global default for the Today-screen "skip if next scheduled occurrence
+     * is within N days" window. Same semantics as
+     * [getTodaySkipAfterCompleteDays].
+     */
+    fun getTodaySkipBeforeScheduleDays(): Flow<Int> = context.habitListDataStore.data.map { prefs ->
+        prefs[TODAY_SKIP_BEFORE_SCHEDULE_DAYS] ?: DEFAULT_TODAY_SKIP_BEFORE_SCHEDULE_DAYS
+    }
+
+    suspend fun setTodaySkipBeforeScheduleDays(days: Int) {
+        context.habitListDataStore.edit { prefs ->
+            prefs[TODAY_SKIP_BEFORE_SCHEDULE_DAYS] = days.coerceIn(0, MAX_TODAY_SKIP_DAYS)
         }
     }
 

@@ -786,6 +786,30 @@ constructor(
         viewModelScope.launch { habitListPreferences.setStreakMaxMissedDays(days) }
     }
 
+    val todaySkipAfterCompleteDays: StateFlow<Int> = habitListPreferences
+        .getTodaySkipAfterCompleteDays()
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            HabitListPreferences.DEFAULT_TODAY_SKIP_AFTER_COMPLETE_DAYS
+        )
+
+    fun setTodaySkipAfterCompleteDays(days: Int) {
+        viewModelScope.launch { habitListPreferences.setTodaySkipAfterCompleteDays(days) }
+    }
+
+    val todaySkipBeforeScheduleDays: StateFlow<Int> = habitListPreferences
+        .getTodaySkipBeforeScheduleDays()
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            HabitListPreferences.DEFAULT_TODAY_SKIP_BEFORE_SCHEDULE_DAYS
+        )
+
+    fun setTodaySkipBeforeScheduleDays(days: Int) {
+        viewModelScope.launch { habitListPreferences.setTodaySkipBeforeScheduleDays(days) }
+    }
+
     // --- Modes ---
     val selfCareEnabled: StateFlow<Boolean> = habitListPreferences
         .isSelfCareEnabled()
