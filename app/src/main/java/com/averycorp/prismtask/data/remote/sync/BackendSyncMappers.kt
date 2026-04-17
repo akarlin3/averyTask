@@ -1,5 +1,6 @@
 package com.averycorp.prismtask.data.remote.sync
 
+import com.averycorp.prismtask.data.local.entity.DailyEssentialSlotCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
@@ -8,7 +9,9 @@ import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.local.entity.TaskTemplateEntity
 import com.google.gson.JsonObject
 import java.time.Instant
+import java.time.LocalDate
 import java.time.OffsetDateTime
+import java.time.ZoneId
 
 // Entity-to-operation mappers + JSON helpers extracted from BackendSyncService.
 
@@ -142,6 +145,27 @@ internal fun habitCompletionToOperation(completion: HabitCompletionEntity): Sync
     )
 }
 
+internal fun slotCompletionToOperation(
+    row: DailyEssentialSlotCompletionEntity
+): SyncOperation {
+    val data = JsonObject().apply {
+        addProperty("id", row.id)
+        addProperty("date", millisToLocalDate(row.date))
+        addProperty("slot_key", row.slotKey)
+        addProperty("med_ids_json", row.medIdsJson)
+        if (row.takenAt != null) {
+            addProperty("taken_at", millisToIso(row.takenAt))
+        }
+    }
+    return SyncOperation(
+        entityType = "daily_essential_slot_completion",
+        operation = "update",
+        entityId = row.id,
+        data = data,
+        clientTimestamp = millisToIso(row.updatedAt)
+    )
+}
+
 internal fun taskTemplateToOperation(template: TaskTemplateEntity): SyncOperation {
     val data = JsonObject().apply {
         addProperty("id", template.id)
@@ -208,6 +232,31 @@ internal fun JsonObject.optBool(key: String): Boolean? =
  */
 internal fun millisToIso(millis: Long): String =
     Instant.ofEpochMilli(millis).toString()
+
+/**
+ * Convert an epoch-millis day-start into the ``YYYY-MM-DD`` form that
+ * Pydantic's `date` type accepts. Uses the device's default timezone so the
+ * server-side ``date`` column matches the user's local day.
+ */
+internal fun millisToLocalDate(millis: Long): String =
+    LocalDate.ofInstant(Instant.ofEpochMilli(millis), ZoneId.systemDefault())
+        .toString()
+
+/**
+ * Parse a backend ``YYYY-MM-DD`` string back into a local day-start millis.
+ * Returns null if the input is null or malformed.
+ */
+internal fun localDateToMillisOrNull(value: String?): Long? {
+    if (value.isNullOrBlank()) return null
+    return try {
+        LocalDate.parse(value)
+            .atStartOfDay(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+    } catch (_: Exception) {
+        null
+    }
+}
 
 /**
  * Parse an ISO 8601 datetime string (with or without timezone offset) into

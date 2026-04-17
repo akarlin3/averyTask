@@ -2,12 +2,14 @@ package com.averycorp.prismtask.data.remote.sync
 
 import android.util.Log
 import com.averycorp.prismtask.data.billing.BillingManager
+import com.averycorp.prismtask.data.local.dao.DailyEssentialSlotCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.dao.ProjectDao
 import com.averycorp.prismtask.data.local.dao.TagDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.dao.TaskTemplateDao
+import com.averycorp.prismtask.data.local.entity.DailyEssentialSlotCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
@@ -46,6 +48,7 @@ constructor(
     private val habitDao: HabitDao,
     private val habitCompletionDao: HabitCompletionDao,
     private val taskTemplateDao: TaskTemplateDao,
+    private val slotCompletionDao: DailyEssentialSlotCompletionDao,
     private val authTokenPreferences: AuthTokenPreferences,
     private val backendSyncPreferences: BackendSyncPreferences,
     private val templatePreferences: TemplatePreferences,
@@ -185,6 +188,11 @@ constructor(
             .filter { it.updatedAt > since }
             .forEach { operations += taskTemplateToOperation(it) }
 
+        // Daily Essentials medication slot completions — use updatedAt.
+        slotCompletionDao
+            .getChangedSince(since)
+            .forEach { operations += slotCompletionToOperation(it) }
+
         if (operations.isEmpty()) return 0
 
         val request = SyncPushRequest(
@@ -233,6 +241,9 @@ constructor(
         )
         applied += applyTemplateChanges(
             response.changes.filter { it.entityType == "task_template" }
+        )
+        applied += applySlotCompletionChanges(
+            response.changes.filter { it.entityType == "daily_essential_slot_completion" }
         )
 
         val timestampMillis = response.serverTimestamp?.let { isoToMillisOrNull(it) }
@@ -494,6 +505,44 @@ constructor(
                 notes = data.optString("notes")
             )
             habitCompletionDao.insert(completion)
+            applied++
+        }
+        return applied
+    }
+
+    private suspend fun applySlotCompletionChanges(changes: List<SyncChange>): Int {
+        var applied = 0
+        for (change in changes) {
+            val clientId = change.entityId
+            if (change.operation == "delete") {
+                slotCompletionDao.deleteById(clientId)
+                applied++
+                continue
+            }
+            val data = change.data ?: continue
+            val dateMillis = localDateToMillisOrNull(data.optString("date")) ?: continue
+            val slotKey = data.optString("slot_key") ?: continue
+            val remoteUpdatedAt = data.optString("updated_at")
+                ?.let { isoToMillisOrNull(it) }
+                ?: change.timestamp?.let { isoToMillisOrNull(it) }
+                ?: System.currentTimeMillis()
+
+            val existing = slotCompletionDao.getBySlotOnce(dateMillis, slotKey)
+            if (existing != null && existing.updatedAt >= remoteUpdatedAt) continue
+
+            val takenAtMillis = data.optString("taken_at")?.let { isoToMillisOrNull(it) }
+            val row = DailyEssentialSlotCompletionEntity(
+                id = existing?.id ?: clientId,
+                date = dateMillis,
+                slotKey = slotKey,
+                medIdsJson = data.optString("med_ids_json") ?: "[]",
+                takenAt = takenAtMillis,
+                createdAt = data.optString("created_at")?.let { isoToMillisOrNull(it) }
+                    ?: existing?.createdAt
+                    ?: System.currentTimeMillis(),
+                updatedAt = remoteUpdatedAt
+            )
+            slotCompletionDao.upsert(row)
             applied++
         }
         return applied
