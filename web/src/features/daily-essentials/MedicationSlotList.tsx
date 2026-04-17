@@ -85,7 +85,7 @@ export function MedicationSlotList() {
         .map(toSlot)
         .sort((a, b) => slotKeyComparator(a.slotKey, b.slotKey));
       setSlots(mapped);
-    } catch (_err) {
+    } catch {
       // Network errors already surface a toast via the axios interceptor;
       // keep the list empty so the caller falls back to the empty state.
       setSlots([]);
@@ -110,7 +110,7 @@ export function MedicationSlotList() {
         setSlots((prev) =>
           prev.map((s) => (s.slotKey === slot.slotKey ? toSlot(row) : s)),
         );
-      } catch (_err) {
+      } catch {
         toast.error('Failed to update slot.');
       }
     },

@@ -8,7 +8,6 @@ once the user explicitly interacts with a slot. ``slot_key`` is either a
 
 import json
 from datetime import date as date_cls, datetime, timezone
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
