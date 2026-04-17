@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.middleware.auth import get_current_user
 from app.models import (
+    DailyEssentialSlotCompletion,
     Goal,
     GoalStatus,
     Habit,
@@ -41,6 +42,7 @@ ENTITY_MAP = {
     "habit": Habit,
     "habit_completion": HabitCompletion,
     "template": TaskTemplate,
+    "daily_essential_slot_completion": DailyEssentialSlotCompletion,
 }
 
 STATUS_ENUM_MAP = {
@@ -78,6 +80,9 @@ WRITABLE_FIELDS: dict[str, frozenset[str]] = {
         "target_count", "active_days_json", "is_active",
     }),
     "habit_completion": frozenset({"habit_id", "date", "count"}),
+    "daily_essential_slot_completion": frozenset({
+        "date", "slot_key", "med_ids_json", "taken_at",
+    }),
     "template": frozenset({
         "name", "description", "icon", "category",
         "template_title", "template_description", "template_priority",

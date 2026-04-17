@@ -534,3 +534,35 @@ class NdPreferencesModel(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     user = relationship("User")
+
+
+class DailyEssentialSlotCompletion(Base):
+    """Materialized completion record for a Daily Essentials medication time slot.
+
+    A slot is identified by (user, date, slot_key) where ``slot_key`` is either
+    a ``"HH:mm"`` wall-clock time or the string ``"anytime"`` for interval-based
+    doses without a fixed clock time. ``taken_at`` is ``NULL`` when the user has
+    un-checked a previously-materialized slot; the row is retained so the
+    ``med_ids_json`` snapshot stays stable across derivation changes.
+    """
+
+    __tablename__ = "daily_essential_slot_completions"
+    __table_args__ = (
+        UniqueConstraint("user_id", "date", "slot_key", name="uq_user_date_slot"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    date = Column(Date, nullable=False)
+    slot_key = Column(String(16), nullable=False)
+    med_ids_json = Column(Text, nullable=True)
+    taken_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User")
