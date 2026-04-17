@@ -20,7 +20,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-enum class TimerMode { WORK, BREAK }
+enum class TimerMode { WORK, BREAK, CUSTOM }
 
 data class TimerUiState(
     val mode: TimerMode = TimerMode.WORK,
@@ -54,6 +54,10 @@ constructor(
     private val longBreakDurationSeconds: StateFlow<Int> = timerPreferences
         .getLongBreakDurationSeconds()
         .stateIn(viewModelScope, SharingStarted.Eagerly, TimerPreferences.DEFAULT_LONG_BREAK_SECONDS)
+
+    private val customDurationSeconds: StateFlow<Int> = timerPreferences
+        .getCustomDurationSeconds()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, TimerPreferences.DEFAULT_CUSTOM_SECONDS)
 
     private val _uiState = MutableStateFlow(TimerUiState())
     val uiState: StateFlow<TimerUiState> = _uiState.asStateFlow()
@@ -119,6 +123,19 @@ constructor(
                     _uiState.value = current.copy(
                         totalSeconds = longBrk,
                         remainingSeconds = if (isIdleAtFull) longBrk else current.remainingSeconds
+                    )
+                }
+            }
+        }
+        viewModelScope.launch {
+            timerPreferences.getCustomDurationSeconds().collect { custom ->
+                val current = _uiState.value
+                if (current.mode == TimerMode.CUSTOM) {
+                    val isIdleAtFull = !current.isRunning &&
+                        current.remainingSeconds == current.totalSeconds
+                    _uiState.value = current.copy(
+                        totalSeconds = custom,
+                        remainingSeconds = if (isIdleAtFull) custom else current.remainingSeconds
                     )
                 }
             }
@@ -262,6 +279,7 @@ constructor(
         val state = _uiState.value
         val total = when {
             state.mode == TimerMode.WORK -> workDurationSeconds.value
+            state.mode == TimerMode.CUSTOM -> customDurationSeconds.value
             state.isLongBreak -> longBreakDurationSeconds.value
             else -> breakDurationSeconds.value
         }
@@ -295,6 +313,7 @@ constructor(
         val total = when (mode) {
             TimerMode.WORK -> workDurationSeconds.value
             TimerMode.BREAK -> breakDurationSeconds.value
+            TimerMode.CUSTOM -> customDurationSeconds.value
         }
         _uiState.value = _uiState.value.copy(
             mode = mode,
@@ -338,7 +357,11 @@ constructor(
                     isPaused = !s.isRunning && s.remainingSeconds < s.totalSeconds && s.remainingSeconds > 0,
                     remainingSeconds = s.remainingSeconds,
                     totalSeconds = s.totalSeconds,
-                    sessionType = if (s.mode == TimerMode.WORK) "work" else "break",
+                    sessionType = when (s.mode) {
+                        TimerMode.WORK -> "work"
+                        TimerMode.BREAK -> "break"
+                        TimerMode.CUSTOM -> "custom"
+                    },
                     currentSession = s.completedSessions + if (s.mode == TimerMode.WORK) 1 else 0,
                     totalSessions = s.sessionsUntilLongBreak
                 )
