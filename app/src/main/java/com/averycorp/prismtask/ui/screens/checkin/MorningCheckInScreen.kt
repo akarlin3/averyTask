@@ -53,7 +53,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.averycorp.prismtask.data.remote.CalendarEventInfo
+import com.averycorp.prismtask.data.calendar.CalendarEventInfo
 import com.averycorp.prismtask.data.repository.HabitWithStatus
 import com.averycorp.prismtask.domain.model.LifeCategory
 import com.averycorp.prismtask.domain.usecase.BalanceState

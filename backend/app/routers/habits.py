@@ -34,6 +34,18 @@ def _habit_response(habit: Habit) -> HabitResponse:
         target_count=habit.target_count,
         active_days_json=habit.active_days_json,
         is_active=habit.is_active,
+        nag_suppression_override_enabled=getattr(
+            habit, "nag_suppression_override_enabled", False
+        ),
+        nag_suppression_days_override=getattr(
+            habit, "nag_suppression_days_override", -1
+        ),
+        today_skip_after_complete_days=getattr(
+            habit, "today_skip_after_complete_days", -1
+        ),
+        today_skip_before_schedule_days=getattr(
+            habit, "today_skip_before_schedule_days", -1
+        ),
         created_at=habit.created_at,
         updated_at=habit.updated_at,
     )

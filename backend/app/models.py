@@ -238,6 +238,8 @@ class Habit(Base):
     is_active = Column(Boolean, default=True)
     nag_suppression_override_enabled = Column(Boolean, default=False)
     nag_suppression_days_override = Column(Integer, default=-1)
+    today_skip_after_complete_days = Column(Integer, default=-1)
+    today_skip_before_schedule_days = Column(Integer, default=-1)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -421,7 +423,37 @@ class IntegrationConfig(Base):
     config_json = Column(Text, nullable=True)
     last_scan_at = Column(DateTime, nullable=True)
     scan_frequency_minutes = Column(Integer, default=120)
-    webhook_token = Column(String(64), nullable=True, unique=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User")
+
+
+class CalendarSyncSettings(Base):
+    """Per-user Google Calendar sync preferences. Mirrors the Android
+    `CalendarSyncPreferences` DataStore keys plus server-only fields like
+    the per-calendar `syncToken` dict and the last-successful-sync
+    timestamp. The backend is the source of truth; Android mirrors on
+    settings load and writes on every toggle change.
+    """
+
+    __tablename__ = "calendar_sync_settings"
+
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    enabled = Column(Boolean, nullable=False, default=False)
+    direction = Column(String(16), nullable=False, default="both")  # push / pull / both
+    frequency = Column(String(16), nullable=False, default="15min")  # realtime / 15min / hourly / manual
+    target_calendar_id = Column(String(255), nullable=False, default="primary")
+    display_calendar_ids_json = Column(Text, nullable=False, default="[]")
+    show_events = Column(Boolean, nullable=False, default=True)
+    sync_completed_tasks = Column(Boolean, nullable=False, default=False)
+    last_sync_at = Column(DateTime, nullable=True)
+    last_sync_token_per_calendar_json = Column(Text, nullable=False, default="{}")
+    timezone = Column(String(64), nullable=False, default="UTC")
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

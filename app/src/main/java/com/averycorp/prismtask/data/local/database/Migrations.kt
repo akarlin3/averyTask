@@ -753,6 +753,114 @@ val MIGRATION_41_42 = object : Migration(41, 42) {
     }
 }
 
+// Calendar sync: the device-calendar path was hard-deprecated and replaced
+// by backend-mediated Google Calendar sync. Existing `calendar_sync` rows
+// were written by the device path and reference device-provider event IDs
+// that no longer resolve anywhere, so we drop them as part of the bump.
+// The new schema adds `calendar_id` (which Google calendar the event lives
+// on), `sync_state` (SYNCED / PENDING_PUSH / PENDING_DELETE / ERROR) and
+// `etag` (for incremental change detection against the Google API).
+val MIGRATION_42_43 = object : Migration(42, 43) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("DROP TABLE IF EXISTS `calendar_sync`")
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS `calendar_sync` (
+                `task_id` INTEGER NOT NULL PRIMARY KEY,
+                `calendar_event_id` TEXT NOT NULL,
+                `calendar_id` TEXT NOT NULL DEFAULT 'primary',
+                `last_synced_at` INTEGER NOT NULL,
+                `last_synced_version` INTEGER NOT NULL DEFAULT 0,
+                `sync_state` TEXT NOT NULL DEFAULT 'SYNCED',
+                `etag` TEXT,
+                FOREIGN KEY(`task_id`) REFERENCES `tasks`(`id`) ON DELETE CASCADE
+            )"""
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_calendar_sync_calendar_id` ON `calendar_sync` (`calendar_id`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_calendar_sync_sync_state` ON `calendar_sync` (`sync_state`)")
+    }
+}
+
+// Today-screen habit skip windows: per-habit "skip if completed within N days"
+// and "skip if scheduled within N days" overrides. -1 = inherit global default
+// configured in HabitListPreferences.
+val MIGRATION_43_44 = object : Migration(43, 44) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE habits ADD COLUMN today_skip_after_complete_days INTEGER NOT NULL DEFAULT -1")
+        db.execSQL("ALTER TABLE habits ADD COLUMN today_skip_before_schedule_days INTEGER NOT NULL DEFAULT -1")
+    }
+}
+
+// Data integrity hardening: backfill missing foreign keys on
+// `study_logs.course_pick`, `study_logs.assignment_pick`, and
+// `focus_release_logs.task_id`. SQLite has no `ALTER TABLE ADD CONSTRAINT`,
+// so each table is recreated. Existing rows that point to deleted parents
+// are first nulled out; the new FKs use `ON DELETE SET NULL` so future
+// parent deletes preserve the historical log.
+val MIGRATION_44_45 = object : Migration(44, 45) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // --- study_logs: add FKs for course_pick and assignment_pick ---
+        db.execSQL(
+            "UPDATE study_logs SET course_pick = NULL " +
+                "WHERE course_pick IS NOT NULL " +
+                "AND course_pick NOT IN (SELECT id FROM courses)"
+        )
+        db.execSQL(
+            "UPDATE study_logs SET assignment_pick = NULL " +
+                "WHERE assignment_pick IS NOT NULL " +
+                "AND assignment_pick NOT IN (SELECT id FROM assignments)"
+        )
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS `study_logs_new` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `date` INTEGER NOT NULL,
+                `course_pick` INTEGER,
+                `study_done` INTEGER NOT NULL DEFAULT 0,
+                `assignment_pick` INTEGER,
+                `assignment_done` INTEGER NOT NULL DEFAULT 0,
+                `started_at` INTEGER,
+                `created_at` INTEGER NOT NULL,
+                FOREIGN KEY(`course_pick`) REFERENCES `courses`(`id`) ON DELETE SET NULL,
+                FOREIGN KEY(`assignment_pick`) REFERENCES `assignments`(`id`) ON DELETE SET NULL
+            )"""
+        )
+        db.execSQL(
+            """INSERT INTO study_logs_new (id, date, course_pick, study_done, assignment_pick, assignment_done, started_at, created_at)
+               SELECT id, date, course_pick, study_done, assignment_pick, assignment_done, started_at, created_at
+               FROM study_logs"""
+        )
+        db.execSQL("DROP TABLE study_logs")
+        db.execSQL("ALTER TABLE study_logs_new RENAME TO study_logs")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_study_logs_date` ON `study_logs` (`date`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_study_logs_course_pick` ON `study_logs` (`course_pick`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_study_logs_assignment_pick` ON `study_logs` (`assignment_pick`)")
+
+        // --- focus_release_logs: add FK for task_id ---
+        db.execSQL(
+            "UPDATE focus_release_logs SET task_id = NULL " +
+                "WHERE task_id IS NOT NULL " +
+                "AND task_id NOT IN (SELECT id FROM tasks)"
+        )
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS `focus_release_logs_new` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `event_type` TEXT NOT NULL,
+                `task_id` INTEGER,
+                `context` TEXT,
+                `created_at` INTEGER NOT NULL,
+                FOREIGN KEY(`task_id`) REFERENCES `tasks`(`id`) ON DELETE SET NULL
+            )"""
+        )
+        db.execSQL(
+            """INSERT INTO focus_release_logs_new (id, event_type, task_id, context, created_at)
+               SELECT id, event_type, task_id, context, created_at
+               FROM focus_release_logs"""
+        )
+        db.execSQL("DROP TABLE focus_release_logs")
+        db.execSQL("ALTER TABLE focus_release_logs_new RENAME TO focus_release_logs")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_focus_release_logs_task_id` ON `focus_release_logs` (`task_id`)")
+    }
+}
+
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
@@ -794,5 +902,8 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_38_39,
     MIGRATION_39_40,
     MIGRATION_40_41,
-    MIGRATION_41_42
+    MIGRATION_41_42,
+    MIGRATION_42_43,
+    MIGRATION_43_44,
+    MIGRATION_44_45
 )

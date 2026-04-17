@@ -9,8 +9,8 @@ import com.averycorp.prismtask.data.local.dao.SelfCareDao
 import com.averycorp.prismtask.data.local.dao.TagDao
 import com.averycorp.prismtask.data.local.dao.TaskCompletionDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
+import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import com.averycorp.prismtask.data.preferences.ArchivePreferences
-import com.averycorp.prismtask.data.preferences.CalendarPreferences
 import com.averycorp.prismtask.data.preferences.DashboardPreferences
 import com.averycorp.prismtask.data.preferences.HabitListPreferences
 import com.averycorp.prismtask.data.preferences.LeisurePreferences
@@ -32,15 +32,23 @@ import javax.inject.Singleton
 /**
  * Exports all app data to JSON.
  *
- * === Export format (version 3) ===
+ * === Export format (version 4) ===
  * As of v3, every entity is serialized using [com.google.gson.Gson.toJsonTree] directly
  * on the entity object. This means that whenever a new field is added to any `*Entity`
  * class, it is automatically included in the export without any changes to this file.
  *
+ * v4 adds the following entity collections that were previously dropped on export:
+ * `attachments`, `boundaryRules`, `checkInLogs`, `customSounds`, `focusReleaseLogs`,
+ * `moodEnergyLogs`, `notificationProfiles`, `studyLogs`, `weeklyReviews`,
+ * `medicationRefills`, `taskTemplates`, `habitTemplates`, `projectTemplates`,
+ * `nlpShortcuts`, `savedFilters`. v4 also writes the original primary key as
+ * `_oldId` on tasks, courses, and assignments so cross-table foreign-key
+ * references (subtasks, attachments, study logs, etc.) survive a round trip.
+ *
  * Foreign-key relationships (which reference auto-generated IDs that won't match after
  * import) are written as sibling helper fields prefixed with an underscore, e.g.
- * `_projectName`, `_tagNames`, `_habitName`, `_courseName`. Helper fields are resolved
- * back to the correct IDs on import.
+ * `_projectName`, `_tagNames`, `_habitName`, `_courseName`, `_taskOldId`. Helper
+ * fields are resolved back to the correct IDs on import.
  *
  * === Backwards compatibility ===
  * Older exports (v1 and v2) use a hand-rolled flat field mapping. [DataImporter] detects
@@ -54,6 +62,7 @@ import javax.inject.Singleton
 class DataExporter
 @Inject
 constructor(
+    private val database: PrismTaskDatabase,
     private val taskDao: TaskDao,
     private val projectDao: ProjectDao,
     private val tagDao: TagDao,
@@ -69,7 +78,6 @@ constructor(
     private val dashboardPreferences: DashboardPreferences,
     private val tabPreferences: TabPreferences,
     private val taskBehaviorPreferences: TaskBehaviorPreferences,
-    private val calendarPreferences: CalendarPreferences,
     private val habitListPreferences: HabitListPreferences,
     private val leisurePreferences: LeisurePreferences,
     private val medicationPreferences: MedicationPreferences,
@@ -94,6 +102,11 @@ constructor(
             val obj = gson.toJsonTree(task).asJsonObject
             // Helper fields for cross-table references (IDs won't survive a round trip).
             obj.addProperty("_projectName", task.projectId?.let { projectNameById[it] })
+            // Original primary key + parent pointer so subtask hierarchies survive import.
+            obj.addProperty("_oldId", task.id)
+            if (task.parentTaskId != null) {
+                obj.addProperty("_parentOldId", task.parentTaskId)
+            }
             val tagNames = tagDao
                 .getTagIdsForTaskOnce(task.id)
                 .mapNotNull { id -> tags.find { it.id == id }?.name }
@@ -143,13 +156,21 @@ constructor(
         // === Courses / Assignments / Course Completions ===
         val courses = schoolworkDao.getAllCoursesOnce()
         val courseNameById = courses.associate { it.id to it.name }
-        root.add("courses", gson.toJsonTree(courses))
+        // Tag courses with their original ID so study_logs can rebuild the FK on import.
+        val coursesArr = JsonArray()
+        for (c in courses) {
+            val obj = gson.toJsonTree(c).asJsonObject
+            obj.addProperty("_oldId", c.id)
+            coursesArr.add(obj)
+        }
+        root.add("courses", coursesArr)
 
         val assignments = schoolworkDao.getAllAssignmentsOnce()
         val assignmentsArr = JsonArray()
         for (a in assignments) {
             val obj = gson.toJsonTree(a).asJsonObject
             obj.addProperty("_courseName", courseNameById[a.courseId])
+            obj.addProperty("_oldId", a.id)
             assignmentsArr.add(obj)
         }
         root.add("assignments", assignmentsArr)
@@ -162,6 +183,28 @@ constructor(
             courseCompletionsArr.add(obj)
         }
         root.add("courseCompletions", courseCompletionsArr)
+
+        // === v4: previously omitted entities ===
+        root.add("attachments", exportAttachments())
+        root.add("focusReleaseLogs", exportFocusReleaseLogs())
+        root.add("studyLogs", exportStudyLogs(courseNameById, assignments.associate { it.id to it.title }))
+        root.add("boundaryRules", gson.toJsonTree(database.boundaryRuleDao().getAll()))
+        root.add("checkInLogs", gson.toJsonTree(database.checkInLogDao().getAllOnce()))
+        root.add("moodEnergyLogs", gson.toJsonTree(database.moodEnergyLogDao().getAll()))
+        root.add("weeklyReviews", gson.toJsonTree(database.weeklyReviewDao().getAllOnce()))
+        root.add("medicationRefills", gson.toJsonTree(database.medicationRefillDao().getAll()))
+        root.add("nlpShortcuts", gson.toJsonTree(database.nlpShortcutDao().getAllOnce()))
+        root.add("savedFilters", gson.toJsonTree(database.savedFilterDao().getAllOnce()))
+        root.add("customSounds", gson.toJsonTree(database.customSoundDao().getAllOnce()))
+        // Notification profiles: only export user-created (built-in are seeded fresh on each install).
+        root.add(
+            "notificationProfiles",
+            gson.toJsonTree(database.notificationProfileDao().getAllOnce().filter { !it.isBuiltIn })
+        )
+        // Templates: export the project-name helper for task templates so the FK survives import.
+        root.add("taskTemplates", exportTaskTemplates(projectNameById))
+        root.add("habitTemplates", gson.toJsonTree(database.habitTemplateDao().getAllOnce()))
+        root.add("projectTemplates", gson.toJsonTree(database.projectTemplateDao().getAllOnce()))
 
         // === Configurations / Preferences ===
         val config = JsonObject()
@@ -242,13 +285,6 @@ constructor(
         medication.add("specificTimes", gson.toJsonTree(medicationPreferences.getSpecificTimesOnce()))
         config.add("medication", medication)
 
-        // Calendar
-        val calendar = JsonObject()
-        calendar.addProperty("enabled", calendarPreferences.isEnabled().first())
-        calendar.addProperty("calendarId", calendarPreferences.getCalendarId().first())
-        calendar.addProperty("calendarName", calendarPreferences.getCalendarName().first())
-        config.add("calendar", calendar)
-
         // User Preferences (v1.3.0 customizability)
         val userPrefs = JsonObject()
         val snapshot = userPreferencesDataStore.allFlow.first()
@@ -295,6 +331,60 @@ constructor(
         return gson.toJson(root)
     }
 
+    private suspend fun exportAttachments(): JsonArray {
+        val arr = JsonArray()
+        database.attachmentDao().getAllOnce().forEach { att ->
+            val obj = gson.toJsonTree(att).asJsonObject
+            obj.addProperty("_taskOldId", att.taskId)
+            arr.add(obj)
+        }
+        return arr
+    }
+
+    private suspend fun exportFocusReleaseLogs(): JsonArray {
+        val arr = JsonArray()
+        database.focusReleaseLogDao().getAllOnce().forEach { log ->
+            val obj = gson.toJsonTree(log).asJsonObject
+            if (log.taskId != null) {
+                obj.addProperty("_taskOldId", log.taskId)
+            }
+            arr.add(obj)
+        }
+        return arr
+    }
+
+    private suspend fun exportStudyLogs(
+        courseNameById: Map<Long, String>,
+        assignmentTitleById: Map<Long, String>
+    ): JsonArray {
+        val arr = JsonArray()
+        database.schoolworkDao().getAllStudyLogsOnce().forEach { log ->
+            val obj = gson.toJsonTree(log).asJsonObject
+            if (log.coursePick != null) {
+                obj.addProperty("_courseName", courseNameById[log.coursePick])
+                obj.addProperty("_courseOldId", log.coursePick)
+            }
+            if (log.assignmentPick != null) {
+                obj.addProperty("_assignmentTitle", assignmentTitleById[log.assignmentPick])
+                obj.addProperty("_assignmentOldId", log.assignmentPick)
+            }
+            arr.add(obj)
+        }
+        return arr
+    }
+
+    private suspend fun exportTaskTemplates(projectNameById: Map<Long, String>): JsonArray {
+        val arr = JsonArray()
+        database.taskTemplateDao().getAllTemplatesOnce().forEach { tpl ->
+            val obj = gson.toJsonTree(tpl).asJsonObject
+            if (tpl.templateProjectId != null) {
+                obj.addProperty("_projectName", projectNameById[tpl.templateProjectId])
+            }
+            arr.add(obj)
+        }
+        return arr
+    }
+
     suspend fun exportToCsv(): String {
         val tasks = taskDao.getAllTasksOnce()
         val projects = projectDao.getAllProjectsOnce()
@@ -302,6 +392,8 @@ constructor(
         val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
 
         val sb = StringBuilder()
+        // Header note: CSV is task-only and lossy; JSON is the supported full backup.
+        sb.appendLine("# PrismTask CSV export — task list only. Use JSON for a full backup.")
         sb.appendLine("Title,Description,Due Date,Due Time,Priority,Project,Tags,Status,Created,Completed")
 
         for (task in tasks) {
@@ -346,6 +438,6 @@ constructor(
          * (new entity fields, new entity collections) do NOT require a version bump
          * because [DataImporter] tolerates missing fields via [DataImporter.mergeWithDefaults].
          */
-        const val EXPORT_VERSION = 3
+        const val EXPORT_VERSION = 4
     }
 }

@@ -39,9 +39,6 @@ class NdPreferencesDataStore(
         val KEY_SOFT_CONTRAST = booleanPreferencesKey("nd_soft_contrast")
 
         // ADHD Mode sub-settings
-        val KEY_TASK_DECOMPOSITION = booleanPreferencesKey("nd_task_decomposition")
-        val KEY_FOCUS_GUARD = booleanPreferencesKey("nd_focus_guard")
-        val KEY_BODY_DOUBLING = booleanPreferencesKey("nd_body_doubling")
         val KEY_CHECK_IN_INTERVAL = intPreferencesKey("nd_check_in_interval_minutes")
         val KEY_COMPLETION_ANIMATIONS = booleanPreferencesKey("nd_completion_animations")
         val KEY_STREAK_CELEBRATIONS = booleanPreferencesKey("nd_streak_celebrations")
@@ -67,12 +64,6 @@ class NdPreferencesDataStore(
         // Ship-It Celebrations
         val KEY_SHIP_IT_CELEBRATIONS = booleanPreferencesKey("nd_ship_it_celebrations_enabled")
         val KEY_CELEBRATION_INTENSITY = stringPreferencesKey("nd_celebration_intensity")
-
-        // Decision Paralysis Breakers
-        val KEY_PARALYSIS_BREAKERS = booleanPreferencesKey("nd_paralysis_breakers_enabled")
-        val KEY_AUTO_SUGGEST = booleanPreferencesKey("nd_auto_suggest_enabled")
-        val KEY_SIMPLIFY_CHOICES = booleanPreferencesKey("nd_simplify_choices_enabled")
-        val KEY_STUCK_DETECTION_MINUTES = intPreferencesKey("nd_stuck_detection_minutes")
     }
 
     // region Flow ---------------------------------------------------------------
@@ -87,9 +78,6 @@ class NdPreferencesDataStore(
             quietMode = prefs[KEY_QUIET_MODE] ?: false,
             reduceHaptics = prefs[KEY_REDUCE_HAPTICS] ?: false,
             softContrast = prefs[KEY_SOFT_CONTRAST] ?: false,
-            taskDecompositionEnabled = prefs[KEY_TASK_DECOMPOSITION] ?: false,
-            focusGuardEnabled = prefs[KEY_FOCUS_GUARD] ?: false,
-            bodyDoublingEnabled = prefs[KEY_BODY_DOUBLING] ?: false,
             checkInIntervalMinutes = (prefs[KEY_CHECK_IN_INTERVAL] ?: 25).coerceIn(10, 60),
             completionAnimations = prefs[KEY_COMPLETION_ANIMATIONS] ?: false,
             streakCelebrations = prefs[KEY_STREAK_CELEBRATIONS] ?: false,
@@ -109,11 +97,7 @@ class NdPreferencesDataStore(
             shipItCelebrationsEnabled = prefs[KEY_SHIP_IT_CELEBRATIONS] ?: true,
             celebrationIntensity = prefs[KEY_CELEBRATION_INTENSITY]
                 ?.let { runCatching { CelebrationIntensity.valueOf(it) }.getOrNull() }
-                ?: CelebrationIntensity.MEDIUM,
-            paralysisBreakersEnabled = prefs[KEY_PARALYSIS_BREAKERS] ?: true,
-            autoSuggestEnabled = prefs[KEY_AUTO_SUGGEST] ?: true,
-            simplifyChoicesEnabled = prefs[KEY_SIMPLIFY_CHOICES] ?: true,
-            stuckDetectionMinutes = (prefs[KEY_STUCK_DETECTION_MINUTES] ?: 5).coerceIn(1, 15)
+                ?: CelebrationIntensity.MEDIUM
         )
     }
 
@@ -129,9 +113,6 @@ class NdPreferencesDataStore(
     suspend fun setAdhdMode(enabled: Boolean) {
         dataStore.edit { prefs ->
             prefs[KEY_ADHD_MODE] = enabled
-            prefs[KEY_TASK_DECOMPOSITION] = enabled
-            prefs[KEY_FOCUS_GUARD] = enabled
-            prefs[KEY_BODY_DOUBLING] = enabled
             prefs[KEY_COMPLETION_ANIMATIONS] = enabled
             prefs[KEY_STREAK_CELEBRATIONS] = enabled
             prefs[KEY_SHOW_PROGRESS_BARS] = enabled
@@ -169,9 +150,6 @@ class NdPreferencesDataStore(
             prefs[KEY_COOLING_OFF] = false // off by default even when F&R enabled
             prefs[KEY_REVISION_COUNTER] = false // off by default even when F&R enabled
             prefs[KEY_SHIP_IT_CELEBRATIONS] = enabled
-            prefs[KEY_PARALYSIS_BREAKERS] = enabled
-            prefs[KEY_AUTO_SUGGEST] = enabled
-            prefs[KEY_SIMPLIFY_CHOICES] = enabled
         }
     }
 
@@ -197,18 +175,6 @@ class NdPreferencesDataStore(
 
     suspend fun setSoftContrast(enabled: Boolean) {
         dataStore.edit { it[KEY_SOFT_CONTRAST] = enabled }
-    }
-
-    suspend fun setTaskDecomposition(enabled: Boolean) {
-        dataStore.edit { it[KEY_TASK_DECOMPOSITION] = enabled }
-    }
-
-    suspend fun setFocusGuard(enabled: Boolean) {
-        dataStore.edit { it[KEY_FOCUS_GUARD] = enabled }
-    }
-
-    suspend fun setBodyDoubling(enabled: Boolean) {
-        dataStore.edit { it[KEY_BODY_DOUBLING] = enabled }
     }
 
     suspend fun setCheckInIntervalMinutes(minutes: Int) {
@@ -277,22 +243,6 @@ class NdPreferencesDataStore(
         dataStore.edit { it[KEY_CELEBRATION_INTENSITY] = intensity.name }
     }
 
-    suspend fun setParalysisBreakersEnabled(enabled: Boolean) {
-        dataStore.edit { it[KEY_PARALYSIS_BREAKERS] = enabled }
-    }
-
-    suspend fun setAutoSuggestEnabled(enabled: Boolean) {
-        dataStore.edit { it[KEY_AUTO_SUGGEST] = enabled }
-    }
-
-    suspend fun setSimplifyChoicesEnabled(enabled: Boolean) {
-        dataStore.edit { it[KEY_SIMPLIFY_CHOICES] = enabled }
-    }
-
-    suspend fun setStuckDetectionMinutes(minutes: Int) {
-        dataStore.edit { it[KEY_STUCK_DETECTION_MINUTES] = minutes.coerceIn(1, 15) }
-    }
-
     // endregion
 
     // region Generic setter -----------------------------------------------------
@@ -301,41 +251,56 @@ class NdPreferencesDataStore(
      * Updates a single ND preference by key name. Intended for use by the Settings
      * UI where toggle keys are passed dynamically.
      *
+     * Uses safe `as?` casts: a mistyped value (e.g. from settings-import JSON
+     * where an Int arrives as a Double) is logged and silently skipped rather
+     * than throwing ClassCastException.
+     *
      * @throws IllegalArgumentException if [key] is not a recognized ND preference key.
      */
     suspend fun updateNdPreference(key: String, value: Any) {
+        fun bool(): Boolean? = value as? Boolean
+        fun int(): Int? = (value as? Int) ?: (value as? Number)?.toInt()
+        fun str(): String? = value as? String
         when (key) {
-            "adhd_mode_enabled" -> setAdhdMode(value as Boolean)
-            "calm_mode_enabled" -> setCalmMode(value as Boolean)
-            "focus_release_mode_enabled" -> setFocusReleaseMode(value as Boolean)
-            "reduce_animations" -> setReduceAnimations(value as Boolean)
-            "muted_color_palette" -> setMutedColorPalette(value as Boolean)
-            "quiet_mode" -> setQuietMode(value as Boolean)
-            "reduce_haptics" -> setReduceHaptics(value as Boolean)
-            "soft_contrast" -> setSoftContrast(value as Boolean)
-            "task_decomposition" -> setTaskDecomposition(value as Boolean)
-            "focus_guard" -> setFocusGuard(value as Boolean)
-            "body_doubling" -> setBodyDoubling(value as Boolean)
-            "check_in_interval_minutes" -> setCheckInIntervalMinutes(value as Int)
-            "completion_animations" -> setCompletionAnimations(value as Boolean)
-            "streak_celebrations" -> setStreakCelebrations(value as Boolean)
-            "show_progress_bars" -> setShowProgressBars(value as Boolean)
-            "forgiveness_streaks" -> setForgivenessStreaks(value as Boolean)
-            "good_enough_timers_enabled" -> setGoodEnoughTimersEnabled(value as Boolean)
-            "default_good_enough_minutes" -> setDefaultGoodEnoughMinutes(value as Int)
-            "good_enough_escalation" -> setGoodEnoughEscalation(GoodEnoughEscalation.valueOf(value as String))
-            "anti_rework_enabled" -> setAntiReworkEnabled(value as Boolean)
-            "soft_warning_enabled" -> setSoftWarningEnabled(value as Boolean)
-            "cooling_off_enabled" -> setCoolingOffEnabled(value as Boolean)
-            "cooling_off_minutes" -> setCoolingOffMinutes(value as Int)
-            "revision_counter_enabled" -> setRevisionCounterEnabled(value as Boolean)
-            "max_revisions" -> setMaxRevisions(value as Int)
-            "ship_it_celebrations_enabled" -> setShipItCelebrationsEnabled(value as Boolean)
-            "celebration_intensity" -> setCelebrationIntensity(CelebrationIntensity.valueOf(value as String))
-            "paralysis_breakers_enabled" -> setParalysisBreakersEnabled(value as Boolean)
-            "auto_suggest_enabled" -> setAutoSuggestEnabled(value as Boolean)
-            "simplify_choices_enabled" -> setSimplifyChoicesEnabled(value as Boolean)
-            "stuck_detection_minutes" -> setStuckDetectionMinutes(value as Int)
+            "adhd_mode_enabled" -> bool()?.let { setAdhdMode(it) }
+            "calm_mode_enabled" -> bool()?.let { setCalmMode(it) }
+            "focus_release_mode_enabled" -> bool()?.let { setFocusReleaseMode(it) }
+            "reduce_animations" -> bool()?.let { setReduceAnimations(it) }
+            "muted_color_palette" -> bool()?.let { setMutedColorPalette(it) }
+            "quiet_mode" -> bool()?.let { setQuietMode(it) }
+            "reduce_haptics" -> bool()?.let { setReduceHaptics(it) }
+            "soft_contrast" -> bool()?.let { setSoftContrast(it) }
+            "task_decomposition" -> bool()?.let { setTaskDecomposition(it) }
+            "focus_guard" -> bool()?.let { setFocusGuard(it) }
+            "body_doubling" -> bool()?.let { setBodyDoubling(it) }
+            "check_in_interval_minutes" -> int()?.let { setCheckInIntervalMinutes(it) }
+            "completion_animations" -> bool()?.let { setCompletionAnimations(it) }
+            "streak_celebrations" -> bool()?.let { setStreakCelebrations(it) }
+            "show_progress_bars" -> bool()?.let { setShowProgressBars(it) }
+            "forgiveness_streaks" -> bool()?.let { setForgivenessStreaks(it) }
+            "good_enough_timers_enabled" -> bool()?.let { setGoodEnoughTimersEnabled(it) }
+            "default_good_enough_minutes" -> int()?.let { setDefaultGoodEnoughMinutes(it) }
+            "good_enough_escalation" -> str()?.let {
+                runCatching { GoodEnoughEscalation.valueOf(it) }
+                    .getOrNull()
+                    ?.let(::setGoodEnoughEscalation)
+            }
+            "anti_rework_enabled" -> bool()?.let { setAntiReworkEnabled(it) }
+            "soft_warning_enabled" -> bool()?.let { setSoftWarningEnabled(it) }
+            "cooling_off_enabled" -> bool()?.let { setCoolingOffEnabled(it) }
+            "cooling_off_minutes" -> int()?.let { setCoolingOffMinutes(it) }
+            "revision_counter_enabled" -> bool()?.let { setRevisionCounterEnabled(it) }
+            "max_revisions" -> int()?.let { setMaxRevisions(it) }
+            "ship_it_celebrations_enabled" -> bool()?.let { setShipItCelebrationsEnabled(it) }
+            "celebration_intensity" -> str()?.let {
+                runCatching { CelebrationIntensity.valueOf(it) }
+                    .getOrNull()
+                    ?.let(::setCelebrationIntensity)
+            }
+            "paralysis_breakers_enabled" -> bool()?.let { setParalysisBreakersEnabled(it) }
+            "auto_suggest_enabled" -> bool()?.let { setAutoSuggestEnabled(it) }
+            "simplify_choices_enabled" -> bool()?.let { setSimplifyChoicesEnabled(it) }
+            "stuck_detection_minutes" -> int()?.let { setStuckDetectionMinutes(it) }
             else -> throw IllegalArgumentException("Unknown ND preference key: $key")
         }
     }

@@ -21,7 +21,8 @@ import androidx.room.PrimaryKey
 data class AttachmentEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     @ColumnInfo(name = "taskId") val taskId: Long,
-    val type: String, // "image" or "link"
+    // "image" or "link"
+    val type: String,
     val uri: String,
     @ColumnInfo(name = "file_name") val fileName: String? = null,
     @ColumnInfo(name = "thumbnail_uri") val thumbnailUri: String? = null,

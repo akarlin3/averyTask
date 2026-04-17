@@ -91,7 +91,8 @@ class WeeklyReviewAggregatorTest {
         val tasks = listOf(
             task(
                 1,
-                dueDate = reference + 10 * DAY, // pushed past this week
+                // pushed past this week
+                dueDate = reference + 10 * DAY,
                 createdAt = reference - 20 * DAY,
                 updatedAt = reference - 1 * DAY
             )

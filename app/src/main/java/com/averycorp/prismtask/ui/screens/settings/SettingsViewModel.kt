@@ -22,7 +22,6 @@ import com.averycorp.prismtask.data.preferences.A11yPreferences
 import com.averycorp.prismtask.data.preferences.ArchivePreferences
 import com.averycorp.prismtask.data.preferences.AuthTokenPreferences
 import com.averycorp.prismtask.data.preferences.BackendSyncPreferences
-import com.averycorp.prismtask.data.preferences.CalendarPreferences
 import com.averycorp.prismtask.data.preferences.DashboardPreferences
 import com.averycorp.prismtask.data.preferences.HabitListPreferences
 import com.averycorp.prismtask.data.preferences.LeisurePreferences
@@ -37,11 +36,11 @@ import com.averycorp.prismtask.data.preferences.TimerPreferences
 import com.averycorp.prismtask.data.preferences.UrgencyWeights
 import com.averycorp.prismtask.data.preferences.VoicePreferences
 import com.averycorp.prismtask.data.remote.AuthManager
-import com.averycorp.prismtask.data.remote.CalendarSyncService
-import com.averycorp.prismtask.data.remote.DeviceCalendar
 import com.averycorp.prismtask.data.remote.SyncService
+import com.averycorp.prismtask.data.repository.CalendarSyncRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.ui.navigation.ALL_BOTTOM_NAV_ITEMS
+import com.averycorp.prismtask.workers.CalendarSyncScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -75,7 +74,6 @@ constructor(
     private val tabPreferences: TabPreferences,
     private val taskBehaviorPreferences: TaskBehaviorPreferences,
     private val timerPreferences: TimerPreferences,
-    private val calendarPreferences: CalendarPreferences,
     private val leisurePreferences: LeisurePreferences,
     private val habitListPreferences: HabitListPreferences,
     private val database: PrismTaskDatabase,
@@ -83,7 +81,6 @@ constructor(
     internal val dataImporter: DataImporter,
     private val authManager: AuthManager,
     private val syncService: SyncService,
-    private val calendarSyncService: CalendarSyncService,
     private val taskRepository: TaskRepository,
     private val habitRepository: com.averycorp.prismtask.data.repository.HabitRepository,
     internal val backendSyncPreferences: BackendSyncPreferences,
@@ -91,6 +88,8 @@ constructor(
     internal val authTokenPreferences: AuthTokenPreferences,
     private val calendarManager: CalendarManager,
     private val calendarSyncPreferences: CalendarSyncPreferences,
+    private val calendarSyncRepository: CalendarSyncRepository,
+    private val calendarSyncScheduler: CalendarSyncScheduler,
     private val billingManager: BillingManager,
     private val voicePreferences: VoicePreferences,
     private val a11yPreferences: A11yPreferences,
@@ -343,22 +342,6 @@ constructor(
 
     fun setCelebrationIntensity(i: com.averycorp.prismtask.data.preferences.CelebrationIntensity) {
         viewModelScope.launch { ndPreferencesDataStore.setCelebrationIntensity(i) }
-    }
-
-    fun setParalysisBreakersEnabled(e: Boolean) {
-        viewModelScope.launch { ndPreferencesDataStore.setParalysisBreakersEnabled(e) }
-    }
-
-    fun setAutoSuggestEnabled(e: Boolean) {
-        viewModelScope.launch { ndPreferencesDataStore.setAutoSuggestEnabled(e) }
-    }
-
-    fun setSimplifyChoicesEnabled(e: Boolean) {
-        viewModelScope.launch { ndPreferencesDataStore.setSimplifyChoicesEnabled(e) }
-    }
-
-    fun setStuckDetectionMinutes(m: Int) {
-        viewModelScope.launch { ndPreferencesDataStore.setStuckDetectionMinutes(m) }
     }
 
     /** Forgiveness-first streak preferences (v1.4.0 V5). */
@@ -758,6 +741,10 @@ constructor(
         .getPomodoroFocusPreference()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), TimerPreferences.DEFAULT_FOCUS_PREFERENCE)
 
+    val timerBuzzUntilDismissed: StateFlow<Boolean> = timerPreferences
+        .getBuzzUntilDismissed()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     fun setTimerWorkDurationMinutes(minutes: Int) {
         viewModelScope.launch { timerPreferences.setWorkDurationSeconds(minutes * 60) }
     }
@@ -778,6 +765,10 @@ constructor(
         viewModelScope.launch { timerPreferences.setPomodoroFocusPreference(preference) }
     }
 
+    fun setTimerBuzzUntilDismissed(enabled: Boolean) {
+        viewModelScope.launch { timerPreferences.setBuzzUntilDismissed(enabled) }
+    }
+
     // --- Habits / Streaks ---
     val streakMaxMissedDays: StateFlow<Int> = habitListPreferences
         .getStreakMaxMissedDays()
@@ -785,6 +776,30 @@ constructor(
 
     fun setStreakMaxMissedDays(days: Int) {
         viewModelScope.launch { habitListPreferences.setStreakMaxMissedDays(days) }
+    }
+
+    val todaySkipAfterCompleteDays: StateFlow<Int> = habitListPreferences
+        .getTodaySkipAfterCompleteDays()
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            HabitListPreferences.DEFAULT_TODAY_SKIP_AFTER_COMPLETE_DAYS
+        )
+
+    fun setTodaySkipAfterCompleteDays(days: Int) {
+        viewModelScope.launch { habitListPreferences.setTodaySkipAfterCompleteDays(days) }
+    }
+
+    val todaySkipBeforeScheduleDays: StateFlow<Int> = habitListPreferences
+        .getTodaySkipBeforeScheduleDays()
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            HabitListPreferences.DEFAULT_TODAY_SKIP_BEFORE_SCHEDULE_DAYS
+        )
+
+    fun setTodaySkipBeforeScheduleDays(days: Int) {
+        viewModelScope.launch { habitListPreferences.setTodaySkipBeforeScheduleDays(days) }
     }
 
     // --- Modes ---
@@ -836,47 +851,6 @@ constructor(
     val archivedCount: StateFlow<Int> = taskRepository
         .getArchivedCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
-
-    // --- Calendar Sync ---
-    val calendarSyncEnabled: StateFlow<Boolean> = calendarPreferences
-        .isEnabled()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
-
-    val calendarName: StateFlow<String> = calendarPreferences
-        .getCalendarName()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
-
-    private val _availableCalendars = MutableStateFlow<List<DeviceCalendar>>(emptyList())
-    val availableCalendars: StateFlow<List<DeviceCalendar>> = _availableCalendars
-
-    fun loadCalendars() {
-        _availableCalendars.value = calendarSyncService.getAvailableCalendars()
-    }
-
-    fun setCalendarSyncEnabled(enabled: Boolean) {
-        viewModelScope.launch {
-            calendarPreferences.setEnabled(enabled)
-            if (enabled) {
-                try {
-                    val tasks = taskRepository.getAllTasksOnce()
-                    calendarSyncService.fullCalendarSync(tasks)
-                    _messages.emit("Calendar sync enabled")
-                } catch (e: Exception) {
-                    _messages.emit("Calendar sync failed: ${e.message}")
-                }
-            } else {
-                calendarSyncService.clearAllEvents()
-                _messages.emit("Calendar sync disabled")
-            }
-        }
-    }
-
-    fun selectCalendar(calendar: DeviceCalendar) {
-        viewModelScope.launch {
-            calendarPreferences.setCalendarId(calendar.id)
-            calendarPreferences.setCalendarName(calendar.name)
-        }
-    }
 
     // --- Google Calendar API Sync ---
     val isGCalConnected: StateFlow<Boolean> = calendarManager.isCalendarConnected
@@ -944,7 +918,7 @@ constructor(
                     _messages.emit("Google Calendar connected")
                 }
                 .onFailure { e ->
-                    _messages.emit(e.message ?: "Failed to connect Google Calendar")
+                    _messages.emit("Couldn't connect Google Calendar")
                 }
         }
     }
@@ -960,13 +934,21 @@ constructor(
 
     fun loadGCalCalendars() {
         viewModelScope.launch {
-            _gCalAvailableCalendars.value = calendarManager.getUserCalendars()
+            // Prefer the backend-mediated list so the Android client
+            // doesn't need the Calendar scope long-term. Fall back to the
+            // legacy direct fetch only when the backend call fails so the
+            // calendar picker still works during the transition period.
+            val backendCalendars = calendarSyncRepository.listCalendars().getOrNull()
+            _gCalAvailableCalendars.value = backendCalendars
+                ?: calendarManager.getUserCalendars()
         }
     }
 
     fun setGCalSyncEnabled(enabled: Boolean) {
         viewModelScope.launch {
             calendarSyncPreferences.setCalendarSyncEnabled(enabled)
+            calendarSyncRepository.syncSettingsToBackend()
+            calendarSyncScheduler.applyPreferences()
             if (enabled) {
                 _messages.emit("Google Calendar sync enabled")
             } else {
@@ -976,33 +958,53 @@ constructor(
     }
 
     fun setGCalSyncCalendarId(calendarId: String) {
-        viewModelScope.launch { calendarSyncPreferences.setSyncCalendarId(calendarId) }
+        viewModelScope.launch {
+            calendarSyncPreferences.setSyncCalendarId(calendarId)
+            calendarSyncRepository.syncSettingsToBackend()
+        }
     }
 
     fun setGCalSyncDirection(direction: String) {
-        viewModelScope.launch { calendarSyncPreferences.setSyncDirection(direction) }
+        viewModelScope.launch {
+            calendarSyncPreferences.setSyncDirection(direction)
+            calendarSyncRepository.syncSettingsToBackend()
+        }
     }
 
     fun setGCalShowEvents(show: Boolean) {
-        viewModelScope.launch { calendarSyncPreferences.setShowCalendarEvents(show) }
+        viewModelScope.launch {
+            calendarSyncPreferences.setShowCalendarEvents(show)
+            calendarSyncRepository.syncSettingsToBackend()
+        }
     }
 
     fun setGCalSyncCompletedTasks(sync: Boolean) {
-        viewModelScope.launch { calendarSyncPreferences.setSyncCompletedTasks(sync) }
+        viewModelScope.launch {
+            calendarSyncPreferences.setSyncCompletedTasks(sync)
+            calendarSyncRepository.syncSettingsToBackend()
+        }
     }
 
     fun setGCalSyncFrequency(frequency: String) {
-        viewModelScope.launch { calendarSyncPreferences.setSyncFrequency(frequency) }
+        viewModelScope.launch {
+            calendarSyncPreferences.setSyncFrequency(frequency)
+            calendarSyncRepository.syncSettingsToBackend()
+            calendarSyncScheduler.applyPreferences()
+        }
     }
 
     fun syncGCalNow() {
         viewModelScope.launch {
             _isGCalSyncing.value = true
             try {
-                calendarSyncPreferences.setLastSyncTimestamp(System.currentTimeMillis())
-                _messages.emit("Google Calendar sync complete")
+                val result = calendarSyncRepository.syncNow()
+                if (result.isSuccess) {
+                    _messages.emit("Google Calendar sync complete")
+                } else {
+                    _messages.emit("Calendar sync failed")
+                }
             } catch (e: Exception) {
-                _messages.emit("Sync failed: ${e.message}")
+                _messages.emit("Calendar sync failed")
             } finally {
                 _isGCalSyncing.value = false
             }
@@ -1147,7 +1149,7 @@ constructor(
                 _messages.emit("Sync complete")
             } catch (e: Exception) {
                 Log.e("SettingsVM", "Sync failed", e)
-                _messages.emit("Sync failed: ${e.message}")
+                _messages.emit("Sync failed")
             } finally {
                 _isSyncing.value = false
             }
@@ -1205,7 +1207,7 @@ constructor(
             } catch (e: Exception) {
                 Log.e("SettingsVM", "Duplicate scan failed", e)
                 _duplicateCleanupState.value = DuplicateCleanupState()
-                _messages.emit("Could not scan for duplicates: ${e.message}")
+                _messages.emit("Couldn't scan for duplicates")
             }
         }
     }
@@ -1228,7 +1230,7 @@ constructor(
                 )
             } catch (e: Exception) {
                 Log.e("SettingsVM", "Duplicate cleanup failed", e)
-                _messages.emit("Cleanup failed: ${e.message}")
+                _messages.emit("Duplicate cleanup failed")
             } finally {
                 _duplicateCleanupState.value = DuplicateCleanupState()
             }
@@ -1317,6 +1319,17 @@ constructor(
                     if (options.calendarSyncData) {
                         database.calendarSyncDao().deleteAll()
                     }
+                    // Any data wipe invalidates the local↔cloud_id mappings; drop
+                    // pending sync actions so a future sign-in doesn't try to
+                    // delete or update entities that no longer exist locally.
+                    val anyDataReset = options.tasksAndProjects ||
+                        options.habitsAndHistory ||
+                        options.tags ||
+                        options.templates ||
+                        options.calendarSyncData
+                    if (anyDataReset) {
+                        database.syncMetadataDao().deleteAll()
+                    }
                 }
                 if (options.calendarSyncData) {
                     calendarSyncPreferences.clearAll()
@@ -1328,7 +1341,6 @@ constructor(
                     dashboardPreferences.resetToDefaults()
                     tabPreferences.resetToDefaults()
                     taskBehaviorPreferences.resetToDefaults()
-                    calendarPreferences.clearAll()
                     leisurePreferences.clearAll()
                     habitListPreferences.clearAll()
                     backendSyncPreferences.clear()
@@ -1344,7 +1356,7 @@ constructor(
                 onDone(options.restartOnboarding)
             } catch (e: Exception) {
                 Log.e("SettingsVM", "Reset failed", e)
-                _messages.emit("Reset failed: ${e.message}")
+                _messages.emit("Reset failed")
             } finally {
                 _isResetting.value = false
             }
@@ -1356,7 +1368,7 @@ constructor(
             try {
                 billingManager.launchPurchaseFlow(activity, period)
             } catch (e: Exception) {
-                _messages.emit("Could not start purchase: ${e.message}")
+                _messages.emit("Couldn't start purchase")
             }
         }
     }
@@ -1367,7 +1379,7 @@ constructor(
                 billingManager.restorePurchases()
                 _messages.emit("Purchases restored")
             } catch (e: Exception) {
-                _messages.emit("Could not restore purchases: ${e.message}")
+                _messages.emit("Couldn't restore purchases")
             }
         }
     }
@@ -1394,7 +1406,7 @@ constructor(
                 _messages.emit("Tutorial Reset — Showing Now")
                 onDone()
             } catch (e: Exception) {
-                _messages.emit("Could not reset tutorial: ${e.message}")
+                _messages.emit("Couldn't reset tutorial")
             }
         }
     }

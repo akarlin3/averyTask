@@ -63,7 +63,8 @@ class MorningCheckInResolver {
         tasks: List<TaskEntity>,
         habits: List<HabitWithStatus>,
         config: MorningCheckInConfig,
-        lastCompletedDate: Long?, // midnight-normalized millis of the last completed check-in
+        // midnight-normalized millis of the last completed check-in
+        lastCompletedDate: Long?,
         todayStart: Long,
         now: Long = System.currentTimeMillis(),
         zone: ZoneId = ZoneId.systemDefault()

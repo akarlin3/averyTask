@@ -789,11 +789,21 @@ private fun SetupPage(
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             FilledTonalButton(
                                 onClick = {
+                                    // Unwrap ContextWrapper chain rather than
+                                    // casting directly — a wrapped context from
+                                    // a tooltip/dialog host would ClassCastException.
+                                    val activity = run {
+                                        var ctx = context
+                                        while (ctx is android.content.ContextWrapper && ctx !is Activity) {
+                                            ctx = ctx.baseContext
+                                        }
+                                        ctx as? Activity
+                                    } ?: return@FilledTonalButton
                                     coroutineScope.launch {
                                         try {
                                             val option = GetSignInWithGoogleOption.Builder(BuildConfig.WEB_CLIENT_ID).build()
                                             val request = GetCredentialRequest.Builder().addCredentialOption(option).build()
-                                            val result = CredentialManager.create(context).getCredential(context as Activity, request)
+                                            val result = CredentialManager.create(context).getCredential(activity, request)
                                             val idToken = GoogleIdTokenCredential.createFrom(result.credential.data).idToken
                                             viewModel.onGoogleSignIn(idToken)
                                         } catch (_: GetCredentialCancellationException) {
@@ -892,7 +902,7 @@ private fun SetupPage(
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Task created!", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                        Text("Task Created", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                     }
                 } else {
                     OutlinedTextField(

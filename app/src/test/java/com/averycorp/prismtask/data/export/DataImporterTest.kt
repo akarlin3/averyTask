@@ -15,7 +15,6 @@ import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.local.entity.TaskTagCrossRef
 import com.averycorp.prismtask.data.preferences.ArchivePreferences
-import com.averycorp.prismtask.data.preferences.CalendarPreferences
 import com.averycorp.prismtask.data.preferences.DashboardPreferences
 import com.averycorp.prismtask.data.preferences.HabitListPreferences
 import com.averycorp.prismtask.data.preferences.LeisurePreferences
@@ -58,7 +57,6 @@ class DataImporterTest {
     private lateinit var dashboardPreferences: DashboardPreferences
     private lateinit var tabPreferences: TabPreferences
     private lateinit var taskBehaviorPreferences: TaskBehaviorPreferences
-    private lateinit var calendarPreferences: CalendarPreferences
     private lateinit var habitListPreferences: HabitListPreferences
     private lateinit var leisurePreferences: LeisurePreferences
     private lateinit var medicationPreferences: MedicationPreferences
@@ -83,7 +81,6 @@ class DataImporterTest {
         dashboardPreferences = mockk(relaxed = true)
         tabPreferences = mockk(relaxed = true)
         taskBehaviorPreferences = mockk(relaxed = true)
-        calendarPreferences = mockk(relaxed = true)
         habitListPreferences = mockk(relaxed = true)
         leisurePreferences = mockk(relaxed = true)
         medicationPreferences = mockk(relaxed = true)
@@ -108,7 +105,6 @@ class DataImporterTest {
             dashboardPreferences,
             tabPreferences,
             taskBehaviorPreferences,
-            calendarPreferences,
             habitListPreferences,
             leisurePreferences,
             medicationPreferences,

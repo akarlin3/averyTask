@@ -1,13 +1,16 @@
 package com.averycorp.prismtask.smoke
 
+import com.averycorp.prismtask.data.calendar.CalendarPushDispatcher
 import com.averycorp.prismtask.data.local.converter.RecurrenceConverter
+import com.averycorp.prismtask.data.local.database.DatabaseTransactionRunner
 import com.averycorp.prismtask.data.local.entity.TaskEntity
-import com.averycorp.prismtask.data.remote.CalendarSyncService
 import com.averycorp.prismtask.data.remote.SyncTracker
+import com.averycorp.prismtask.data.repository.TaskCompletionRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.domain.model.RecurrenceRule
 import com.averycorp.prismtask.domain.model.RecurrenceType
 import com.averycorp.prismtask.notifications.ReminderScheduler
+import com.averycorp.prismtask.widget.WidgetUpdateManager
 import dagger.hilt.android.testing.HiltAndroidTest
 import io.mockk.mockk
 import kotlinx.coroutines.flow.first
@@ -23,11 +26,14 @@ import org.junit.Test
 @HiltAndroidTest
 class RecurrenceSmokeTest : SmokeTestBase() {
     private fun buildRepository(): TaskRepository = TaskRepository(
+        transactionRunner = DatabaseTransactionRunner(database),
         taskDao = database.taskDao(),
         tagDao = database.tagDao(),
         syncTracker = mockk<SyncTracker>(relaxed = true),
-        calendarSyncService = mockk<CalendarSyncService>(relaxed = true),
-        reminderScheduler = mockk<ReminderScheduler>(relaxed = true)
+        calendarPushDispatcher = mockk<CalendarPushDispatcher>(relaxed = true),
+        reminderScheduler = mockk<ReminderScheduler>(relaxed = true),
+        widgetUpdateManager = mockk<WidgetUpdateManager>(relaxed = true),
+        taskCompletionRepository = mockk<TaskCompletionRepository>(relaxed = true)
     )
 
     @Test

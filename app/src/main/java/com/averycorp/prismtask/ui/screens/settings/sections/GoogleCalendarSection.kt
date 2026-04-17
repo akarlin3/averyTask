@@ -150,11 +150,26 @@ fun GoogleCalendarSection(
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
                 )
+                val directionHelper = when (gCalSyncDirection) {
+                    "push" -> "Tasks \u2192 Calendar only. Remote calendar edits are ignored."
+                    "pull" -> "Calendar \u2192 App only. PrismTask never writes to your calendar."
+                    else -> "Changes flow both ways between PrismTask and your calendar."
+                }
+                Text(
+                    directionHelper,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    listOf("push" to "Push Only", "pull" to "Pull Only", "both" to "Both").forEach { (value, label) ->
+                    listOf(
+                        "push" to "Push Only",
+                        "pull" to "Pull Only",
+                        "both" to "Two-Way"
+                    ).forEach { (value, label) ->
                         FilterChip(
                             selected = gCalSyncDirection == value,
                             onClick = { onSetGCalSyncDirection(value) },
@@ -229,7 +244,7 @@ fun GoogleCalendarSection(
                             strokeWidth = 2.dp
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Syncing...")
+                        Text("Syncing\u2026")
                     } else {
                         Icon(
                             imageVector = Icons.Default.Sync,

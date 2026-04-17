@@ -102,7 +102,8 @@ class ReminderSchedulerQuietHoursTest {
             enabled = true,
             start = LocalTime.of(22, 0),
             end = LocalTime.of(7, 0),
-            days = setOf(DayOfWeek.SATURDAY), // only Saturdays
+            // only Saturdays
+            days = setOf(DayOfWeek.SATURDAY),
             priorityOverrideTiers = emptySet()
         )
         val trigger = zdt(hour = 23, day = DayOfWeek.MONDAY)

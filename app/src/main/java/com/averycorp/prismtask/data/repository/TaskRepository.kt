@@ -1,11 +1,12 @@
 package com.averycorp.prismtask.data.repository
 
+import com.averycorp.prismtask.data.calendar.CalendarPushDispatcher
 import com.averycorp.prismtask.data.local.converter.RecurrenceConverter
 import com.averycorp.prismtask.data.local.dao.TagDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
+import com.averycorp.prismtask.data.local.database.DatabaseTransactionRunner
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.local.entity.TaskTagCrossRef
-import com.averycorp.prismtask.data.remote.CalendarSyncService
 import com.averycorp.prismtask.data.remote.SyncTracker
 import com.averycorp.prismtask.domain.usecase.RecurrenceEngine
 import com.averycorp.prismtask.notifications.ReminderScheduler
@@ -23,10 +24,11 @@ import javax.inject.Singleton
 class TaskRepository
 @Inject
 constructor(
+    private val transactionRunner: DatabaseTransactionRunner,
     private val taskDao: TaskDao,
     private val tagDao: TagDao,
     private val syncTracker: SyncTracker,
-    private val calendarSyncService: CalendarSyncService,
+    private val calendarPushDispatcher: CalendarPushDispatcher,
     private val reminderScheduler: ReminderScheduler,
     private val widgetUpdateManager: WidgetUpdateManager,
     private val taskCompletionRepository: TaskCompletionRepository
@@ -38,6 +40,9 @@ constructor(
     fun getSubtasks(parentTaskId: Long): Flow<List<TaskEntity>> = taskDao.getSubtasks(parentTaskId)
 
     suspend fun deleteTasksByProjectId(projectId: Long) {
+        taskDao.getTasksByProjectOnce(projectId).forEach {
+            reminderScheduler.cancelReminder(it.id)
+        }
         taskDao.deleteTasksByProjectId(projectId)
         widgetUpdateManager.updateTaskWidgets()
     }
@@ -67,7 +72,7 @@ constructor(
             )
         val id = taskDao.insert(task)
         syncTracker.trackCreate(id, "task")
-        calendarSyncService.syncTaskToCalendar(task.copy(id = id))
+        calendarPushDispatcher.enqueuePushTask(id)
         widgetUpdateManager.updateTaskWidgets()
         return id
     }
@@ -96,7 +101,7 @@ constructor(
     suspend fun insertTask(task: TaskEntity): Long {
         val id = taskDao.insert(task)
         syncTracker.trackCreate(id, "task")
-        calendarSyncService.syncTaskToCalendar(task.copy(id = id))
+        calendarPushDispatcher.enqueuePushTask(id)
         widgetUpdateManager.updateTaskWidgets()
         if (task.reminderOffset != null && task.dueDate != null) {
             reminderScheduler.scheduleReminder(
@@ -144,7 +149,7 @@ constructor(
             )
         val id = taskDao.insert(task)
         syncTracker.trackCreate(id, "task")
-        calendarSyncService.syncTaskToCalendar(task.copy(id = id))
+        calendarPushDispatcher.enqueuePushTask(id)
         widgetUpdateManager.updateTaskWidgets()
         if (reminderOffset != null && dueDate != null) {
             reminderScheduler.scheduleReminder(
@@ -162,7 +167,7 @@ constructor(
         val updated = task.copy(updatedAt = System.currentTimeMillis())
         taskDao.update(updated)
         syncTracker.trackUpdate(task.id, "task")
-        calendarSyncService.syncTaskToCalendar(updated)
+        calendarPushDispatcher.enqueuePushTask(updated.id)
         widgetUpdateManager.updateTaskWidgets()
         if (updated.reminderOffset != null && updated.dueDate != null) {
             reminderScheduler.scheduleReminder(
@@ -196,7 +201,7 @@ constructor(
         } else {
             reminderScheduler.cancelReminder(taskId)
         }
-        calendarSyncService.syncTaskToCalendar(updated)
+        calendarPushDispatcher.enqueuePushTask(updated.id)
         widgetUpdateManager.updateTaskWidgets()
     }
 
@@ -210,15 +215,16 @@ constructor(
     suspend fun completeTask(id: Long) {
         val now = System.currentTimeMillis()
         val task = taskDao.getTaskById(id).firstOrNull()
-        if (task != null) {
-            val tags = tagDao.getTagsForTask(id).first()
-            taskCompletionRepository.recordCompletion(task, tags)
-        }
-        if (task?.recurrenceRule != null && task.dueDate != null) {
-            val rule = RecurrenceConverter.fromJson(task.recurrenceRule)
-            if (rule != null) {
-                val nextDueDate = RecurrenceEngine.calculateNextDueDate(task.dueDate, rule)
-                if (nextDueDate != null) {
+        val tags = if (task != null) tagDao.getTagsForTask(id).first() else emptyList()
+
+        val nextRecurrenceId = transactionRunner.withTransaction {
+            if (task != null) {
+                taskCompletionRepository.recordCompletion(task, tags)
+            }
+            val nextId = if (task?.recurrenceRule != null && task.dueDate != null) {
+                val rule = RecurrenceConverter.fromJson(task.recurrenceRule)
+                val nextDueDate = rule?.let { RecurrenceEngine.calculateNextDueDate(task.dueDate, it) }
+                if (rule != null && nextDueDate != null) {
                     val updatedRule = rule.copy(occurrenceCount = rule.occurrenceCount + 1)
                     val nextTask = task.copy(
                         id = 0,
@@ -229,28 +235,42 @@ constructor(
                         createdAt = now,
                         updatedAt = now
                     )
-                    val nextId = taskDao.insert(nextTask)
-                    syncTracker.trackCreate(nextId, "task")
-                    calendarSyncService.syncTaskToCalendar(nextTask.copy(id = nextId))
+                    taskDao.insert(nextTask)
+                } else {
+                    null
                 }
+            } else {
+                null
             }
+            taskDao.markCompleted(id, now)
+            nextId
         }
-        taskDao.markCompleted(id, now)
+
+        if (nextRecurrenceId != null) {
+            syncTracker.trackCreate(nextRecurrenceId, "task")
+            calendarPushDispatcher.enqueuePushTask(nextRecurrenceId)
+        }
         syncTracker.trackUpdate(id, "task")
-        calendarSyncService.removeEventForTask(id)
+        calendarPushDispatcher.enqueueDeleteTaskEvent(id)
         widgetUpdateManager.updateTaskWidgets()
     }
 
     suspend fun uncompleteTask(id: Long) {
         taskDao.markIncomplete(id, System.currentTimeMillis())
         syncTracker.trackUpdate(id, "task")
-        val task = taskDao.getTaskByIdOnce(id)
-        if (task != null) calendarSyncService.syncTaskToCalendar(task)
+        calendarPushDispatcher.enqueuePushTask(id)
         widgetUpdateManager.updateTaskWidgets()
     }
 
     suspend fun deleteTask(id: Long) {
-        calendarSyncService.removeEventForTask(id)
+        // Cancel pending reminder alarm; the child task_tag / subtask rows
+        // are wiped by the ON DELETE CASCADE foreign keys, but AlarmManager
+        // alarms are out-of-band and must be cancelled explicitly.
+        reminderScheduler.cancelReminder(id)
+        taskDao.getSubtasksOnce(id).forEach {
+            reminderScheduler.cancelReminder(it.id)
+        }
+        calendarPushDispatcher.enqueueDeleteTaskEvent(id)
         syncTracker.trackDelete(id, "task")
         taskDao.deleteById(id)
         widgetUpdateManager.updateTaskWidgets()
@@ -273,7 +293,11 @@ constructor(
     }
 
     suspend fun permanentlyDeleteTask(id: Long) {
-        calendarSyncService.removeEventForTask(id)
+        reminderScheduler.cancelReminder(id)
+        taskDao.getSubtasksOnce(id).forEach {
+            reminderScheduler.cancelReminder(it.id)
+        }
+        calendarPushDispatcher.enqueueDeleteTaskEvent(id)
         syncTracker.trackDelete(id, "task")
         taskDao.permanentlyDelete(id)
         widgetUpdateManager.updateTaskWidgets()
@@ -332,7 +356,7 @@ constructor(
                 syncTracker.trackCreate(newSubId, "task")
             }
         }
-        calendarSyncService.syncTaskToCalendar(duplicate.copy(id = newId))
+        calendarPushDispatcher.enqueuePushTask(newId)
         widgetUpdateManager.updateTaskWidgets()
         return newId
     }
@@ -364,7 +388,7 @@ constructor(
             } else {
                 reminderScheduler.cancelReminder(id)
             }
-            calendarSyncService.syncTaskToCalendar(updated)
+            calendarPushDispatcher.enqueuePushTask(updated.id)
             syncTracker.trackUpdate(id, "task")
         }
         widgetUpdateManager.updateTaskWidgets()

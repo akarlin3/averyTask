@@ -8,7 +8,6 @@ import androidx.room.Update
 import com.averycorp.prismtask.data.local.entity.AssignmentEntity
 import com.averycorp.prismtask.data.local.entity.CourseCompletionEntity
 import com.averycorp.prismtask.data.local.entity.CourseEntity
-import com.averycorp.prismtask.data.local.entity.StudyLogEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -49,6 +48,20 @@ interface SchoolworkDao {
 
     @Query("SELECT * FROM assignments WHERE completed = 0 ORDER BY due_date ASC, created_at DESC")
     fun getActiveAssignments(): Flow<List<AssignmentEntity>>
+
+    /**
+     * Assignments due inside the `[from, to)` window (exclusive upper
+     * bound) and still incomplete. Used by the Daily Essentials
+     * Schoolwork card to list work due today.
+     */
+    @Query(
+        "SELECT * FROM assignments " +
+            "WHERE due_date IS NOT NULL " +
+            "AND due_date >= :from AND due_date < :to " +
+            "AND completed = 0 " +
+            "ORDER BY due_date ASC"
+    )
+    fun getAssignmentsDueBetween(from: Long, to: Long): Flow<List<AssignmentEntity>>
 
     @Query("SELECT * FROM assignments ORDER BY completed ASC, due_date ASC, created_at DESC")
     fun getAllAssignments(): Flow<List<AssignmentEntity>>
@@ -110,4 +123,10 @@ interface SchoolworkDao {
 
     @Update
     suspend fun updateLog(log: StudyLogEntity)
+
+    @Query("SELECT * FROM study_logs ORDER BY date DESC")
+    suspend fun getAllStudyLogsOnce(): List<StudyLogEntity>
+
+    @Query("DELETE FROM study_logs")
+    suspend fun deleteAllStudyLogs()
 }
