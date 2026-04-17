@@ -32,7 +32,8 @@ data class TimerUiState(
     val sessionsUntilLongBreak: Int = TimerPreferences.DEFAULT_SESSIONS_UNTIL_LONG_BREAK,
     val isLongBreak: Boolean = false,
     val autoStartBreaks: Boolean = false,
-    val autoStartWork: Boolean = false
+    val autoStartWork: Boolean = false,
+    val customDurationSeconds: Int = TimerPreferences.DEFAULT_CUSTOM_SECONDS
 )
 
 @HiltViewModel
@@ -130,13 +131,16 @@ constructor(
         viewModelScope.launch {
             timerPreferences.getCustomDurationSeconds().collect { custom ->
                 val current = _uiState.value
-                if (current.mode == TimerMode.CUSTOM) {
+                val updated = current.copy(customDurationSeconds = custom)
+                _uiState.value = if (current.mode == TimerMode.CUSTOM) {
                     val isIdleAtFull = !current.isRunning &&
                         current.remainingSeconds == current.totalSeconds
-                    _uiState.value = current.copy(
+                    updated.copy(
                         totalSeconds = custom,
                         remainingSeconds = if (isIdleAtFull) custom else current.remainingSeconds
                     )
+                } else {
+                    updated
                 }
             }
         }
@@ -343,6 +347,12 @@ constructor(
     fun toggleAutoStartWork() {
         viewModelScope.launch {
             timerPreferences.setAutoStartWork(!_uiState.value.autoStartWork)
+        }
+    }
+
+    fun setCustomDurationMinutes(minutes: Int) {
+        viewModelScope.launch {
+            timerPreferences.setCustomDurationSeconds(minutes * 60)
         }
     }
 
