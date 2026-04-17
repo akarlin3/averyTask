@@ -97,7 +97,7 @@ fun AuthScreen(
             is AuthState.Loading -> {
                 CircularProgressIndicator()
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Signing in...", style = MaterialTheme.typography.bodyMedium)
+                Text("Signing in\u2026", style = MaterialTheme.typography.bodyMedium)
             }
             is AuthState.Error -> {
                 Text(
@@ -112,10 +112,23 @@ fun AuthScreen(
 
         if (authState !is AuthState.Loading) {
             Button(
-                onClick = {
+                onClick = onClick@{
+                    // Unwrap ContextWrapper chain to find the hosting Activity;
+                    // a direct `context as Activity` cast breaks if the composable
+                    // is hosted inside a ContextWrapper (dialogs, tooltips).
+                    val activity = run {
+                        var ctx = context
+                        while (ctx is android.content.ContextWrapper && ctx !is Activity) {
+                            ctx = ctx.baseContext
+                        }
+                        ctx as? Activity
+                    }
+                    if (activity == null) {
+                        viewModel.onSignInError("Could not locate hosting Activity")
+                        return@onClick
+                    }
                     scope.launch {
                         val credentialManager = CredentialManager.create(context)
-                        val activity = context as Activity
 
                         suspend fun requestAuthorized(): GetCredentialResponse {
                             val googleIdOption = GetGoogleIdOption
@@ -184,7 +197,7 @@ fun AuthScreen(
                             viewModel.onSignInError("Sign-in cancelled")
                         } catch (e: GetCredentialException) {
                             Log.e("AuthScreen", "Sign-in failed", e)
-                            viewModel.onSignInError(e.message ?: "Google Sign-In failed")
+                            viewModel.onSignInError("Google sign-in failed")
                         }
                     }
                 },

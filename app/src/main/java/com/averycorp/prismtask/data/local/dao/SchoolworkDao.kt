@@ -109,4 +109,24 @@ interface SchoolworkDao {
 
     @Query("SELECT * FROM course_completions ORDER BY date DESC")
     suspend fun getAllCompletionsOnce(): List<CourseCompletionEntity>
+
+    // --- Study Logs (legacy, kept for migration compatibility) ---
+
+    @Query("SELECT * FROM study_logs WHERE date = :date LIMIT 1")
+    fun getLogForDate(date: Long): Flow<StudyLogEntity?>
+
+    @Query("SELECT * FROM study_logs WHERE date = :date LIMIT 1")
+    suspend fun getLogForDateOnce(date: Long): StudyLogEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertLog(log: StudyLogEntity): Long
+
+    @Update
+    suspend fun updateLog(log: StudyLogEntity)
+
+    @Query("SELECT * FROM study_logs ORDER BY date DESC")
+    suspend fun getAllStudyLogsOnce(): List<StudyLogEntity>
+
+    @Query("DELETE FROM study_logs")
+    suspend fun deleteAllStudyLogs()
 }
