@@ -790,6 +790,14 @@ val MIGRATION_43_44 = object : Migration(43, 44) {
     }
 }
 
+// Drop legacy study_logs table. The table was kept around for migration
+// compatibility; its columns were never read or written by shipping code.
+val MIGRATION_44_45 = object : Migration(44, 45) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("DROP TABLE IF EXISTS study_logs")
+    }
+}
+
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
@@ -833,5 +841,6 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_40_41,
     MIGRATION_41_42,
     MIGRATION_42_43,
-    MIGRATION_43_44
+    MIGRATION_43_44,
+    MIGRATION_44_45
 )
