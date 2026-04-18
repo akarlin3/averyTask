@@ -1,19 +1,22 @@
 name: Auto-merge & Release
 
-# Combined workflow:
-#   1. On pull_request → waits for CI, then squash-merges via auto-merge.
-#   2. On push to main (after the merge) → bumps version, builds debug APK,
-#      distributes to Firebase App Distribution, and commits the bump.
+# Combined workflow, all running off a single pull_request trigger:
+#   1. auto-merge job → waits for CI, then squash-merges via gh pr merge --auto.
+#   2. version-bump-and-distribute job → waits for the squash merge to land,
+#      bumps version, builds debug APK, distributes to Firebase, and commits
+#      the bump.
+#
+# Why not a separate `push` trigger? GitHub's anti-recursion rule blocks
+# workflow runs when the push to main was produced by gh pr merge using
+# GITHUB_TOKEN. That silently skipped Firebase distribution for every PR
+# whose only CI check was this workflow itself (i.e. the common case after
+# Android CI was disabled). Driving distribution from the same pull_request
+# run that performed the merge avoids the recursion gate entirely.
 
 on:
   pull_request:
     types: [opened, reopened, ready_for_review, synchronize]
     branches: [main]
-  push:
-    branches: [main]
-    # No paths filter here — change detection is done in-job via git diff.
-    # GitHub's push-event path filtering can miss squash-merge changes and
-    # doesn't trigger when auto-merge uses GITHUB_TOKEN.
 
 env:
   WAIT_INTERVAL: 30  # seconds between CI check polls
@@ -78,66 +81,84 @@ jobs:
           # Use --auto so GitHub still waits for required reviews (if any).
           # --delete-branch removes the head branch once the merge completes
           # so feature branches don't accumulate.
-          # Once the merge completes, the push to main triggers the
-          # version-bump-and-distribute job below.
+          # The version-bump-and-distribute job (needs: [auto-merge]) polls
+          # this PR's state until it's MERGED before running.
           gh pr merge --auto --squash --delete-branch "$PR_URL" || \
             echo "Auto-merge could not be enabled (already enabled, already merged, or repo setting disabled)."
 
   # ── Version Bump + Firebase Distribution ──────────────────────────
-  # Only runs on push to main (after auto-merge completes).
-  # Bumps version, builds debug APK, distributes to Firebase, and
-  # commits the version bump.
+  # Runs on the same pull_request event as auto-merge (NOT a push event),
+  # so it still fires when the squash merge was performed via GITHUB_TOKEN.
+  # Waits for the PR to transition to MERGED, then bumps versionCode /
+  # versionName on main, builds the debug APK, uploads to Firebase, and
+  # commits the bump back to main.
   version-bump-and-distribute:
     name: Version Bump, Build & Firebase Distribute
-    if: github.event_name == 'push'
+    needs: [auto-merge]
+    if: >-
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    # Queue runs (do NOT cancel in progress). Cancelling mid-flight drops
-    # Firebase distributions for Android-changing PRs when a second push
-    # lands before the first run finishes.
+    # Serialize all post-merge distribution work against main so concurrent
+    # PRs produce sequential versionCode bumps without racing each other.
     concurrency:
-      group: version-firebase-${{ github.ref }}
+      group: version-firebase-main
       cancel-in-progress: false
 
     steps:
-      - name: Checkout
+      - name: Wait for PR to merge
+        id: wait
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # gh pr merge --auto may queue the merge (waiting on other required
+          # checks, reviews, or branch-protection rules) or execute it
+          # immediately. Poll PR state until it flips to MERGED, CLOSED
+          # (without merging), or we give up. Matches the outer workflow
+          # timeout so a stuck PR doesn't hang the runner forever.
+          for i in $(seq 1 60); do
+            STATE=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json state -q '.state')
+            case "$STATE" in
+              MERGED)
+                MERGE_SHA=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json mergeCommit -q '.mergeCommit.oid')
+                echo "merged=true" >> "$GITHUB_OUTPUT"
+                echo "merge_sha=$MERGE_SHA" >> "$GITHUB_OUTPUT"
+                echo "PR merged at $MERGE_SHA"
+                exit 0
+                ;;
+              CLOSED)
+                echo "merged=false" >> "$GITHUB_OUTPUT"
+                echo "PR closed without merging — skipping distribution."
+                exit 0
+                ;;
+              *)
+                echo "PR state=$STATE (attempt $i/60); sleeping 10s..."
+                sleep 10
+                ;;
+            esac
+          done
+          echo "merged=false" >> "$GITHUB_OUTPUT"
+          echo "::warning::PR did not reach MERGED within 10 minutes — skipping distribution."
+
+      - name: Checkout main at merge commit
+        if: steps.wait.outputs.merged == 'true'
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          ref: ${{ github.ref_name }}
+          ref: ${{ steps.wait.outputs.merge_sha }}
           fetch-depth: 0
 
-      - name: Skip if triggered by version bump commit
-        id: skip_check
-        env:
-          COMMIT_MSG: ${{ github.event.head_commit.message }}
-        run: |
-          # Inspect the triggering commit, not HEAD. When runs queue, main
-          # may have advanced past the triggering commit (e.g. to a bump
-          # commit from an earlier run), and we don't want to misread that.
-          if echo "$COMMIT_MSG" | grep -q '\[skip ci\]'; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "Skipping — triggering commit was a CI version bump."
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Detect Android-related changes
-        if: steps.skip_check.outputs.skip != 'true'
+        if: steps.wait.outputs.merged == 'true'
         id: changes
         env:
-          BEFORE_SHA: ${{ github.event.before }}
-          AFTER_SHA: ${{ github.sha }}
+          MERGE_SHA: ${{ steps.wait.outputs.merge_sha }}
         run: |
           set -euo pipefail
-          # Diff the exact push range, not HEAD~1..HEAD. When this run is
-          # queued behind another, HEAD on main may have advanced and
-          # HEAD~1..HEAD would describe a later push's changes instead of
-          # this one's.
-          if [ -z "$BEFORE_SHA" ] || [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ]; then
-            CHANGED=$(git diff --name-only HEAD~1 HEAD)
-          else
-            CHANGED=$(git diff --name-only "$BEFORE_SHA" "$AFTER_SHA")
-          fi
+          CHANGED=$(git diff --name-only "${MERGE_SHA}~1" "${MERGE_SHA}")
           if echo "$CHANGED" | grep -qE '^(app/|build\.gradle\.kts$|settings\.gradle\.kts$|gradle\.properties$|gradle/|gradlew)'; then
             echo "has_android=true" >> "$GITHUB_OUTPUT"
             echo "Android-related changes detected:"
@@ -148,28 +169,36 @@ jobs:
           fi
 
       - name: Set up JDK 21
-        if: steps.skip_check.outputs.skip != 'true' && steps.changes.outputs.has_android == 'true'
+        if: steps.wait.outputs.merged == 'true' && steps.changes.outputs.has_android == 'true'
         uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
 
       - name: Setup Gradle
-        if: steps.skip_check.outputs.skip != 'true' && steps.changes.outputs.has_android == 'true'
+        if: steps.wait.outputs.merged == 'true' && steps.changes.outputs.has_android == 'true'
         uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: false
 
       - name: Grant execute permission for gradlew
-        if: steps.skip_check.outputs.skip != 'true' && steps.changes.outputs.has_android == 'true'
+        if: steps.wait.outputs.merged == 'true' && steps.changes.outputs.has_android == 'true'
         run: chmod +x gradlew
 
       # Patch bump only. release.yml owns release (minor/major) versionCode.
       - name: Bump versionCode and versionName
-        if: steps.skip_check.outputs.skip != 'true' && steps.changes.outputs.has_android == 'true'
+        if: steps.wait.outputs.merged == 'true' && steps.changes.outputs.has_android == 'true'
         id: version
         run: |
           set -euo pipefail
+          # Switch off the detached merge-sha checkout onto a local branch
+          # tracking main so the later `git push HEAD:main` has somewhere
+          # to go. Fetch the latest main first so we bump from the tip the
+          # push will target — otherwise a concurrent PR's bump from a
+          # queued run ahead of us would get overwritten.
+          git fetch origin main
+          git checkout -B main origin/main
+
           CURRENT_CODE=$(grep -oP 'versionCode\s*=\s*\K[0-9]+' app/build.gradle.kts | head -1)
           NEW_CODE=$(( CURRENT_CODE + 1 ))
           sed -i "s/versionCode = [0-9]*/versionCode = $NEW_CODE/" app/build.gradle.kts
@@ -187,7 +216,7 @@ jobs:
           echo "Building v$NEW_NAME (build $NEW_CODE)"
 
       - name: Setup Firebase credentials
-        if: steps.skip_check.outputs.skip != 'true' && steps.changes.outputs.has_android == 'true'
+        if: steps.wait.outputs.merged == 'true' && steps.changes.outputs.has_android == 'true'
         id: firebase
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
@@ -207,7 +236,7 @@ jobs:
           fi
 
       - name: Generate release notes
-        if: steps.skip_check.outputs.skip != 'true' && steps.changes.outputs.has_android == 'true'
+        if: steps.wait.outputs.merged == 'true' && steps.changes.outputs.has_android == 'true'
         run: |
           {
             echo "v${{ steps.version.outputs.version_name }} (build ${{ steps.version.outputs.version_code }})"
@@ -216,18 +245,18 @@ jobs:
           } > "$RUNNER_TEMP/release_notes.txt"
 
       - name: Assemble debug APK
-        if: steps.skip_check.outputs.skip != 'true' && steps.changes.outputs.has_android == 'true'
+        if: steps.wait.outputs.merged == 'true' && steps.changes.outputs.has_android == 'true'
         run: ./gradlew assembleDebug --no-configuration-cache
 
       - name: Upload to Firebase App Distribution
-        if: steps.skip_check.outputs.skip != 'true' && steps.changes.outputs.has_android == 'true' && steps.firebase.outputs.has_credentials == 'true'
+        if: steps.wait.outputs.merged == 'true' && steps.changes.outputs.has_android == 'true' && steps.firebase.outputs.has_credentials == 'true'
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
           RELEASE_NOTES_FILE: ${{ runner.temp }}/release_notes.txt
         run: ./gradlew appDistributionUploadDebug --no-configuration-cache
 
       - name: Upload debug APK artifact
-        if: steps.skip_check.outputs.skip != 'true' && steps.changes.outputs.has_android == 'true' && success()
+        if: steps.wait.outputs.merged == 'true' && steps.changes.outputs.has_android == 'true' && success()
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
@@ -235,7 +264,7 @@ jobs:
           retention-days: 14
 
       - name: Commit version bump
-        if: steps.skip_check.outputs.skip != 'true' && steps.changes.outputs.has_android == 'true' && success()
+        if: steps.wait.outputs.merged == 'true' && steps.changes.outputs.has_android == 'true' && success()
         run: |
           set -euo pipefail
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
@@ -250,13 +279,13 @@ jobs:
           # running, so a straight `git push` here races and silently loses the
           # bump commit. Rebase onto the current main tip and retry on rejection.
           for attempt in 1 2 3 4 5; do
-            if git push origin "HEAD:${GITHUB_REF_NAME}"; then
+            if git push origin HEAD:main; then
               echo "Pushed version bump on attempt $attempt"
               exit 0
             fi
-            echo "Push rejected on attempt $attempt; rebasing onto origin/${GITHUB_REF_NAME} and retrying"
-            git fetch origin "${GITHUB_REF_NAME}"
-            if ! git rebase "origin/${GITHUB_REF_NAME}"; then
+            echo "Push rejected on attempt $attempt; rebasing onto origin/main and retrying"
+            git fetch origin main
+            if ! git rebase origin/main; then
               git rebase --abort || true
               echo "::error::Rebase conflict while replaying version bump; aborting."
               exit 1
