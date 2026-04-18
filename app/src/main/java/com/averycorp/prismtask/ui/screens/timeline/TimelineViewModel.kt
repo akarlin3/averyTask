@@ -453,7 +453,7 @@ constructor(
     }
 
     fun applyAiSchedule() {
-        val schedule = _aiSchedule.value ?: return
+        val schedule = aiSchedule.value ?: return
         viewModelScope.launch {
             try {
                 val date = _currentDate.value

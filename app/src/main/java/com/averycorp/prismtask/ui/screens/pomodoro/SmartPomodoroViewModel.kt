@@ -401,7 +401,7 @@ constructor(
     }
 
     fun nextSession() {
-        val plan = _plan.value ?: return
+        val plan = plan.value ?: return
         val nextIndex = _currentSessionIndex.value + 1
         if (nextIndex >= plan.sessions.size) {
             // All done
@@ -455,7 +455,7 @@ constructor(
 
     private fun onTimerComplete() {
         _isTimerRunning.value = false
-        val plan = _plan.value ?: return
+        val plan = plan.value ?: return
         val sessionIndex = _currentSessionIndex.value
         _stats.value = _stats.value.copy(
             sessionsCompleted = sessionIndex + 1,
