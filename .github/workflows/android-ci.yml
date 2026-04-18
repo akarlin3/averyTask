@@ -35,9 +35,9 @@ permissions:
   actions: read          # capture-failure-log fetches job logs via API
 
 jobs:
-  # autofix and lint-and-test run in parallel (no needs: between them).
-  # The autofix commit uses [skip ci] to avoid re-triggering this workflow,
-  # which mitigates the race condition with the lint-and-test job.
+  # lint-and-test depends on autofix so it checks the post-autofix head,
+  # not the pre-fix merge commit. The autofix commit keeps [skip ci] so we
+  # don't double-run on the newly-pushed SHA.
   autofix:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -67,9 +67,17 @@ jobs:
           git diff --quiet || (git add -A && git commit -m "style: auto-format [skip ci]" && git push)
 
   lint-and-test:
+    # Wait for autofix so we verify the post-autofix code. For push events
+    # autofix is skipped; `!cancelled()` lets this job run anyway. The checkout
+    # ref follows the PR head branch (after autofix's push) or falls back to
+    # the pushed ref.
+    needs: [autofix]
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref }}
       - uses: ./.github/actions/setup-android
       - name: ktlint check
         run: ./gradlew ktlintCheck --continue
