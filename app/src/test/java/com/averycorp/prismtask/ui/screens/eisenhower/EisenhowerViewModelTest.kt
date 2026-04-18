@@ -111,7 +111,7 @@ class EisenhowerViewModelTest {
         advanceUntilIdle()
 
         assertFalse(vm.isLoading.value)
-        assertEquals("network down", vm.error.value)
+        assertEquals("Couldn't categorize tasks", vm.error.value)
     }
 
     @Test
@@ -164,7 +164,7 @@ class EisenhowerViewModelTest {
         advanceUntilIdle()
         vm.categorize()
         advanceUntilIdle()
-        assertEquals("boom", vm.error.value)
+        assertEquals("Couldn't categorize tasks", vm.error.value)
 
         vm.clearError()
         assertNull(vm.error.value)
