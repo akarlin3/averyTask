@@ -1,13 +1,14 @@
+import logging
 from datetime import date, datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.middleware.auth import get_current_user
 from app.middleware.rate_limit import RateLimiter, daily_ai_rate_limiter
-from app.models import Habit, Task, TaskStatus, User
+from app.models import Habit, User
 from app.schemas.ai import (
     DailyBriefingRequest,
     DailyBriefingResponse,
@@ -26,6 +27,19 @@ from app.schemas.ai import (
     WeeklyReviewRequest,
     WeeklyReviewResponse,
 )
+from app.services.firestore_tasks import (
+    TaskDTO,
+    fetch_incomplete_tasks,
+    fetch_recently_completed_tasks,
+    fetch_tasks_by_ids,
+    filter_due_on,
+    filter_for_time_block,
+    filter_overdue_before,
+    filter_planned_on,
+    filter_recurring,
+)
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -43,30 +57,43 @@ weekly_review_rate_limiter = RateLimiter(max_requests=1, window_seconds=3600)
 extract_rate_limiter = RateLimiter(max_requests=10, window_seconds=60)
 
 
-async def _fetch_incomplete_tasks(
-    user: User, db: AsyncSession, task_ids: list[int] | None = None
-) -> list[Task]:
-    query = select(Task).where(
-        Task.user_id == user.id,
-        Task.status != TaskStatus.DONE,
-        Task.status != TaskStatus.CANCELLED,
-    )
+def _require_firebase_uid(user: User) -> str:
+    """Return the user's Firebase UID or raise 401.
+
+    AI endpoints read tasks from Firestore under ``users/{uid}/tasks``. If the
+    JWT-linked User row has no ``firebase_uid``, the identity chain is broken —
+    reject rather than silently query a nonexistent collection.
+    """
+    uid = getattr(user, "firebase_uid", None)
+    if not uid:
+        logger.warning(
+            "AI endpoint rejected: user id=%s has no firebase_uid", user.id
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User is not linked to a Firebase account",
+        )
+    return uid
+
+
+async def _get_incomplete_tasks(
+    user: User, task_ids: list[str] | None = None
+) -> list[TaskDTO]:
+    uid = _require_firebase_uid(user)
     if task_ids:
-        query = query.where(Task.id.in_(task_ids))
-    result = await db.execute(query.order_by(Task.sort_order, Task.created_at))
-    return list(result.scalars().all())
+        tasks = await fetch_tasks_by_ids(uid, task_ids)
+        # Match the old Postgres filter: only incomplete tasks. fetch_tasks_by_ids
+        # returns any doc that exists; drop completed ones here.
+        return [t for t in tasks if t.completed_at is None]
+    return await fetch_incomplete_tasks(uid)
 
 
-def _task_to_ai_dict(task: Task) -> dict:
-    return {
-        "task_id": task.id,
-        "title": task.title,
-        "description": task.description,
-        "due_date": task.due_date.isoformat() if task.due_date else None,
-        "priority": task.priority,
-        "project_id": task.project_id,
-        "eisenhower_quadrant": task.eisenhower_quadrant,
-    }
+def _log_empty_short_circuit(user: User, endpoint: str) -> None:
+    logger.info(
+        "AI short-circuit: no_incomplete_tasks user_id=%s endpoint=%s",
+        user.id,
+        endpoint,
+    )
 
 
 @router.post("/eisenhower", response_model=EisenhowerResponse)
@@ -74,20 +101,20 @@ async def categorize_eisenhower(
     data: EisenhowerRequest,
     request: Request,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
 ):
     ai_rate_limiter.check(request)
     tier = current_user.effective_tier
     daily_ai_rate_limiter.check(current_user.id, tier)
 
-    tasks = await _fetch_incomplete_tasks(current_user, db, data.task_ids)
+    tasks = await _get_incomplete_tasks(current_user, data.task_ids)
     if not tasks:
+        _log_empty_short_circuit(current_user, "eisenhower")
         return EisenhowerResponse(
             categorizations=[],
             summary=EisenhowerSummary(),
         )
 
-    task_dicts = [_task_to_ai_dict(t) for t in tasks]
+    task_dicts = [t.to_ai_dict() for t in tasks]
 
     try:
         from app.services.ai_productivity import categorize_eisenhower as ai_categorize
@@ -98,22 +125,17 @@ async def categorize_eisenhower(
     except ValueError:
         raise HTTPException(status_code=500, detail="AI returned an invalid response")
 
-    # Build task lookup for updating
-    task_map = {t.id: t for t in tasks}
-    now = datetime.now(timezone.utc)
-
+    valid_task_ids = {t.task_id for t in tasks}
     valid_quadrants = {"Q1", "Q2", "Q3", "Q4"}
     cleaned = []
     for cat in categorizations:
         tid = cat.get("task_id")
+        if tid is not None:
+            tid = str(tid)
         quadrant = cat.get("quadrant", "")
         reason = cat.get("reason", "")
-        if tid in task_map and quadrant in valid_quadrants:
-            task_map[tid].eisenhower_quadrant = quadrant
-            task_map[tid].eisenhower_updated_at = now
+        if tid in valid_task_ids and quadrant in valid_quadrants:
             cleaned.append({"task_id": tid, "quadrant": quadrant, "reason": reason})
-
-    await db.flush()
 
     summary = EisenhowerSummary()
     for cat in cleaned:
@@ -134,14 +156,14 @@ async def plan_pomodoro(
     data: PomodoroRequest,
     request: Request,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
 ):
     ai_rate_limiter.check(request)
     tier = current_user.effective_tier
     daily_ai_rate_limiter.check(current_user.id, tier)
 
-    tasks = await _fetch_incomplete_tasks(current_user, db)
+    tasks = await _get_incomplete_tasks(current_user)
     if not tasks:
+        _log_empty_short_circuit(current_user, "pomodoro")
         return PomodoroResponse(
             sessions=[],
             total_sessions=0,
@@ -150,7 +172,7 @@ async def plan_pomodoro(
             skipped_tasks=[],
         )
 
-    task_dicts = [_task_to_ai_dict(t) for t in tasks]
+    task_dicts = [t.to_ai_dict() for t in tasks]
 
     try:
         from app.services.ai_productivity import plan_pomodoro as ai_plan
@@ -173,22 +195,6 @@ async def plan_pomodoro(
     return PomodoroResponse(**plan)
 
 
-def _task_to_briefing_dict(task: Task) -> dict:
-    return {
-        "task_id": task.id,
-        "title": task.title,
-        "description": task.description,
-        "due_date": task.due_date.isoformat() if task.due_date else None,
-        "due_time": task.due_time.isoformat() if task.due_time else None,
-        "planned_date": task.planned_date.isoformat() if task.planned_date else None,
-        "priority": task.priority,
-        "project_id": task.project_id,
-        "eisenhower_quadrant": task.eisenhower_quadrant,
-        "urgency_score": task.urgency_score,
-        "sort_order": task.sort_order,
-    }
-
-
 @router.post("/daily-briefing", response_model=DailyBriefingResponse)
 async def daily_briefing(
     data: DailyBriefingRequest,
@@ -205,37 +211,16 @@ async def daily_briefing(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format; expected YYYY-MM-DD")
 
-    # Fetch overdue tasks (past due, not completed)
-    overdue_query = select(Task).where(
-        Task.user_id == current_user.id,
-        Task.status != TaskStatus.DONE,
-        Task.status != TaskStatus.CANCELLED,
-        Task.due_date < target_date,
-    )
-    overdue_result = await db.execute(overdue_query)
-    overdue_tasks = [_task_to_briefing_dict(t) for t in overdue_result.scalars().all()]
+    uid = _require_firebase_uid(current_user)
 
-    # Fetch tasks due today
-    today_query = select(Task).where(
-        Task.user_id == current_user.id,
-        Task.status != TaskStatus.DONE,
-        Task.status != TaskStatus.CANCELLED,
-        Task.due_date == target_date,
-    )
-    today_result = await db.execute(today_query)
-    today_tasks = [_task_to_briefing_dict(t) for t in today_result.scalars().all()]
+    # One Firestore read, then partition in Python. Keeps query count bounded
+    # even for users with many incomplete tasks.
+    incomplete_tasks = await fetch_incomplete_tasks(uid)
+    overdue_tasks = [t.to_briefing_dict() for t in filter_overdue_before(incomplete_tasks, target_date)]
+    today_tasks = [t.to_briefing_dict() for t in filter_due_on(incomplete_tasks, target_date)]
+    planned_tasks = [t.to_briefing_dict() for t in filter_planned_on(incomplete_tasks, target_date)]
 
-    # Fetch tasks planned for today
-    planned_query = select(Task).where(
-        Task.user_id == current_user.id,
-        Task.status != TaskStatus.DONE,
-        Task.status != TaskStatus.CANCELLED,
-        Task.planned_date == target_date,
-    )
-    planned_result = await db.execute(planned_query)
-    planned_tasks = [_task_to_briefing_dict(t) for t in planned_result.scalars().all()]
-
-    # Fetch active habits
+    # Habits still live in Postgres — unchanged by this migration.
     habits_query = select(Habit).where(
         Habit.user_id == current_user.id,
         Habit.is_active.is_(True),
@@ -243,19 +228,14 @@ async def daily_briefing(
     habits_result = await db.execute(habits_query)
     habits = [{"name": h.name, "frequency": h.frequency.value} for h in habits_result.scalars().all()]
 
-    # Fetch recently completed tasks (last 24 hours)
+    # Recently completed (last 24h) comes from Firestore too now.
     yesterday = datetime.now(timezone.utc) - timedelta(hours=24)
-    completed_query = select(Task).where(
-        Task.user_id == current_user.id,
-        Task.status == TaskStatus.DONE,
-        Task.completed_at >= yesterday,
-    )
-    completed_result = await db.execute(completed_query)
-    completed_tasks = [{"task_id": t.id, "title": t.title} for t in completed_result.scalars().all()]
+    completed_dtos = await fetch_recently_completed_tasks(uid, yesterday)
+    completed_tasks = [{"task_id": t.task_id, "title": t.title} for t in completed_dtos]
 
-    # Return empty briefing if no data
     all_tasks = overdue_tasks + today_tasks + planned_tasks
     if not all_tasks and not habits:
+        _log_empty_short_circuit(current_user, "daily-briefing")
         return DailyBriefingResponse(
             greeting="Good morning! You have a clear day ahead.",
             top_priorities=[],
@@ -290,7 +270,6 @@ async def weekly_plan(
     data: WeeklyPlanRequest,
     request: Request,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
 ):
     weekly_plan_rate_limiter.check(request)
     tier = current_user.effective_tier
@@ -311,26 +290,12 @@ async def weekly_plan(
 
     week_end = week_start + timedelta(days=6)
 
-    # Fetch all incomplete tasks
-    tasks_query = select(Task).where(
-        Task.user_id == current_user.id,
-        Task.status != TaskStatus.DONE,
-        Task.status != TaskStatus.CANCELLED,
-    ).order_by(Task.sort_order, Task.created_at)
-    tasks_result = await db.execute(tasks_query)
-    all_tasks = [_task_to_briefing_dict(t) for t in tasks_result.scalars().all()]
-
-    # Fetch recurring tasks
-    recurring_query = select(Task).where(
-        Task.user_id == current_user.id,
-        Task.status != TaskStatus.DONE,
-        Task.status != TaskStatus.CANCELLED,
-        Task.recurrence_json.isnot(None),
-    )
-    recurring_result = await db.execute(recurring_query)
-    recurring_tasks = [_task_to_briefing_dict(t) for t in recurring_result.scalars().all()]
+    incomplete = await _get_incomplete_tasks(current_user)
+    all_tasks = [t.to_briefing_dict() for t in incomplete]
+    recurring_tasks = [t.to_briefing_dict() for t in filter_recurring(incomplete)]
 
     if not all_tasks:
+        _log_empty_short_circuit(current_user, "weekly-plan")
         return WeeklyPlanResponse(
             plan={},
             unscheduled=[],
@@ -375,20 +340,11 @@ async def time_block(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format; expected YYYY-MM-DD")
 
-    # Fetch tasks for the date: due today, planned today, or overdue
-    tasks_query = select(Task).where(
-        Task.user_id == current_user.id,
-        Task.status != TaskStatus.DONE,
-        Task.status != TaskStatus.CANCELLED,
-    ).where(
-        (Task.due_date == target_date)
-        | (Task.planned_date == target_date)
-        | (Task.due_date < target_date)
-    ).order_by(Task.sort_order, Task.created_at)
-    tasks_result = await db.execute(tasks_query)
-    tasks = [_task_to_briefing_dict(t) for t in tasks_result.scalars().all()]
+    incomplete = await _get_incomplete_tasks(current_user)
+    tasks = [t.to_briefing_dict() for t in filter_for_time_block(incomplete, target_date)]
 
     if not tasks:
+        _log_empty_short_circuit(current_user, "time-block")
         from app.schemas.ai import TimeBlockStats
 
         return TimeBlockResponse(
@@ -408,7 +364,6 @@ async def time_block(
     # user hasn't connected Calendar, their settings disable sync, or
     # the backend can't reach Google right now, fall back to an empty
     # list and let the planner schedule as if the day were clear.
-    from datetime import datetime, timedelta, timezone
     import json as _json
 
     from app.models import CalendarSyncSettings as _CalSettings
@@ -477,6 +432,32 @@ async def time_block(
 # ---------------------------------------------------------------------------
 
 
+_WEEKLY_REVIEW_OPEN_TASK_CAP = 20
+
+
+def _rank_open_tasks_for_review(tasks: list[TaskDTO]) -> list[TaskDTO]:
+    """Rank + cap open tasks for the weekly-review prompt.
+
+    Ordering: priority DESC, then due_date ASC with nulls last, then
+    sort_order ASC as a stable tiebreaker. Capped at 20 items to keep
+    Sonnet token usage bounded. If there are <=20 open tasks, we skip the
+    ranking and return them all (still applying the stable sort so the
+    prompt is deterministic).
+    """
+    # date.max keeps null due dates at the end of the ASC sort.
+    far_future = date.max
+
+    def sort_key(t: TaskDTO):
+        return (
+            -int(t.priority or 0),
+            t.due_date_obj or far_future,
+            int(t.sort_order or 0),
+        )
+
+    ranked = sorted(tasks, key=sort_key)
+    return ranked[:_WEEKLY_REVIEW_OPEN_TASK_CAP]
+
+
 @router.post("/weekly-review", response_model=WeeklyReviewResponse)
 async def weekly_review(
     data: WeeklyReviewRequest,
@@ -484,32 +465,51 @@ async def weekly_review(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Generate an ADHD-friendly weekly review narrative from anonymized
-    aggregate stats. No individual task titles are sent — the Android
-    client computes counts + category ratios + burnout score locally
-    and forwards only those numbers.
+    Generate an ADHD-friendly weekly review narrative using a hybrid
+    input pattern:
+      * The client sends per-task summaries for completed and slipped tasks
+        plus optional opaque habit/pomodoro aggregates and free-form notes.
+      * The backend enriches with the user's current open tasks from
+        Firestore so the "going forward" section of the review is grounded
+        in live data.
 
-    The response has three short bullet lists (wins, slips, suggestions)
-    plus a tone marker. The Android WeeklyReviewScreen replaces its
-    rule-based narrative with this output when the user is on Premium
-    and the request succeeds; the rule-based fallback stays for Free
-    users and network failures.
+    Schema v2 — breaking change from the aggregate-counts v1 schema. Old
+    clients posting the v1 body shape will get 422 until their prompts
+    land. See WeeklyReviewRequest in schemas/ai.py for the v2 contract.
     """
     weekly_review_rate_limiter.check(request)
     tier = current_user.effective_tier
     daily_ai_rate_limiter.check(current_user.id, tier)
 
+    uid = _require_firebase_uid(current_user)
+    open_dtos = await fetch_incomplete_tasks(uid)
+    top_open = _rank_open_tasks_for_review(open_dtos)
+
+    logger.info(
+        "AI weekly_review: user_id=%s endpoint=weekly_review "
+        "completed=%d slipped=%d open_total=%d open_included=%d",
+        current_user.id,
+        len(data.completed_tasks),
+        len(data.slipped_tasks),
+        len(open_dtos),
+        len(top_open),
+    )
+
+    completed_dicts = [t.model_dump() for t in data.completed_tasks]
+    slipped_dicts = [t.model_dump() for t in data.slipped_tasks]
+    open_dicts = [t.to_briefing_dict() for t in top_open]
+
     try:
         from app.services.ai_productivity import generate_weekly_review as ai_review
         result = ai_review(
-            week_start=data.week_start,
-            week_end=data.week_end,
-            completed=data.completed,
-            slipped=data.slipped,
-            rescheduled=data.rescheduled,
-            category_counts=data.category_counts,
-            burnout_score=data.burnout_score,
-            medication_adherence=data.medication_adherence,
+            week_start=data.week_start.isoformat(),
+            week_end=data.week_end.isoformat(),
+            completed_tasks=completed_dicts,
+            slipped_tasks=slipped_dicts,
+            open_tasks=open_dicts,
+            habit_summary=data.habit_summary,
+            pomodoro_summary=data.pomodoro_summary,
+            notes=data.notes,
             tier=tier,
         )
     except RuntimeError:
@@ -518,10 +518,13 @@ async def weekly_review(
         raise HTTPException(status_code=500, detail="AI returned an invalid response")
 
     return WeeklyReviewResponse(
+        week_start=data.week_start,
+        week_end=data.week_end,
         wins=result.get("wins", []),
         slips=result.get("slips", []),
-        suggestions=result.get("suggestions", []),
-        tone=result.get("tone", "gentle"),
+        patterns=result.get("patterns", []),
+        next_week_focus=result.get("next_week_focus", []),
+        narrative=result.get("narrative", ""),
     )
 
 

@@ -1,17 +1,18 @@
-from typing import Optional
+from datetime import date
+from typing import Any, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 # --- Eisenhower ---
 
 
 class EisenhowerRequest(BaseModel):
-    task_ids: Optional[list[int]] = None
+    task_ids: Optional[list[str]] = None
 
 
 class EisenhowerCategorization(BaseModel):
-    task_id: int
+    task_id: str
     quadrant: str
     reason: str
 
@@ -40,7 +41,7 @@ class PomodoroRequest(BaseModel):
 
 
 class SessionTask(BaseModel):
-    task_id: int
+    task_id: str
     title: str
     allocated_minutes: int
 
@@ -52,7 +53,7 @@ class PomodoroSession(BaseModel):
 
 
 class SkippedTask(BaseModel):
-    task_id: int
+    task_id: str
     reason: str
 
 
@@ -72,13 +73,13 @@ class DailyBriefingRequest(BaseModel):
 
 
 class BriefingPriority(BaseModel):
-    task_id: int
+    task_id: str
     title: str
     reason: str
 
 
 class SuggestedTask(BaseModel):
-    task_id: int
+    task_id: str
     title: str
     suggested_time: str
     reason: str
@@ -108,7 +109,7 @@ class WeeklyPlanRequest(BaseModel):
 
 
 class PlannedTask(BaseModel):
-    task_id: int
+    task_id: str
     title: str
     suggested_time: str
     duration_minutes: int
@@ -124,7 +125,7 @@ class DayPlan(BaseModel):
 
 
 class UnscheduledTask(BaseModel):
-    task_id: int
+    task_id: str
     title: str
     reason: str
 
@@ -153,7 +154,7 @@ class ScheduleBlock(BaseModel):
     start: str
     end: str
     type: str  # "task", "event", "break"
-    task_id: Optional[int] = None
+    task_id: Optional[str] = None
     title: str
     reason: str
 
@@ -172,30 +173,52 @@ class TimeBlockResponse(BaseModel):
     stats: TimeBlockStats
 
 
-# --- Weekly Review (v1.4.0 V6) ---
+# --- Weekly Review (v2 hybrid schema) ---
+#
+# Schema v2. Breaking change from v1 (which sent aggregate counts only): the
+# client now sends per-task summaries for completed and slipped items, and
+# the backend enriches the prompt with a live Firestore "open tasks" list.
+# Old clients sending the v1 shape will get 422 until their prompts land.
+
+
+class WeeklyTaskSummary(BaseModel):
+    task_id: str
+    title: str
+    completed_at: Optional[str] = None  # ISO datetime; None for slipped tasks
+    priority: int = Field(ge=0, le=4)
+    eisenhower_quadrant: Optional[str] = None
+    life_category: Optional[str] = None
+    project_id: Optional[str] = None
 
 
 class WeeklyReviewRequest(BaseModel):
-    """Anonymized aggregate stats for the AI weekly review.
+    week_start: date
+    week_end: date
+    completed_tasks: list[WeeklyTaskSummary] = Field(default_factory=list)
+    slipped_tasks: list[WeeklyTaskSummary] = Field(default_factory=list)
+    # Opaque pass-through. The backend forwards these to the prompt verbatim
+    # so the client controls the shape (streak counts, session totals, etc.).
+    habit_summary: Optional[dict[str, Any]] = None
+    pomodoro_summary: Optional[dict[str, Any]] = None
+    notes: Optional[str] = Field(default=None, max_length=2000)
 
-    Individual task titles are never sent — the server only sees counts and
-    category ratios. See the v1.4.0 V6 privacy requirement.
-    """
-    week_start: str  # ISO date
-    week_end: str  # ISO date
-    completed: int = Field(ge=0)
-    slipped: int = Field(ge=0)
-    rescheduled: int = Field(default=0, ge=0)
-    category_counts: dict[str, int] = Field(default_factory=dict)
-    burnout_score: int = Field(default=0, ge=0, le=100)
-    medication_adherence: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    @model_validator(mode="after")
+    def _check_week_span(self):
+        if self.week_end < self.week_start:
+            raise ValueError("week_end must be on or after week_start")
+        if (self.week_end - self.week_start).days > 14:
+            raise ValueError("week span must be 14 days or fewer")
+        return self
 
 
 class WeeklyReviewResponse(BaseModel):
+    week_start: date
+    week_end: date
     wins: list[str]
     slips: list[str]
-    suggestions: list[str]
-    tone: str = "gentle"
+    patterns: list[str]
+    next_week_focus: list[str]
+    narrative: str
 
 
 # --- Task Extraction (v1.4.0 V9) ---
