@@ -50,6 +50,9 @@ import java.util.Locale
 
 /**
  * Sticky compact header bar shown in the Scaffold topBar slot.
+ *
+ * [trailingActions] renders after the analytics icon; callers use it to inject
+ * the shared sync indicator (see [com.averycorp.prismtask.ui.components.sync.SyncIndicatorHost]).
  */
 @Composable
 internal fun CompactProgressHeader(
@@ -57,7 +60,8 @@ internal fun CompactProgressHeader(
     total: Int,
     progress: Float,
     progressStyle: String = "ring",
-    onAnalyticsClick: (() -> Unit)? = null
+    onAnalyticsClick: (() -> Unit)? = null,
+    trailingActions: @Composable (() -> Unit)? = null
 ) {
     val dateLabel = remember {
         SimpleDateFormat("EEEE, MMMM d", Locale.getDefault()).format(Date())
@@ -232,6 +236,10 @@ internal fun CompactProgressHeader(
                         tint = colors.muted
                     )
                 }
+            }
+            if (trailingActions != null) {
+                Spacer(modifier = Modifier.width(4.dp))
+                trailingActions()
             }
         }
     }

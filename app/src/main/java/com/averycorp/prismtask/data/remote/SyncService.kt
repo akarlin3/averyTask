@@ -1,6 +1,5 @@
 package com.averycorp.prismtask.data.remote
 
-import android.util.Log
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.dao.HabitLogDao
@@ -13,6 +12,8 @@ import com.averycorp.prismtask.data.local.dao.TaskTemplateDao
 import com.averycorp.prismtask.data.local.entity.SyncMetadataEntity
 import com.averycorp.prismtask.data.local.entity.TaskTagCrossRef
 import com.averycorp.prismtask.data.remote.mapper.SyncMapper
+import com.averycorp.prismtask.data.remote.sync.PrismSyncLogger
+import com.averycorp.prismtask.data.remote.sync.SyncStateRepository
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
@@ -38,7 +39,9 @@ constructor(
     private val habitLogDao: HabitLogDao,
     private val taskTemplateDao: TaskTemplateDao,
     private val milestoneDao: MilestoneDao,
-    private val proFeatureGate: ProFeatureGate
+    private val proFeatureGate: ProFeatureGate,
+    private val logger: PrismSyncLogger,
+    private val syncStateRepository: SyncStateRepository
 ) {
     private val firestore by lazy { FirebaseFirestore.getInstance() }
     private val listeners = mutableListOf<ListenerRegistration>()
@@ -52,9 +55,8 @@ constructor(
     suspend fun initialUpload() {
         val userId = authManager.userId ?: return
 
-        // Upload projects
         val projects = projectDao.getAllProjectsOnce()
-        Log.d("SyncService", "Uploading ${projects.size} projects...")
+        logger.debug("upload.projects", status = "begin", detail = "count=${projects.size}")
         for (project in projects) {
             try {
                 val docRef = userCollection("projects")?.document() ?: continue
@@ -68,14 +70,20 @@ constructor(
                     )
                 )
             } catch (e: Exception) {
-                Log.e("SyncService", "Failed to upload project ${project.id}: ${project.name}", e)
+                logger.error(
+                    operation = "upload.project",
+                    entity = "project",
+                    id = project.id.toString(),
+                    detail = project.name,
+                    throwable = e
+                )
             }
         }
 
         // Upload milestones (v1.4.0 Projects Phase 5). Must come AFTER the
         // projects block so the cloud IDs for each project are registered
         // in sync_metadata and we can attach the milestone to its parent.
-        Log.d("SyncService", "Uploading milestones...")
+        logger.debug("upload.milestones", status = "begin")
         for (project in projects) {
             val projectCloudId = syncMetadataDao.getCloudId(project.id, "project") ?: continue
             val milestones = milestoneDao.getMilestonesOnce(project.id)
@@ -92,14 +100,19 @@ constructor(
                         )
                     )
                 } catch (e: Exception) {
-                    Log.e("SyncService", "Failed to upload milestone ${milestone.id}: ${milestone.title}", e)
+                    logger.error(
+                        operation = "upload.milestone",
+                        entity = "milestone",
+                        id = milestone.id.toString(),
+                        detail = milestone.title,
+                        throwable = e
+                    )
                 }
             }
         }
 
-        // Upload tags
         val tags = tagDao.getAllTagsOnce()
-        Log.d("SyncService", "Uploading ${tags.size} tags...")
+        logger.debug("upload.tags", status = "begin", detail = "count=${tags.size}")
         for (tag in tags) {
             try {
                 val docRef = userCollection("tags")?.document() ?: continue
@@ -113,13 +126,18 @@ constructor(
                     )
                 )
             } catch (e: Exception) {
-                Log.e("SyncService", "Failed to upload tag ${tag.id}: ${tag.name}", e)
+                logger.error(
+                    operation = "upload.tag",
+                    entity = "tag",
+                    id = tag.id.toString(),
+                    detail = tag.name,
+                    throwable = e
+                )
             }
         }
 
-        // Upload habits
         val habits = habitDao.getActiveHabitsOnce()
-        Log.d("SyncService", "Uploading ${habits.size} habits...")
+        logger.debug("upload.habits", status = "begin", detail = "count=${habits.size}")
         for (habit in habits) {
             try {
                 val docRef = userCollection("habits")?.document() ?: continue
@@ -133,12 +151,17 @@ constructor(
                     )
                 )
             } catch (e: Exception) {
-                Log.e("SyncService", "Failed to upload habit ${habit.id}: ${habit.name}", e)
+                logger.error(
+                    operation = "upload.habit",
+                    entity = "habit",
+                    id = habit.id.toString(),
+                    detail = habit.name,
+                    throwable = e
+                )
             }
         }
 
-        // Upload habit completions
-        Log.d("SyncService", "Uploading habit completions...")
+        logger.debug("upload.habit_completions", status = "begin")
         for (habit in habits) {
             val completions = habitCompletionDao.getCompletionsForHabitOnce(habit.id)
             val habitCloudId = syncMetadataDao.getCloudId(habit.id, "habit") ?: continue
@@ -155,13 +178,17 @@ constructor(
                         )
                     )
                 } catch (e: Exception) {
-                    Log.e("SyncService", "Failed to upload habit completion ${completion.id}", e)
+                    logger.error(
+                        operation = "upload.habit_completion",
+                        entity = "habit_completion",
+                        id = completion.id.toString(),
+                        throwable = e
+                    )
                 }
             }
         }
 
-        // Upload habit logs
-        Log.d("SyncService", "Uploading habit logs...")
+        logger.debug("upload.habit_logs", status = "begin")
         for (habit in habits) {
             val logs = habitLogDao.getAllLogsOnce().filter { it.habitId == habit.id }
             val habitCloudId = syncMetadataDao.getCloudId(habit.id, "habit") ?: continue
@@ -178,14 +205,18 @@ constructor(
                         )
                     )
                 } catch (e: Exception) {
-                    Log.e("SyncService", "Failed to upload habit log ${log.id}", e)
+                    logger.error(
+                        operation = "upload.habit_log",
+                        entity = "habit_log",
+                        id = log.id.toString(),
+                        throwable = e
+                    )
                 }
             }
         }
 
-        // Upload tasks with tag references
         val tasks = taskDao.getAllTasksOnce()
-        Log.d("SyncService", "Uploading ${tasks.size} tasks...")
+        logger.debug("upload.tasks", status = "begin", detail = "count=${tasks.size}")
         for (task in tasks) {
             try {
                 val tagIds = tagDao.getTagIdsForTaskOnce(task.id).mapNotNull { tagId ->
@@ -202,13 +233,18 @@ constructor(
                     )
                 )
             } catch (e: Exception) {
-                Log.e("SyncService", "Failed to upload task ${task.id}: ${task.title}", e)
+                logger.error(
+                    operation = "upload.task",
+                    entity = "task",
+                    id = task.id.toString(),
+                    detail = task.title,
+                    throwable = e
+                )
             }
         }
 
-        // Upload task templates
         val templates = taskTemplateDao.getAllTemplatesOnce()
-        Log.d("SyncService", "Uploading ${templates.size} task templates...")
+        logger.debug("upload.task_templates", status = "begin", detail = "count=${templates.size}")
         for (template in templates) {
             try {
                 val docRef = userCollection("task_templates")?.document() ?: continue
@@ -222,23 +258,43 @@ constructor(
                     )
                 )
             } catch (e: Exception) {
-                Log.e("SyncService", "Failed to upload task template ${template.id}: ${template.name}", e)
+                logger.error(
+                    operation = "upload.task_template",
+                    entity = "task_template",
+                    id = template.id.toString(),
+                    detail = template.name,
+                    throwable = e
+                )
             }
         }
     }
 
     fun launchInitialUpload() {
         scope.launch {
+            val start = System.currentTimeMillis()
             try {
                 initialUpload()
-                Log.d("SyncService", "Initial upload completed successfully")
+                logger.info(
+                    operation = "upload.initial",
+                    status = "success",
+                    durationMs = System.currentTimeMillis() - start
+                )
             } catch (e: Exception) {
-                Log.e("SyncService", "Initial upload failed", e)
+                logger.error(
+                    operation = "upload.initial",
+                    durationMs = System.currentTimeMillis() - start,
+                    throwable = e
+                )
             }
         }
     }
 
-    suspend fun pushLocalChanges() {
+    /**
+     * Returns the number of pending operations processed (success + failure).
+     * Callers use this to populate the "pushed=N" detail in sync completion
+     * logs so we can see partial-push ratios at a glance.
+     */
+    suspend fun pushLocalChanges(): Int {
         val pending = syncMetadataDao.getPendingActions()
         // Process in order: projects → tags → tasks
         val ordered = pending.sortedBy {
@@ -249,7 +305,10 @@ constructor(
             }
         }
 
+        var successCount = 0
+        var failureCount = 0
         for (meta in ordered) {
+            val start = System.currentTimeMillis()
             try {
                 when (meta.pendingAction) {
                     "create" -> pushCreate(meta)
@@ -257,8 +316,24 @@ constructor(
                     "delete" -> pushDelete(meta)
                 }
                 syncMetadataDao.clearPendingAction(meta.localId, meta.entityType)
+                successCount++
+                logger.debug(
+                    operation = "push.${meta.pendingAction}",
+                    entity = meta.entityType,
+                    id = meta.localId.toString(),
+                    status = "success",
+                    durationMs = System.currentTimeMillis() - start
+                )
             } catch (e: Exception) {
-                Log.e("SyncService", "Push failed for ${meta.entityType}/${meta.localId}", e)
+                failureCount++
+                logger.error(
+                    operation = "push.${meta.pendingAction ?: "unknown"}",
+                    entity = meta.entityType,
+                    id = meta.localId.toString(),
+                    durationMs = System.currentTimeMillis() - start,
+                    detail = "retry=${meta.retryCount}",
+                    throwable = e
+                )
                 try {
                     com.google.firebase.crashlytics.FirebaseCrashlytics
                         .getInstance()
@@ -268,6 +343,14 @@ constructor(
                 syncMetadataDao.incrementRetry(meta.localId, meta.entityType)
             }
         }
+        if (ordered.isNotEmpty()) {
+            logger.info(
+                operation = "push.summary",
+                status = if (failureCount == 0) "success" else "partial",
+                detail = "success=$successCount failed=$failureCount"
+            )
+        }
+        return successCount + failureCount
     }
 
     private fun collectionNameFor(entityType: String): String = when (entityType) {
@@ -359,8 +442,13 @@ constructor(
         syncMetadataDao.delete(meta.localId, meta.entityType)
     }
 
-    suspend fun pullRemoteChanges() {
-        pullCollection("projects") { data, cloudId ->
+    /**
+     * Returns the number of remote documents applied locally across all
+     * collections.
+     */
+    suspend fun pullRemoteChanges(): Int {
+        var applied = 0
+        applied += pullCollection("projects") { data, cloudId ->
             val localId = syncMetadataDao.getLocalId(cloudId, "project")
             if (localId == null) {
                 val project = SyncMapper.mapToProject(data)
@@ -380,7 +468,7 @@ constructor(
             }
         }
 
-        pullCollection("tags") { data, cloudId ->
+        applied += pullCollection("tags") { data, cloudId ->
             val localId = syncMetadataDao.getLocalId(cloudId, "tag")
             if (localId == null) {
                 val tag = SyncMapper.mapToTag(data)
@@ -400,7 +488,7 @@ constructor(
             }
         }
 
-        pullCollection("tasks") { data, cloudId ->
+        applied += pullCollection("tasks") { data, cloudId ->
             val localId = syncMetadataDao.getLocalId(cloudId, "task")
             if (localId == null) {
                 val task = SyncMapper.mapToTask(data)
@@ -413,7 +501,6 @@ constructor(
                         lastSyncedAt = System.currentTimeMillis()
                     )
                 )
-                // Resolve tag cross refs
                 @Suppress("UNCHECKED_CAST")
                 val cloudTagIds = data["tags"] as? List<String> ?: emptyList()
                 for (cloudTagId in cloudTagIds) {
@@ -427,8 +514,7 @@ constructor(
             }
         }
 
-        // Pull habits
-        pullCollection("habits") { data, cloudId ->
+        applied += pullCollection("habits") { data, cloudId ->
             val localId = syncMetadataDao.getLocalId(cloudId, "habit")
             if (localId == null) {
                 val habit = SyncMapper.mapToHabit(data)
@@ -448,8 +534,7 @@ constructor(
             }
         }
 
-        // Pull habit completions
-        pullCollection("habit_completions") { data, cloudId ->
+        applied += pullCollection("habit_completions") { data, cloudId ->
             val localId = syncMetadataDao.getLocalId(cloudId, "habit_completion")
             val habitCloudId = data["habitCloudId"] as? String ?: return@pullCollection
             val habitLocalId = syncMetadataDao.getLocalId(habitCloudId, "habit") ?: return@pullCollection
@@ -467,8 +552,7 @@ constructor(
             }
         }
 
-        // Pull habit logs
-        pullCollection("habit_logs") { data, cloudId ->
+        applied += pullCollection("habit_logs") { data, cloudId ->
             val localId = syncMetadataDao.getLocalId(cloudId, "habit_log")
             val habitCloudId = data["habitCloudId"] as? String ?: return@pullCollection
             val habitLocalId = syncMetadataDao.getLocalId(habitCloudId, "habit") ?: return@pullCollection
@@ -486,8 +570,7 @@ constructor(
             }
         }
 
-        // Pull task templates
-        pullCollection("task_templates") { data, cloudId ->
+        applied += pullCollection("task_templates") { data, cloudId ->
             val localId = syncMetadataDao.getLocalId(cloudId, "task_template")
             if (localId == null) {
                 val template = SyncMapper.mapToTaskTemplate(data)
@@ -506,16 +589,27 @@ constructor(
                 syncMetadataDao.clearPendingAction(localId, "task_template")
             }
         }
+        return applied
     }
 
-    private suspend fun pullCollection(name: String, handler: suspend (Map<String, Any?>, String) -> Unit) {
-        val snapshot = userCollection(name)?.get()?.await() ?: return
+    private suspend fun pullCollection(
+        name: String,
+        handler: suspend (Map<String, Any?>, String) -> Unit
+    ): Int {
+        val snapshot = userCollection(name)?.get()?.await() ?: return 0
+        var applied = 0
         for (doc in snapshot.documents) {
             val data = doc.data ?: continue
             try {
                 handler(data, doc.id)
+                applied++
             } catch (e: Exception) {
-                Log.e("SyncService", "Failed to process $name/${doc.id}", e)
+                logger.error(
+                    operation = "pull.apply",
+                    entity = name,
+                    id = doc.id,
+                    throwable = e
+                )
                 try {
                     com.google.firebase.crashlytics.FirebaseCrashlytics
                         .getInstance()
@@ -524,14 +618,45 @@ constructor(
                 }
             }
         }
+        return applied
     }
 
-    suspend fun fullSync() {
-        if (isSyncing) return
+    suspend fun fullSync(trigger: String = "manual") {
+        if (isSyncing) {
+            logger.debug(
+                operation = "sync.skipped",
+                entity = "service",
+                id = "firebase",
+                status = "already_running",
+                detail = "trigger=$trigger"
+            )
+            return
+        }
         isSyncing = true
+        val start = System.currentTimeMillis()
+        syncStateRepository.markSyncStarted(source = SOURCE_FIREBASE, trigger = trigger)
+        var pushed = 0
+        var pulled = 0
         try {
-            pushLocalChanges()
-            pullRemoteChanges()
+            pushed = pushLocalChanges()
+            pulled = pullRemoteChanges()
+            syncStateRepository.markSyncCompleted(
+                source = SOURCE_FIREBASE,
+                success = true,
+                durationMs = System.currentTimeMillis() - start,
+                pushed = pushed,
+                pulled = pulled
+            )
+        } catch (e: Exception) {
+            syncStateRepository.markSyncCompleted(
+                source = SOURCE_FIREBASE,
+                success = false,
+                durationMs = System.currentTimeMillis() - start,
+                pushed = pushed,
+                pulled = pulled,
+                throwable = e
+            )
+            throw e
         } finally {
             isSyncing = false
         }
@@ -542,9 +667,9 @@ constructor(
         startRealtimeListeners()
         scope.launch {
             try {
-                fullSync()
+                fullSync(trigger = "startAutoSync")
             } catch (e: Exception) {
-                Log.e("SyncService", "Auto-sync failed", e)
+                // Error already logged by fullSync / markSyncCompleted.
                 try {
                     com.google.firebase.crashlytics.FirebaseCrashlytics
                         .getInstance()
@@ -559,16 +684,38 @@ constructor(
         stopRealtimeListeners()
         listOf("tasks", "projects", "tags", "habits", "habit_completions", "task_templates").forEach { collection ->
             val reg = userCollection(collection)?.addSnapshotListener { snapshot, error ->
-                if (error != null || snapshot == null) return@addSnapshotListener
+                if (error != null) {
+                    logger.warn(
+                        operation = "listener.error",
+                        entity = "collection",
+                        id = collection,
+                        throwable = error
+                    )
+                    return@addSnapshotListener
+                }
+                if (snapshot == null) return@addSnapshotListener
                 if (snapshot.metadata.hasPendingWrites()) return@addSnapshotListener
                 if (snapshot.documentChanges.isEmpty()) return@addSnapshotListener
-                // Remote change detected — trigger a pull
+                syncStateRepository.recordListenerSnapshot(collection, snapshot.documentChanges.size)
                 scope.launch {
                     if (isSyncing) return@launch
+                    val start = System.currentTimeMillis()
+                    syncStateRepository.markSyncStarted(source = SOURCE_FIREBASE, trigger = "listener:$collection")
                     try {
-                        pullRemoteChanges()
+                        val applied = pullRemoteChanges()
+                        syncStateRepository.markSyncCompleted(
+                            source = SOURCE_FIREBASE,
+                            success = true,
+                            durationMs = System.currentTimeMillis() - start,
+                            pulled = applied
+                        )
                     } catch (e: Exception) {
-                        Log.e("SyncService", "Real-time pull failed", e)
+                        syncStateRepository.markSyncCompleted(
+                            source = SOURCE_FIREBASE,
+                            success = false,
+                            durationMs = System.currentTimeMillis() - start,
+                            throwable = e
+                        )
                         try {
                             com.google.firebase.crashlytics.FirebaseCrashlytics
                                 .getInstance()
@@ -580,10 +727,16 @@ constructor(
             }
             if (reg != null) listeners.add(reg)
         }
+        syncStateRepository.markListenersActive(listeners.isNotEmpty())
     }
 
     fun stopRealtimeListeners() {
         listeners.forEach { it.remove() }
         listeners.clear()
+        syncStateRepository.markListenersActive(false)
+    }
+
+    companion object {
+        const val SOURCE_FIREBASE: String = "firebase"
     }
 }

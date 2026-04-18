@@ -38,6 +38,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.prismtask.data.repository.HabitWithStatus
 import com.averycorp.prismtask.ui.components.RichEmptyState
+import com.averycorp.prismtask.ui.components.sync.SyncIndicatorHost
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.habits.components.ActivityLogDialog
 import com.averycorp.prismtask.ui.screens.habits.components.BookableHabitItem
@@ -97,6 +98,9 @@ fun HabitListScreen(
                         fontWeight = FontWeight.Bold,
                         color = prismColors.onBackground
                     )
+                },
+                actions = {
+                    SyncIndicatorHost(modifier = Modifier.padding(end = 12.dp))
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = prismColors.background,

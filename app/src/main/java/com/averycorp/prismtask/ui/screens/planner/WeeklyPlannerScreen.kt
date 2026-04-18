@@ -61,6 +61,7 @@ import androidx.navigation.NavController
 import com.averycorp.prismtask.ui.components.ProFeature
 import com.averycorp.prismtask.ui.components.ProUpgradePrompt
 import com.averycorp.prismtask.ui.components.shimmer
+import com.averycorp.prismtask.ui.components.sync.SyncIndicatorHost
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import java.time.format.DateTimeFormatter
 
@@ -105,6 +106,9 @@ fun WeeklyPlannerScreen(
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
+                },
+                actions = {
+                    SyncIndicatorHost(modifier = Modifier.padding(end = 12.dp))
                 }
             )
         },
