@@ -1,6 +1,5 @@
 package com.averycorp.prismtask.data.remote.sync
 
-import android.util.Log
 import com.averycorp.prismtask.data.billing.BillingManager
 import com.averycorp.prismtask.data.local.dao.DailyEssentialSlotCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
@@ -55,7 +54,9 @@ constructor(
     private val backendSyncPreferences: BackendSyncPreferences,
     private val templatePreferences: TemplatePreferences,
     private val billingManager: BillingManager,
-    private val authManager: AuthManager
+    private val authManager: AuthManager,
+    private val logger: PrismSyncLogger,
+    private val syncStateRepository: SyncStateRepository
 ) {
     /**
      * True when the user has backend JWTs stored (i.e. they've logged into or
@@ -68,21 +69,41 @@ constructor(
      * Run a full sync: push local changes, then pull remote changes. Returns
      * the server timestamp from the pull response on success.
      */
-    suspend fun fullSync(): Result<SyncSummary> = runCatching {
-        check(isConnected()) { "Not connected to backend. Sign in first." }
-        // Check admin status and apply tier override if needed
-        checkAdminStatus()
-        // On the very first connect, push all local templates in one shot
-        // (including the built-ins). Subsequent syncs fall through to the
-        // normal updated_at-based incremental push.
-        ensureTemplatesPushedOnFirstConnect()
-        val pushed = pushChanges()
-        val pulled = pullChanges()
-        SyncSummary(
-            pushed = pushed,
-            pulled = pulled,
-            lastSyncAt = backendSyncPreferences.getLastSyncAt()
-        )
+    suspend fun fullSync(trigger: String = "manual"): Result<SyncSummary> {
+        val start = System.currentTimeMillis()
+        syncStateRepository.markSyncStarted(source = SOURCE_BACKEND, trigger = trigger)
+        var pushed = 0
+        var pulled = 0
+        return try {
+            check(isConnected()) { "Not connected to backend. Sign in first." }
+            checkAdminStatus()
+            ensureTemplatesPushedOnFirstConnect()
+            pushed = pushChanges()
+            pulled = pullChanges()
+            val summary = SyncSummary(
+                pushed = pushed,
+                pulled = pulled,
+                lastSyncAt = backendSyncPreferences.getLastSyncAt()
+            )
+            syncStateRepository.markSyncCompleted(
+                source = SOURCE_BACKEND,
+                success = true,
+                durationMs = System.currentTimeMillis() - start,
+                pushed = pushed,
+                pulled = pulled
+            )
+            Result.success(summary)
+        } catch (e: Exception) {
+            syncStateRepository.markSyncCompleted(
+                source = SOURCE_BACKEND,
+                success = false,
+                durationMs = System.currentTimeMillis() - start,
+                pushed = pushed,
+                pulled = pulled,
+                throwable = e
+            )
+            Result.failure(e)
+        }
     }
 
     /**
@@ -99,8 +120,18 @@ constructor(
         try {
             val userInfo = api.getMe()
             billingManager.setAdminStatus(userInfo.isAdmin)
+            logger.debug(
+                operation = "auth.admin_status",
+                status = "fetched",
+                detail = "isAdmin=${userInfo.isAdmin}"
+            )
         } catch (e: Exception) {
-            Log.w(TAG, "Could not fetch admin status", e)
+            logger.warn(
+                operation = "auth.admin_status",
+                status = "failed",
+                detail = "could not fetch /auth/me",
+                throwable = e
+            )
         }
     }
 
@@ -116,13 +147,30 @@ constructor(
      */
     private suspend fun ensureBackendAuth(): Boolean {
         if (isConnected()) return true
-        val firebaseToken = authManager.getFirebaseIdToken() ?: return false
+        val firebaseToken = authManager.getFirebaseIdToken()
+        if (firebaseToken == null) {
+            logger.debug(
+                operation = "auth.token_exchange",
+                status = "skipped",
+                detail = "no firebase id token"
+            )
+            return false
+        }
         return try {
             val tokens = api.firebaseLogin(FirebaseTokenRequest(firebaseToken = firebaseToken))
             authTokenPreferences.saveTokens(tokens.accessToken, tokens.refreshToken)
+            logger.info(
+                operation = "auth.token_exchange",
+                status = "success",
+                detail = "firebase -> backend JWT"
+            )
             true
         } catch (e: Exception) {
-            Log.w(TAG, "Firebase → backend token exchange failed", e)
+            logger.warn(
+                operation = "auth.token_exchange",
+                status = "failed",
+                throwable = e
+            )
             false
         }
     }
@@ -158,8 +206,18 @@ constructor(
         try {
             api.syncPush(request)
             templatePreferences.setFirstSyncDone(true)
+            logger.info(
+                operation = "push.templates_first_connect",
+                status = "success",
+                detail = "templates=${templates.size}"
+            )
         } catch (e: Exception) {
-            Log.e(TAG, "First-connect template push failed", e)
+            logger.error(
+                operation = "push.templates_first_connect",
+                status = "failed",
+                detail = "templates=${templates.size}",
+                throwable = e
+            )
             com.google.firebase.crashlytics.FirebaseCrashlytics
                 .getInstance()
                 .recordException(e)
@@ -225,10 +283,23 @@ constructor(
             operations = operations,
             lastSync = if (since > 0) millisToIso(since) else null
         )
+        val start = System.currentTimeMillis()
         try {
             api.syncPush(request)
+            logger.debug(
+                operation = "push.backend",
+                status = "success",
+                durationMs = System.currentTimeMillis() - start,
+                detail = "operations=${operations.size}"
+            )
         } catch (e: Exception) {
-            Log.e(TAG, "Push failed", e)
+            logger.error(
+                operation = "push.backend",
+                status = "failed",
+                durationMs = System.currentTimeMillis() - start,
+                detail = "operations=${operations.size}",
+                throwable = e
+            )
             com.google.firebase.crashlytics.FirebaseCrashlytics
                 .getInstance()
                 .recordException(e)
@@ -245,10 +316,16 @@ constructor(
     suspend fun pullChanges(): Int {
         val since = backendSyncPreferences.getLastSyncAt()
         val sinceParam = if (since > 0) millisToIso(since) else null
+        val pullStart = System.currentTimeMillis()
         val response = try {
             api.syncPull(sinceParam)
         } catch (e: Exception) {
-            Log.e(TAG, "Pull failed", e)
+            logger.error(
+                operation = "pull.backend",
+                status = "failed",
+                durationMs = System.currentTimeMillis() - pullStart,
+                throwable = e
+            )
             com.google.firebase.crashlytics.FirebaseCrashlytics
                 .getInstance()
                 .recordException(e)
@@ -275,6 +352,12 @@ constructor(
         val timestampMillis = response.serverTimestamp?.let { isoToMillisOrNull(it) }
             ?: System.currentTimeMillis()
         backendSyncPreferences.setLastSyncAt(timestampMillis)
+        logger.debug(
+            operation = "pull.backend",
+            status = "success",
+            durationMs = System.currentTimeMillis() - pullStart,
+            detail = "applied=$applied serverTs=$timestampMillis"
+        )
         return applied
     }
 
@@ -579,7 +662,7 @@ constructor(
     // region JsonObject helpers
 
     companion object {
-        private const val TAG = "BackendSyncService"
+        const val SOURCE_BACKEND: String = "backend"
     }
 }
 

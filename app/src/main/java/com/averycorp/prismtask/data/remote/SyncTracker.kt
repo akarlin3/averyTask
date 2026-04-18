@@ -2,6 +2,7 @@ package com.averycorp.prismtask.data.remote
 
 import com.averycorp.prismtask.data.local.dao.SyncMetadataDao
 import com.averycorp.prismtask.data.local.entity.SyncMetadataEntity
+import com.averycorp.prismtask.data.remote.sync.PrismSyncLogger
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -10,7 +11,8 @@ class SyncTracker
 @Inject
 constructor(
     private val authManager: AuthManager,
-    private val syncMetadataDao: SyncMetadataDao
+    private val syncMetadataDao: SyncMetadataDao,
+    private val logger: PrismSyncLogger
 ) {
     private val isActive: Boolean get() = authManager.userId != null
 
@@ -24,6 +26,12 @@ constructor(
                 lastSyncedAt = System.currentTimeMillis()
             )
         )
+        logger.debug(
+            operation = "queue.track",
+            entity = entityType,
+            id = localId.toString(),
+            status = "create"
+        )
     }
 
     suspend fun trackUpdate(localId: Long, entityType: String) {
@@ -36,6 +44,12 @@ constructor(
             // Still pending create — leave it as create
         } else {
             syncMetadataDao.upsert(existing.copy(pendingAction = "update"))
+            logger.debug(
+                operation = "queue.track",
+                entity = entityType,
+                id = localId.toString(),
+                status = "update"
+            )
         }
     }
 
@@ -46,8 +60,20 @@ constructor(
         if (existing.cloudId.isEmpty()) {
             // Never made it to the cloud — just remove the metadata
             syncMetadataDao.delete(localId, entityType)
+            logger.debug(
+                operation = "queue.track",
+                entity = entityType,
+                id = localId.toString(),
+                status = "delete_local_only"
+            )
         } else {
             syncMetadataDao.upsert(existing.copy(pendingAction = "delete"))
+            logger.debug(
+                operation = "queue.track",
+                entity = entityType,
+                id = localId.toString(),
+                status = "delete"
+            )
         }
     }
 }

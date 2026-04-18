@@ -60,6 +60,7 @@ import com.averycorp.prismtask.ui.components.ProgressHeaderSkeleton
 import com.averycorp.prismtask.ui.components.QuickReschedulePopup
 import com.averycorp.prismtask.ui.components.RichEmptyState
 import com.averycorp.prismtask.ui.components.TaskListSkeleton
+import com.averycorp.prismtask.ui.components.sync.SyncIndicatorHost
 import com.averycorp.prismtask.ui.components.UpgradePrompt
 import com.averycorp.prismtask.ui.components.WelcomeBackDialog
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
@@ -195,7 +196,8 @@ fun TodayScreen(
                 total = totalForHeader,
                 progress = combinedProgress,
                 progressStyle = progressStyle,
-                onAnalyticsClick = { navController.navigate(PrismTaskRoute.TaskAnalytics.createRoute()) }
+                onAnalyticsClick = { navController.navigate(PrismTaskRoute.TaskAnalytics.createRoute()) },
+                trailingActions = { SyncIndicatorHost() }
             )
         },
         bottomBar = {
