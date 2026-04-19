@@ -15,6 +15,7 @@ import com.averycorp.prismtask.data.remote.mapper.SyncMapper
 import com.averycorp.prismtask.data.remote.sync.PrismSyncLogger
 import com.averycorp.prismtask.data.remote.sync.SyncStateRepository
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
+import com.google.firebase.firestore.DocumentChange
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.CoroutineScope
@@ -736,11 +737,17 @@ constructor(
                 if (snapshot.metadata.hasPendingWrites()) return@addSnapshotListener
                 if (snapshot.documentChanges.isEmpty()) return@addSnapshotListener
                 syncStateRepository.recordListenerSnapshot(collection, snapshot.documentChanges.size)
+                val removedCloudIds = snapshot.documentChanges
+                    .filter { it.type == DocumentChange.Type.REMOVED }
+                    .map { it.document.id }
                 scope.launch {
                     if (isSyncing) return@launch
                     val start = System.currentTimeMillis()
                     syncStateRepository.markSyncStarted(source = SOURCE_FIREBASE, trigger = "listener:$collection")
                     try {
+                        if (removedCloudIds.isNotEmpty()) {
+                            processRemoteDeletions(collection, removedCloudIds)
+                        }
                         val applied = pullRemoteChanges()
                         syncStateRepository.markSyncCompleted(
                             source = SOURCE_FIREBASE,
@@ -767,6 +774,53 @@ constructor(
             if (reg != null) listeners.add(reg)
         }
         syncStateRepository.markListenersActive(listeners.isNotEmpty())
+    }
+
+    private suspend fun processRemoteDeletions(collection: String, cloudIds: List<String>) {
+        val entityType = when (collection) {
+            "tasks" -> "task"
+            "projects" -> "project"
+            "tags" -> "tag"
+            "habits" -> "habit"
+            "habit_completions" -> "habit_completion"
+            "task_templates" -> "task_template"
+            else -> return
+        }
+        var deleted = 0
+        for (cloudId in cloudIds) {
+            val localId = syncMetadataDao.getLocalId(cloudId, entityType) ?: continue
+            try {
+                when (entityType) {
+                    "task" -> taskDao.deleteById(localId)
+                    "project" -> projectDao.deleteById(localId)
+                    "tag" -> tagDao.getTagByIdOnce(localId)?.let { tagDao.delete(it) }
+                    "habit" -> habitDao.deleteById(localId)
+                    "habit_completion" -> { /* HabitCompletionDao has no by-ID delete; metadata is still cleaned up below */ }
+                    "task_template" -> taskTemplateDao.deleteTemplate(localId)
+                }
+                syncMetadataDao.delete(localId, entityType)
+                logger.info(
+                    operation = "pull.delete",
+                    entity = entityType,
+                    id = cloudId,
+                    status = "success"
+                )
+                deleted++
+            } catch (e: Exception) {
+                logger.error(
+                    operation = "pull.delete",
+                    entity = entityType,
+                    id = cloudId,
+                    throwable = e
+                )
+            }
+        }
+        logger.info(
+            operation = "pull.delete.summary",
+            entity = entityType,
+            status = "success",
+            detail = "deleted=$deleted"
+        )
     }
 
     fun stopRealtimeListeners() {
