@@ -94,6 +94,9 @@ interface HabitCompletionDao {
     @Query("SELECT * FROM habit_completions WHERE habit_id = :habitId AND completed_date_local = :date LIMIT 1")
     suspend fun getByHabitAndDateLocal(habitId: Long, date: String): HabitCompletionEntity?
 
+    @Query("SELECT * FROM habit_completions WHERE habit_id = :habitId AND completed_date_local = :date ORDER BY completed_at DESC LIMIT 1")
+    suspend fun getLatestByHabitAndDateLocal(habitId: Long, date: String): HabitCompletionEntity?
+
     @Deprecated(
         message = "Use deleteByHabitAndDateLocal(habitId, date). Will be removed after epoch column drop.",
         replaceWith = ReplaceWith("deleteByHabitAndDateLocal(habitId, date.toString())"),
@@ -152,6 +155,9 @@ interface HabitCompletionDao {
 
     @Query("SELECT COUNT(*) FROM habit_completions WHERE habit_id = :habitId")
     suspend fun countByHabitOnce(habitId: Long): Int
+
+    @Query("DELETE FROM habit_completions WHERE id = :id")
+    suspend fun deleteById(id: Long)
 
     @Query("DELETE FROM habit_completions")
     suspend fun deleteAll()

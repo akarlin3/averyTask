@@ -982,7 +982,7 @@ constructor(
                     "project" -> projectDao.deleteById(localId)
                     "tag" -> tagDao.getTagByIdOnce(localId)?.let { tagDao.delete(it) }
                     "habit" -> habitDao.deleteById(localId)
-                    "habit_completion" -> { /* HabitCompletionDao has no by-ID delete; metadata is still cleaned up below */ }
+                    "habit_completion" -> habitCompletionDao.deleteById(localId)
                     "habit_log" -> { /* HabitLogDao has no by-ID delete; metadata is still cleaned up below */ }
                     "task_completion" -> taskCompletionDao.deleteById(localId)
                     "milestone" -> milestoneDao.deleteById(localId)

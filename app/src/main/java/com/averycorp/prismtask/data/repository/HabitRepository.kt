@@ -189,7 +189,7 @@ constructor(
     suspend fun uncompleteHabit(habitId: Long, date: Long) {
         val normalizedDate = normalizeForToday(date)
         val normalizedLocalDate = epochToLocalDateString(normalizedDate)
-        val completion = completionDao.getByHabitAndDateLocal(habitId, normalizedLocalDate)
+        val completion = completionDao.getLatestByHabitAndDateLocal(habitId, normalizedLocalDate)
         if (completion != null) {
             syncTracker.trackDelete(completion.id, "habit_completion")
         }
