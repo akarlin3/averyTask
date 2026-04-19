@@ -8,6 +8,7 @@ import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.LeisureLogEntity
 import com.averycorp.prismtask.data.preferences.LeisurePreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
+import com.averycorp.prismtask.data.remote.SyncTracker
 import com.averycorp.prismtask.util.DayBoundary
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -27,7 +28,8 @@ constructor(
     private val habitDao: HabitDao,
     private val habitCompletionDao: HabitCompletionDao,
     private val taskBehaviorPreferences: TaskBehaviorPreferences,
-    private val leisurePreferences: LeisurePreferences
+    private val leisurePreferences: LeisurePreferences,
+    private val syncTracker: SyncTracker
 ) {
     private val gson = Gson()
     private val customStateType = object : TypeToken<Map<String, CustomSectionState>>() {}.type
@@ -49,22 +51,23 @@ constructor(
         val today = startOfToday()
         val existing = leisureDao.getLogForDateOnce(today)
         if (existing != null) {
-            leisureDao.updateLog(
-                existing.copy(
-                    musicPick = activityId,
-                    musicDone = false,
-                    startedAt = existing.startedAt ?: System.currentTimeMillis()
-                )
+            val updated = existing.copy(
+                musicPick = activityId,
+                musicDone = false,
+                startedAt = existing.startedAt ?: System.currentTimeMillis()
             )
-            syncHabitCompletion(existing.copy(musicPick = activityId, musicDone = false))
+            leisureDao.updateLog(updated)
+            syncTracker.trackUpdate(existing.id, "leisure_log")
+            syncHabitCompletion(updated)
         } else {
-            leisureDao.insertLog(
+            val id = leisureDao.insertLog(
                 LeisureLogEntity(
                     date = today,
                     musicPick = activityId,
                     startedAt = System.currentTimeMillis()
                 )
             )
+            syncTracker.trackCreate(id, "leisure_log")
         }
     }
 
@@ -72,22 +75,23 @@ constructor(
         val today = startOfToday()
         val existing = leisureDao.getLogForDateOnce(today)
         if (existing != null) {
-            leisureDao.updateLog(
-                existing.copy(
-                    flexPick = activityId,
-                    flexDone = false,
-                    startedAt = existing.startedAt ?: System.currentTimeMillis()
-                )
+            val updated = existing.copy(
+                flexPick = activityId,
+                flexDone = false,
+                startedAt = existing.startedAt ?: System.currentTimeMillis()
             )
-            syncHabitCompletion(existing.copy(flexPick = activityId, flexDone = false))
+            leisureDao.updateLog(updated)
+            syncTracker.trackUpdate(existing.id, "leisure_log")
+            syncHabitCompletion(updated)
         } else {
-            leisureDao.insertLog(
+            val id = leisureDao.insertLog(
                 LeisureLogEntity(
                     date = today,
                     flexPick = activityId,
                     startedAt = System.currentTimeMillis()
                 )
             )
+            syncTracker.trackCreate(id, "leisure_log")
         }
     }
 
@@ -95,6 +99,7 @@ constructor(
         val existing = leisureDao.getLogForDateOnce(startOfToday()) ?: return
         val updated = existing.copy(musicDone = done)
         leisureDao.updateLog(updated)
+        syncTracker.trackUpdate(existing.id, "leisure_log")
         syncHabitCompletion(updated)
     }
 
@@ -102,6 +107,7 @@ constructor(
         val existing = leisureDao.getLogForDateOnce(startOfToday()) ?: return
         val updated = existing.copy(flexDone = done)
         leisureDao.updateLog(updated)
+        syncTracker.trackUpdate(existing.id, "leisure_log")
         syncHabitCompletion(updated)
     }
 
@@ -109,6 +115,7 @@ constructor(
         val existing = leisureDao.getLogForDateOnce(startOfToday()) ?: return
         val updated = existing.copy(musicPick = null, musicDone = false)
         leisureDao.updateLog(updated)
+        syncTracker.trackUpdate(existing.id, "leisure_log")
         syncHabitCompletion(updated)
     }
 
@@ -116,6 +123,7 @@ constructor(
         val existing = leisureDao.getLogForDateOnce(startOfToday()) ?: return
         val updated = existing.copy(flexPick = null, flexDone = false)
         leisureDao.updateLog(updated)
+        syncTracker.trackUpdate(existing.id, "leisure_log")
         syncHabitCompletion(updated)
     }
 
@@ -130,6 +138,7 @@ constructor(
             startedAt = null
         )
         leisureDao.updateLog(updated)
+        syncTracker.trackUpdate(existing.id, "leisure_log")
         syncHabitCompletion(updated)
     }
 
@@ -173,15 +182,17 @@ constructor(
                 startedAt = existing.startedAt ?: System.currentTimeMillis()
             )
             leisureDao.updateLog(updated)
+            syncTracker.trackUpdate(updated.id, "leisure_log")
             syncHabitCompletion(updated)
         } else {
-            leisureDao.insertLog(
+            val id = leisureDao.insertLog(
                 LeisureLogEntity(
                     date = today,
                     customSectionsState = serialized,
                     startedAt = System.currentTimeMillis()
                 )
             )
+            syncTracker.trackCreate(id, "leisure_log")
         }
     }
 

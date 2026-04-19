@@ -13,6 +13,7 @@ import com.averycorp.prismtask.data.local.entity.SelfCareLogEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
 import com.averycorp.prismtask.data.preferences.MedicationPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
+import com.averycorp.prismtask.data.remote.SyncTracker
 import com.averycorp.prismtask.domain.model.SelfCareRoutines
 import com.averycorp.prismtask.notifications.ExactAlarmHelper
 import com.averycorp.prismtask.notifications.MedStepReminderReceiver
@@ -152,7 +153,8 @@ constructor(
     private val habitCompletionDao: HabitCompletionDao,
     private val medicationPreferences: MedicationPreferences,
     private val taskBehaviorPreferences: TaskBehaviorPreferences,
-    private val gson: Gson
+    private val gson: Gson,
+    private val syncTracker: SyncTracker
 ) {
     private suspend fun startOfToday(): Long =
         DayBoundary.startOfCurrentDay(taskBehaviorPreferences.getDayStartHour().first())
@@ -304,7 +306,7 @@ constructor(
     ) {
         val nextOrder = selfCareDao.getMaxSortOrder(routineType) + 1
         val stepId = "custom_${UUID.randomUUID().toString().take(8)}"
-        selfCareDao.insertStep(
+        val id = selfCareDao.insertStep(
             SelfCareStepEntity(
                 stepId = stepId,
                 routineType = routineType,
@@ -318,13 +320,16 @@ constructor(
                 timeOfDay = timeOfDay
             )
         )
+        syncTracker.trackCreate(id, "self_care_step")
     }
 
     suspend fun updateStep(step: SelfCareStepEntity) {
         selfCareDao.updateStep(step)
+        syncTracker.trackUpdate(step.id, "self_care_step")
     }
 
     suspend fun deleteStep(step: SelfCareStepEntity) {
+        syncTracker.trackDelete(step.id, "self_care_step")
         selfCareDao.deleteStep(step)
     }
 
@@ -343,6 +348,8 @@ constructor(
                 target.copy(sortOrder = current.sortOrder)
             )
         )
+        syncTracker.trackUpdate(current.id, "self_care_step")
+        syncTracker.trackUpdate(target.id, "self_care_step")
     }
 
     fun getVisibleStepsFromEntities(
@@ -391,6 +398,7 @@ constructor(
                 val visibleSteps = getVisibleStepsFromEntities(dbSteps, tier, routineType)
                 val allDone = allMedsFullyLogged(logs, visibleSteps)
                 selfCareDao.updateLog(existing.copy(selectedTier = tier, isComplete = allDone))
+                syncTracker.trackUpdate(existing.id, "self_care_log")
                 syncHabitCompletion(routineType, allDone)
             } else {
                 selfCareDao.updateLog(
@@ -401,16 +409,18 @@ constructor(
                         startedAt = null
                     )
                 )
+                syncTracker.trackUpdate(existing.id, "self_care_log")
                 syncHabitCompletion(routineType, false)
             }
         } else {
-            selfCareDao.insertLog(
+            val id = selfCareDao.insertLog(
                 SelfCareLogEntity(
                     routineType = routineType,
                     date = today,
                     selectedTier = tier
                 )
             )
+            syncTracker.trackCreate(id, "self_care_log")
         }
     }
 
@@ -455,6 +465,7 @@ constructor(
                 startedAt = existing.startedAt ?: now
             )
         )
+        syncTracker.trackUpdate(existing.id, "self_care_log")
         syncHabitCompletion(routineType, allDone)
 
         // Schedule global medication reminder
@@ -488,6 +499,7 @@ constructor(
                 isComplete = allDone
             )
         )
+        syncTracker.trackUpdate(existing.id, "self_care_log")
         syncHabitCompletion(routineType, allDone)
     }
 
@@ -569,6 +581,7 @@ constructor(
                 startedAt = existing.startedAt ?: System.currentTimeMillis()
             )
             selfCareDao.updateLog(updated)
+            syncTracker.trackUpdate(existing.id, "self_care_log")
             syncHabitCompletion(routineType, allDone)
         } else {
             // Non-medication routines: plain string ID list
@@ -589,6 +602,7 @@ constructor(
                 startedAt = existing.startedAt ?: System.currentTimeMillis()
             )
             selfCareDao.updateLog(updated)
+            syncTracker.trackUpdate(existing.id, "self_care_log")
             syncHabitCompletion(routineType, allDone)
         }
     }
@@ -606,6 +620,7 @@ constructor(
             startedAt = null
         )
         selfCareDao.updateLog(updated)
+        syncTracker.trackUpdate(existing.id, "self_care_log")
         syncHabitCompletion(routineType, false)
     }
 
@@ -754,6 +769,7 @@ constructor(
                 startedAt = existing.startedAt ?: now
             )
         )
+        syncTracker.trackUpdate(existing.id, "self_care_log")
         syncHabitCompletion(routineType, allDone)
 
         val intervalMinutes = medicationPreferences.getReminderIntervalMinutesOnce()
@@ -933,6 +949,7 @@ constructor(
 
         val updated = sorted.mapIndexed { i, step -> step.copy(sortOrder = i) }
         selfCareDao.updateSteps(updated)
+        updated.forEach { syncTracker.trackUpdate(it.id, "self_care_step") }
     }
 
     fun computeTierTimes(

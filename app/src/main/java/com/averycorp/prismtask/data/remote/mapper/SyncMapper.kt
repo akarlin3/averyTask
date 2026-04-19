@@ -1,10 +1,15 @@
 package com.averycorp.prismtask.data.remote.mapper
 
+import com.averycorp.prismtask.data.local.entity.CourseCompletionEntity
+import com.averycorp.prismtask.data.local.entity.CourseEntity
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.HabitLogEntity
+import com.averycorp.prismtask.data.local.entity.LeisureLogEntity
 import com.averycorp.prismtask.data.local.entity.MilestoneEntity
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
+import com.averycorp.prismtask.data.local.entity.SelfCareLogEntity
+import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskCompletionEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
@@ -380,5 +385,144 @@ object SyncMapper {
         lastUsedAt = (data["lastUsedAt"] as? Number)?.toLong(),
         createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
         updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+    )
+
+    // ── Courses ───────────────────────────────────────────────────────────────
+
+    fun courseToMap(course: CourseEntity): Map<String, Any?> = mapOf(
+        "localId" to course.id,
+        "name" to course.name,
+        "code" to course.code,
+        "color" to course.color,
+        "icon" to course.icon,
+        "active" to course.active,
+        "sortOrder" to course.sortOrder,
+        "createdAt" to course.createdAt,
+        "updatedAt" to System.currentTimeMillis()
+    )
+
+    fun mapToCourse(data: Map<String, Any?>, localId: Long = 0): CourseEntity = CourseEntity(
+        id = localId,
+        name = data["name"] as? String ?: "",
+        code = data["code"] as? String ?: "",
+        color = (data["color"] as? Number)?.toInt() ?: 0,
+        icon = data["icon"] as? String ?: "\uD83D\uDCDA",
+        active = data["active"] as? Boolean ?: true,
+        sortOrder = (data["sortOrder"] as? Number)?.toInt() ?: 0,
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+    )
+
+    // [courseCloudId] is the Firestore document ID of the parent CourseEntity from sync_metadata.
+    fun courseCompletionToMap(
+        completion: CourseCompletionEntity,
+        courseCloudId: String
+    ): Map<String, Any?> = mapOf(
+        "localId" to completion.id,
+        "courseCloudId" to courseCloudId,
+        "date" to completion.date,
+        "completed" to completion.completed,
+        "completedAt" to completion.completedAt,
+        "createdAt" to completion.createdAt,
+        "updatedAt" to System.currentTimeMillis()
+    )
+
+    fun mapToCourseCompletion(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        courseLocalId: Long
+    ): CourseCompletionEntity = CourseCompletionEntity(
+        id = localId,
+        date = (data["date"] as? Number)?.toLong() ?: 0L,
+        courseId = courseLocalId,
+        completed = data["completed"] as? Boolean ?: false,
+        completedAt = (data["completedAt"] as? Number)?.toLong(),
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+    )
+
+    // ── Leisure logs ──────────────────────────────────────────────────────────
+
+    fun leisureLogToMap(log: LeisureLogEntity): Map<String, Any?> = mapOf(
+        "localId" to log.id,
+        "date" to log.date,
+        "musicPick" to log.musicPick,
+        "musicDone" to log.musicDone,
+        "flexPick" to log.flexPick,
+        "flexDone" to log.flexDone,
+        "customSectionsState" to log.customSectionsState,
+        "startedAt" to log.startedAt,
+        "createdAt" to log.createdAt,
+        "updatedAt" to System.currentTimeMillis()
+    )
+
+    fun mapToLeisureLog(data: Map<String, Any?>, localId: Long = 0): LeisureLogEntity = LeisureLogEntity(
+        id = localId,
+        date = (data["date"] as? Number)?.toLong() ?: 0L,
+        musicPick = data["musicPick"] as? String,
+        musicDone = data["musicDone"] as? Boolean ?: false,
+        flexPick = data["flexPick"] as? String,
+        flexDone = data["flexDone"] as? Boolean ?: false,
+        customSectionsState = data["customSectionsState"] as? String,
+        startedAt = (data["startedAt"] as? Number)?.toLong(),
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+    )
+
+    // ── Self-care steps ───────────────────────────────────────────────────────
+
+    fun selfCareStepToMap(step: SelfCareStepEntity): Map<String, Any?> = mapOf(
+        "localId" to step.id,
+        "stepId" to step.stepId,
+        "routineType" to step.routineType,
+        "label" to step.label,
+        "duration" to step.duration,
+        "tier" to step.tier,
+        "note" to step.note,
+        "phase" to step.phase,
+        "sortOrder" to step.sortOrder,
+        "reminderDelayMillis" to step.reminderDelayMillis,
+        "timeOfDay" to step.timeOfDay,
+        "medicationName" to step.medicationName,
+        "updatedAt" to System.currentTimeMillis()
+    )
+
+    fun mapToSelfCareStep(data: Map<String, Any?>, localId: Long = 0): SelfCareStepEntity = SelfCareStepEntity(
+        id = localId,
+        stepId = data["stepId"] as? String ?: "",
+        routineType = data["routineType"] as? String ?: "",
+        label = data["label"] as? String ?: "",
+        duration = data["duration"] as? String ?: "",
+        tier = data["tier"] as? String ?: "",
+        note = data["note"] as? String ?: "",
+        phase = data["phase"] as? String ?: "",
+        sortOrder = (data["sortOrder"] as? Number)?.toInt() ?: 0,
+        reminderDelayMillis = (data["reminderDelayMillis"] as? Number)?.toLong(),
+        timeOfDay = data["timeOfDay"] as? String ?: "morning",
+        medicationName = data["medicationName"] as? String
+    )
+
+    // ── Self-care logs ────────────────────────────────────────────────────────
+
+    fun selfCareLogToMap(log: SelfCareLogEntity): Map<String, Any?> = mapOf(
+        "localId" to log.id,
+        "routineType" to log.routineType,
+        "date" to log.date,
+        "selectedTier" to log.selectedTier,
+        "completedSteps" to log.completedSteps,
+        "tiersByTime" to log.tiersByTime,
+        "isComplete" to log.isComplete,
+        "startedAt" to log.startedAt,
+        "createdAt" to log.createdAt,
+        "updatedAt" to System.currentTimeMillis()
+    )
+
+    fun mapToSelfCareLog(data: Map<String, Any?>, localId: Long = 0): SelfCareLogEntity = SelfCareLogEntity(
+        id = localId,
+        routineType = data["routineType"] as? String ?: "",
+        date = (data["date"] as? Number)?.toLong() ?: 0L,
+        selectedTier = data["selectedTier"] as? String ?: "solid",
+        completedSteps = data["completedSteps"] as? String ?: "[]",
+        tiersByTime = data["tiersByTime"] as? String ?: "{}",
+        isComplete = data["isComplete"] as? Boolean ?: false,
+        startedAt = (data["startedAt"] as? Number)?.toLong(),
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
     )
 }
