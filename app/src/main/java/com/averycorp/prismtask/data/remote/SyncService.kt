@@ -384,7 +384,17 @@ constructor(
                 SyncMapper.habitToMap(habit)
             }
             "habit_completion" -> {
-                val completion = habitCompletionDao.getCompletionsForHabitOnce(meta.localId).firstOrNull() ?: return
+                val completion = habitCompletionDao.getAllCompletionsOnce().find { it.id == meta.localId }
+                if (completion == null) {
+                    logger.error(
+                        operation = "push.create",
+                        entity = "habit_completion",
+                        id = meta.localId.toString(),
+                        status = "error",
+                        detail = "completion not found for localId=${meta.localId}"
+                    )
+                    return
+                }
                 val habitCloudId = syncMetadataDao.getCloudId(completion.habitId, "habit") ?: return
                 SyncMapper.habitCompletionToMap(completion, habitCloudId)
             }
