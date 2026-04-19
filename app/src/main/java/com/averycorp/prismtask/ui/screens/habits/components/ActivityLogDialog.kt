@@ -127,7 +127,9 @@ internal fun ActivityLogDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let { logDate = it }
+                    com.averycorp.prismtask.ui.components
+                        .datePickerToLocalMillis(datePickerState.selectedDateMillis)
+                        ?.let { logDate = it }
                     showDatePicker = false
                 }) { Text("OK") }
             },

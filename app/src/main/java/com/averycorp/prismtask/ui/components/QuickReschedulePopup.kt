@@ -70,7 +70,7 @@ fun QuickReschedulePopup(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    val picked = datePickerState.selectedDateMillis
+                    val picked = datePickerToLocalMillis(datePickerState.selectedDateMillis)
                     showDatePicker = false
                     if (picked != null) {
                         onReschedule(picked)
