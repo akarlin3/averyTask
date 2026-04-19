@@ -6,7 +6,9 @@ import com.averycorp.prismtask.data.preferences.LeisurePreferences
 import com.averycorp.prismtask.data.preferences.LeisureSlotId
 import com.averycorp.prismtask.data.preferences.NdPreferencesDataStore
 import com.averycorp.prismtask.data.preferences.OnboardingPreferences
+import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.preferences.ThemePreferences
+import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 import com.averycorp.prismtask.data.remote.AuthManager
 import com.averycorp.prismtask.data.remote.SyncService
 import com.averycorp.prismtask.data.remote.sync.PrismSyncLogger
@@ -37,6 +39,8 @@ constructor(
     private val taskRepository: TaskRepository,
     private val selfCareRepository: SelfCareRepository,
     private val leisurePreferences: LeisurePreferences,
+    private val userPreferencesDataStore: UserPreferencesDataStore,
+    private val taskBehaviorPreferences: TaskBehaviorPreferences,
     private val logger: PrismSyncLogger
 ) : ViewModel() {
     val hasCompletedOnboarding: StateFlow<Boolean> = onboardingPreferences
@@ -91,6 +95,8 @@ constructor(
             if (!snapshot.isEmpty) {
                 logger.info(operation = "onboarding.check", detail = "existing=true skipping")
                 onboardingPreferences.setOnboardingCompleted()
+                userPreferencesDataStore.markTierOnboardingShown()
+                taskBehaviorPreferences.setHasSetStartOfDay(true)
                 _signInState.value = SignInState.ExistingUserDetected
             } else {
                 logger.info(operation = "onboarding.check", detail = "existing=false routing=onboarding")
