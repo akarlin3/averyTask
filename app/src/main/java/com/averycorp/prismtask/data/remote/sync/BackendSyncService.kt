@@ -598,7 +598,9 @@ constructor(
                 val data = change.data ?: continue
                 val habitId = data.optLong("habit_id") ?: continue
                 val completedDate = data.optLong("completed_date") ?: continue
-                habitCompletionDao.deleteByHabitAndDate(habitId, completedDate)
+                val completedDateLocal = data.optString("completed_date_local")
+                    ?: millisToLocalDate(completedDate)
+                habitCompletionDao.deleteByHabitAndDateLocal(habitId, completedDateLocal)
                 applied++
                 continue
             }
@@ -606,12 +608,16 @@ constructor(
             val habitId = data.optLong("habit_id") ?: continue
             val fallbackTimestamp = change.timestamp?.let { isoToMillisOrNull(it) }
                 ?: System.currentTimeMillis()
+            val completedDate = data.optLong("completed_date") ?: 0L
+            val completedDateLocal = data.optString("completed_date_local")
+                ?: millisToLocalDate(completedDate)
             val completion = HabitCompletionEntity(
                 id = clientId,
                 habitId = habitId,
-                completedDate = data.optLong("completed_date") ?: 0L,
+                completedDate = completedDate,
                 completedAt = data.optLong("completed_at") ?: fallbackTimestamp,
-                notes = data.optString("notes")
+                notes = data.optString("notes"),
+                completedDateLocal = completedDateLocal
             )
             habitCompletionDao.insert(completion)
             applied++

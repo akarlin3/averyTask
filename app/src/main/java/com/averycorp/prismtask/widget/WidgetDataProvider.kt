@@ -14,6 +14,9 @@ import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 
 private val DAY_START_HOUR_KEY = intPreferencesKey("day_start_hour")
 private val DAY_START_MINUTE_KEY = intPreferencesKey("day_start_minute")
@@ -144,6 +147,7 @@ object WidgetDataProvider {
             dayStartHour = dayStartHour,
             dayStartMinute = dayStartMinute
         )
+        val startOfDayLocal = epochToLocalDateString(startOfDay)
         val endOfDay = startOfDay + DayBoundary.DAY_MILLIS
         val taskDao = db.taskDao()
         val todayTasks = taskDao.getTodayTasksOnce(startOfDay, endOfDay)
@@ -153,7 +157,7 @@ object WidgetDataProvider {
         val habitDao = db.habitDao()
         val habits = habitDao.getActiveHabitsOnce()
         val completionDao = db.habitCompletionDao()
-        val completedHabits = habits.count { completionDao.isCompletedOnDateOnce(it.id, startOfDay) }
+        val completedHabits = habits.count { completionDao.isCompletedOnDateLocalOnce(it.id, startOfDayLocal) }
         val totalForScore = allTasks.size + completedToday.size + habits.size
         val completedForScore = completedToday.size + completedHabits
         val productivityScore = if (totalForScore > 0) {
@@ -183,15 +187,16 @@ object WidgetDataProvider {
             dayStartHour = dayStartHour,
             dayStartMinute = dayStartMinute
         )
+        val startOfDayLocal = epochToLocalDate(startOfDay)
         var longestStreak = 0
         val items = habits.take(12).map { habit ->
-            val isCompleted = completionDao.isCompletedOnDateOnce(habit.id, startOfDay)
-            val streak = computeCurrentStreak(completionDao, habit.id, startOfDay)
+            val isCompleted = completionDao.isCompletedOnDateLocalOnce(habit.id, startOfDayLocal.toString())
+            val streak = computeCurrentStreak(completionDao, habit.id, startOfDayLocal)
             if (streak > longestStreak) longestStreak = streak
             val last7Days = (6 downTo 0).map { daysAgo ->
-                completionDao.isCompletedOnDateOnce(
+                completionDao.isCompletedOnDateLocalOnce(
                     habit.id,
-                    startOfDay - (daysAgo * DayBoundary.DAY_MILLIS)
+                    startOfDayLocal.minusDays(daysAgo.toLong()).toString()
                 )
             }
             HabitWidgetItem(habit.id, habit.name, habit.icon, streak, isCompleted, last7Days)
@@ -202,15 +207,15 @@ object WidgetDataProvider {
     private suspend fun computeCurrentStreak(
         completionDao: com.averycorp.prismtask.data.local.dao.HabitCompletionDao,
         habitId: Long,
-        startOfDay: Long
+        startOfDayLocal: LocalDate
     ): Int {
         var streak = 0
-        var date = startOfDay
-        val todayDone = completionDao.isCompletedOnDateOnce(habitId, date)
-        if (!todayDone) date -= DayBoundary.DAY_MILLIS
-        while (completionDao.isCompletedOnDateOnce(habitId, date)) {
+        var date = startOfDayLocal
+        val todayDone = completionDao.isCompletedOnDateLocalOnce(habitId, date.toString())
+        if (!todayDone) date = date.minusDays(1)
+        while (completionDao.isCompletedOnDateLocalOnce(habitId, date.toString())) {
             streak++
-            date -= DayBoundary.DAY_MILLIS
+            date = date.minusDays(1)
             if (streak > 365) break
         }
         return streak
@@ -253,7 +258,8 @@ object WidgetDataProvider {
         val habitDao = db.habitDao()
         val completionDao = db.habitCompletionDao()
         val habits = habitDao.getActiveHabitsOnce()
-        val completedHabits = habits.count { completionDao.isCompletedOnDateOnce(it.id, startOfDay) }
+        val startOfDayLocal = epochToLocalDateString(startOfDay)
+        val completedHabits = habits.count { completionDao.isCompletedOnDateLocalOnce(it.id, startOfDayLocal) }
         val total = totalTasks + habits.size
         val done = completed.size + completedHabits
         val score = if (total > 0) ((done * 100f) / total).toInt().coerceIn(0, 100) else 0
@@ -348,16 +354,24 @@ object WidgetDataProvider {
             dayStartMinute = dayStartMinute
         )
         val completionDao = db.habitCompletionDao()
-        if (completionDao.isCompletedOnDateOnce(habitId, startOfDay)) {
-            completionDao.deleteByHabitAndDate(habitId, startOfDay)
+        val startOfDayLocal = epochToLocalDateString(startOfDay)
+        if (completionDao.isCompletedOnDateLocalOnce(habitId, startOfDayLocal)) {
+            completionDao.deleteByHabitAndDateLocal(habitId, startOfDayLocal)
         } else {
             completionDao.insert(
                 com.averycorp.prismtask.data.local.entity.HabitCompletionEntity(
                     habitId = habitId,
                     completedDate = startOfDay,
-                    completedAt = System.currentTimeMillis()
+                    completedAt = System.currentTimeMillis(),
+                    completedDateLocal = startOfDayLocal
                 )
             )
         }
     }
+
+    private fun epochToLocalDate(epochMillis: Long): LocalDate =
+        Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()).toLocalDate()
+
+    private fun epochToLocalDateString(epochMillis: Long): String =
+        epochToLocalDate(epochMillis).toString()
 }

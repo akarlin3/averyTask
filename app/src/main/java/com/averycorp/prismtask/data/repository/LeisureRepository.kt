@@ -37,6 +37,9 @@ constructor(
     private suspend fun startOfToday(): Long =
         DayBoundary.startOfCurrentDay(taskBehaviorPreferences.getDayStartHour().first())
 
+    private suspend fun todayLocalString(): String =
+        DayBoundary.currentLocalDateString(taskBehaviorPreferences.getDayStartHour().first())
+
     fun getTodayLog(): Flow<LeisureLogEntity?> =
         taskBehaviorPreferences.getDayStartHour().flatMapLatest { hour ->
             leisureDao.getLogForDate(DayBoundary.startOfCurrentDay(hour))
@@ -209,24 +212,26 @@ constructor(
     private suspend fun syncHabitCompletion(log: LeisureLogEntity) {
         val habit = getOrCreateLeisureHabit()
         val today = startOfToday()
+        val todayLocal = todayLocalString()
         val customSections = leisurePreferences.getCustomSections().first()
         val customStates = readCustomSectionStates(log)
         val enabledCustomsAllDone = customSections
             .filter { it.enabled }
             .all { section -> customStates[section.id]?.done == true }
         val allDone = log.musicDone && log.flexDone && enabledCustomsAllDone
-        val alreadyCompleted = habitCompletionDao.isCompletedOnDateOnce(habit.id, today)
+        val alreadyCompleted = habitCompletionDao.isCompletedOnDateLocalOnce(habit.id, todayLocal)
 
         if (allDone && !alreadyCompleted) {
             habitCompletionDao.insert(
                 HabitCompletionEntity(
                     habitId = habit.id,
                     completedDate = today,
-                    completedAt = System.currentTimeMillis()
+                    completedAt = System.currentTimeMillis(),
+                    completedDateLocal = todayLocal
                 )
             )
         } else if (!allDone && alreadyCompleted) {
-            habitCompletionDao.deleteByHabitAndDate(habit.id, today)
+            habitCompletionDao.deleteByHabitAndDateLocal(habit.id, todayLocal)
         }
     }
 

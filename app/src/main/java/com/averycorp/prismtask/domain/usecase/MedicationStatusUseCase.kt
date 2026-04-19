@@ -84,6 +84,7 @@ constructor(
     fun observeDueDosesToday(): Flow<List<MedicationDose>> =
         taskBehaviorPreferences.getDayStartHour().flatMapLatest { dayStartHour ->
             val todayStart = DayBoundary.startOfCurrentDay(dayStartHour)
+            val todayLocal = DayBoundary.currentLocalDateString(dayStartHour)
             combine(
                 habitRepository.getActiveHabits(),
                 selfCareDao.getStepsForRoutine("medication"),
@@ -96,11 +97,11 @@ constructor(
                 }
                 val takenStepIds = medLog?.let { parseTakenStepIds(it) } ?: emptySet()
                 val completionCount = medicationHabit?.let {
-                    habitCompletionDao.getCompletionCountForDateOnce(it.id, todayStart)
+                    habitCompletionDao.getCompletionCountForDateLocalOnce(it.id, todayLocal)
                 } ?: 0
 
                 val doses = buildList {
-                    addAll(intervalDoses(habits, todayStart))
+                    addAll(intervalDoses(habits, todayLocal))
                     addAll(selfCareStepDoses(steps, takenStepIds))
                     if (mode == MedicationScheduleMode.SPECIFIC_TIMES) {
                         addAll(specificTimeDoses(specificTimes, medicationHabit, completionCount))
@@ -113,14 +114,14 @@ constructor(
 
     private suspend fun intervalDoses(
         habits: List<HabitEntity>,
-        todayStart: Long
+        todayLocal: String
     ): List<MedicationDose> = habits
         .filter {
             it.reminderIntervalMillis != null &&
                 it.category?.equals("Medication", ignoreCase = true) == true
         }
         .map { habit ->
-            val takenCount = habitCompletionDao.getCompletionCountForDateOnce(habit.id, todayStart)
+            val takenCount = habitCompletionDao.getCompletionCountForDateLocalOnce(habit.id, todayLocal)
             val target = habit.reminderTimesPerDay.coerceAtLeast(1)
             MedicationDose(
                 medicationName = habit.name,

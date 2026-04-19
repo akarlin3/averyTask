@@ -30,6 +30,9 @@ constructor(
     private suspend fun startOfToday(): Long =
         DayBoundary.startOfCurrentDay(taskBehaviorPreferences.getDayStartHour().first())
 
+    private suspend fun todayLocalString(): String =
+        DayBoundary.currentLocalDateString(taskBehaviorPreferences.getDayStartHour().first())
+
     // --- Courses ---
 
     fun getActiveCourses(): Flow<List<CourseEntity>> = dao.getActiveCourses()
@@ -138,24 +141,26 @@ constructor(
     private suspend fun syncHabitCompletion() {
         val habit = getOrCreateSchoolHabit()
         val today = startOfToday()
+        val todayLocal = todayLocalString()
         val completions = dao.getCompletionsForDateOnce(today)
         // Need to know how many active courses there are
         // Use a one-shot query approach
         val courseCount = dao.getActiveCourseCount()
         val completedCount = completions.count { it.completed }
         val allDone = courseCount > 0 && completedCount >= courseCount
-        val alreadyCompleted = habitCompletionDao.isCompletedOnDateOnce(habit.id, today)
+        val alreadyCompleted = habitCompletionDao.isCompletedOnDateLocalOnce(habit.id, todayLocal)
 
         if (allDone && !alreadyCompleted) {
             habitCompletionDao.insert(
                 HabitCompletionEntity(
                     habitId = habit.id,
                     completedDate = today,
-                    completedAt = System.currentTimeMillis()
+                    completedAt = System.currentTimeMillis(),
+                    completedDateLocal = todayLocal
                 )
             )
         } else if (!allDone && alreadyCompleted) {
-            habitCompletionDao.deleteByHabitAndDate(habit.id, today)
+            habitCompletionDao.deleteByHabitAndDateLocal(habit.id, todayLocal)
         }
     }
 

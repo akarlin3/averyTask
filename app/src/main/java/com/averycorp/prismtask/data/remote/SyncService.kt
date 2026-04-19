@@ -12,12 +12,10 @@ import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.dao.TaskTemplateDao
 import com.averycorp.prismtask.data.local.entity.SyncMetadataEntity
 import com.averycorp.prismtask.data.local.entity.TaskTagCrossRef
-import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.remote.mapper.SyncMapper
 import com.averycorp.prismtask.data.remote.sync.PrismSyncLogger
 import com.averycorp.prismtask.data.remote.sync.SyncStateRepository
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
-import com.averycorp.prismtask.util.DayBoundary
 import com.google.firebase.firestore.DocumentChange
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
@@ -25,7 +23,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
@@ -49,7 +46,6 @@ constructor(
     private val proFeatureGate: ProFeatureGate,
     private val logger: PrismSyncLogger,
     private val syncStateRepository: SyncStateRepository,
-    private val taskBehaviorPreferences: TaskBehaviorPreferences,
     private val builtInHabitReconciler: BuiltInHabitReconciler
 ) {
     private val firestore by lazy { FirebaseFirestore.getInstance() }
@@ -653,7 +649,6 @@ constructor(
         applied += taskCompletionsResult.applied
         skipped += taskCompletionsResult.skipped
 
-        val localDayStartHour = taskBehaviorPreferences.getDayStartHour().first()
         val habitCompletionsResult = pullCollection("habit_completions") { data, cloudId ->
             val localId = syncMetadataDao.getLocalId(cloudId, "habit_completion")
             val habitCloudId = data["habitCloudId"] as? String
@@ -661,15 +656,11 @@ constructor(
             val habitLocalId = syncMetadataDao.getLocalId(habitCloudId, "habit")
                 ?: return@pullCollection false
             if (localId == null) {
+                // mapToHabitCompletion always produces a non-null completedDateLocal
+                // (either from the Firestore doc or derived from the epoch for
+                // legacy docs), so no post-hoc re-normalization is needed.
                 val completion = SyncMapper.mapToHabitCompletion(data, habitLocalId = habitLocalId)
-                val normalizedDate = DayBoundary.normalizeToDayStart(completion.completedDate, localDayStartHour)
-                val normalized = completion.copy(completedDate = normalizedDate)
-                logger.debug(
-                    operation = "pull.normalize",
-                    entity = "habit_completion",
-                    detail = "raw=${completion.completedDate} normalized=$normalizedDate dayStartHour=$localDayStartHour"
-                )
-                val newId = habitCompletionDao.insert(normalized)
+                val newId = habitCompletionDao.insert(completion)
                 syncMetadataDao.upsert(
                     SyncMetadataEntity(
                         localId = newId,

@@ -256,9 +256,7 @@ constructor(
                         tagDao.getAllTagsOnce().forEach { tagDao.delete(it) }
                     }
                     if (ReplaceSection.HABITS_AND_HISTORY in scope) {
-                        habitCompletionDao.getAllCompletionsOnce().forEach {
-                            habitCompletionDao.deleteByHabitAndDate(it.habitId, it.completedDate)
-                        }
+                        habitCompletionDao.deleteAll()
                         habitDao.getAllHabitsOnce().forEach { habitDao.delete(it) }
                     }
                     if (ReplaceSection.TASK_COMPLETIONS in scope) {
@@ -509,7 +507,9 @@ constructor(
     ) {
         val existingCompletionKeys = habitCompletionDao
             .getAllCompletionsOnce()
-            .map { it.habitId to it.completedDate }
+            .map {
+                it.habitId to (it.completedDateLocal ?: epochToLocalDateString(it.completedDate))
+            }
             .toMutableSet()
         derivedArray(root, "habitCompletions")?.forEach { elem ->
             try {
@@ -530,14 +530,25 @@ constructor(
                 }
                 val completedDate = obj.get("completedDate")?.takeIf { !it.isJsonNull }?.asLong
                     ?: return@forEach
-                val key = habitId to completedDate
+                val completedDateLocal = obj.get("completedDateLocal")
+                    ?.takeIf { !it.isJsonNull }?.asString
+                    ?: epochToLocalDateString(completedDate)
+                val key = habitId to completedDateLocal
                 if (key in existingCompletionKeys) {
                     ctx.duplicatesSkipped++
                     return@forEach
                 }
-                val default = HabitCompletionEntity(habitId = habitId, completedDate = completedDate)
+                val default = HabitCompletionEntity(
+                    habitId = habitId,
+                    completedDate = completedDate,
+                    completedDateLocal = completedDateLocal
+                )
                 val merged = mergeEntityWithDefaults(default, obj)
-                val completion = merged.copy(id = 0, habitId = habitId)
+                val completion = merged.copy(
+                    id = 0,
+                    habitId = habitId,
+                    completedDateLocal = completedDateLocal
+                )
                 habitCompletionDao.insert(completion)
                 existingCompletionKeys.add(key)
                 ctx.habitCompletionsImported++
@@ -546,6 +557,12 @@ constructor(
             }
         }
     }
+
+    private fun epochToLocalDateString(epochMillis: Long): String =
+        java.time.Instant.ofEpochMilli(epochMillis)
+            .atZone(java.time.ZoneId.systemDefault())
+            .toLocalDate()
+            .toString()
 
     private suspend fun importHabitLogs(
         ctx: ImportContext,

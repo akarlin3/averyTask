@@ -60,6 +60,12 @@ constructor(
     private suspend fun normalizeForToday(timestamp: Long): Long =
         DayBoundary.normalizeToDayStart(timestamp, currentDayStartHour())
 
+    private fun epochToLocalDateString(timestamp: Long): String =
+        java.time.Instant.ofEpochMilli(timestamp)
+            .atZone(java.time.ZoneId.systemDefault())
+            .toLocalDate()
+            .toString()
+
     fun getAllHabits(): Flow<List<HabitEntity>> = habitDao.getAllHabits()
 
     fun getActiveHabits(): Flow<List<HabitEntity>> = habitDao.getActiveHabits()
@@ -128,6 +134,7 @@ constructor(
 
     suspend fun completeHabit(habitId: Long, date: Long, notes: String? = null) {
         val normalizedDate = normalizeForToday(date)
+        val normalizedLocalDate = epochToLocalDateString(normalizedDate)
         val now = System.currentTimeMillis()
 
         // Atomically read the existing count and insert the new completion so two
@@ -139,7 +146,7 @@ constructor(
             val hasMedInterval = habit?.reminderIntervalMillis != null
             val timesPerDay = habit?.reminderTimesPerDay ?: 1
             val target = if (habit?.frequencyPeriod == "daily") habit.targetFrequency else 1
-            val currentCount = completionDao.getCompletionCountForDateOnce(habitId, normalizedDate)
+            val currentCount = completionDao.getCompletionCountForDateLocalOnce(habitId, normalizedLocalDate)
 
             val cap = if (hasMedInterval) timesPerDay else target
             if (currentCount >= cap) {
@@ -150,7 +157,8 @@ constructor(
                         habitId = habitId,
                         completedDate = normalizedDate,
                         completedAt = now,
-                        notes = notes?.trim()?.ifEmpty { null }
+                        notes = notes?.trim()?.ifEmpty { null },
+                        completedDateLocal = normalizedLocalDate
                     )
                 )
                 CompletionResult(newId, habit, currentCount + 1)
@@ -180,11 +188,12 @@ constructor(
 
     suspend fun uncompleteHabit(habitId: Long, date: Long) {
         val normalizedDate = normalizeForToday(date)
-        val completion = completionDao.getByHabitAndDate(habitId, normalizedDate)
+        val normalizedLocalDate = epochToLocalDateString(normalizedDate)
+        val completion = completionDao.getByHabitAndDateLocal(habitId, normalizedLocalDate)
         if (completion != null) {
             syncTracker.trackDelete(completion.id, "habit_completion")
         }
-        completionDao.deleteLatestByHabitAndDate(habitId, normalizedDate)
+        completionDao.deleteLatestByHabitAndDateLocal(habitId, normalizedLocalDate)
         widgetUpdateManager.updateHabitWidgets()
 
         // Reschedule from previous completion or cancel if none remain
@@ -192,7 +201,7 @@ constructor(
         if (habit?.reminderIntervalMillis != null) {
             val previousCompletion = completionDao.getLastCompletionOnce(habitId)
             val timesPerDay = habit.reminderTimesPerDay
-            val newCount = completionDao.getCompletionCountForDateOnce(habitId, normalizedDate)
+            val newCount = completionDao.getCompletionCountForDateLocalOnce(habitId, normalizedLocalDate)
             if (previousCompletion != null && newCount < timesPerDay) {
                 medicationReminderScheduler.scheduleNext(
                     habitId,
@@ -283,10 +292,10 @@ constructor(
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     fun getHabitsWithTodayStatus(): Flow<List<HabitWithStatus>> =
         taskBehaviorPreferences.getDayStartHour().flatMapLatest { dayStartHour ->
-            val today = DayBoundary.startOfCurrentDay(dayStartHour)
+            val todayLocalString = DayBoundary.currentLocalDateString(dayStartHour)
             combine(
                 habitDao.getActiveHabits(),
-                completionDao.getCompletionsForDate(today)
+                completionDao.getCompletionsForDateLocal(todayLocalString)
             ) { habits, todayCompletions ->
                 val countByHabit = todayCompletions.groupBy { it.habitId }.mapValues { it.value.size }
                 habits.map { habit ->
@@ -318,13 +327,14 @@ constructor(
         ) { dsh, fdow -> dsh to fdow }.flatMapLatest { (dayStartHour, firstDayOfWeek) ->
             val calendarDow = firstDayOfWeek.toCalendarDayOfWeek()
             val today = DayBoundary.startOfCurrentDay(dayStartHour)
+            val todayLocalString = DayBoundary.currentLocalDateString(dayStartHour)
             val weekStart = getWeekStart(today, calendarDow)
             val weekEnd = getWeekEnd(today, calendarDow)
             val todayLocal = LocalDate.now()
 
             combine(
                 habitDao.getActiveHabits(),
-                completionDao.getCompletionsForDate(today),
+                completionDao.getCompletionsForDateLocal(todayLocalString),
                 habitLogDao.getAllLogs(),
                 habitListPreferences.getStreakMaxMissedDays()
             ) { habits, todayCompletions, allLogs, streakMaxMissedDays ->

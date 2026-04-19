@@ -147,11 +147,11 @@ constructor(
         }
 
         val habits = habitDao.getHabitsWithIntervalReminder()
-        val today = DayBoundary.startOfCurrentDay(taskBehaviorPreferences.getDayStartHour().first())
+        val todayLocal = DayBoundary.currentLocalDateString(taskBehaviorPreferences.getDayStartHour().first())
         for (habit in habits) {
             val interval = habit.reminderIntervalMillis ?: continue
             val timesPerDay = habit.reminderTimesPerDay
-            val todayCount = completionDao.getCompletionCountForDateOnce(habit.id, today)
+            val todayCount = completionDao.getCompletionCountForDateLocalOnce(habit.id, todayLocal)
             if (todayCount >= timesPerDay) continue
             val lastCompletion = completionDao.getLastCompletionOnce(habit.id) ?: continue
             scheduleNext(
