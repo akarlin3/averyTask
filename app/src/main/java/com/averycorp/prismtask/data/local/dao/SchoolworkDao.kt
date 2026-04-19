@@ -111,6 +111,9 @@ interface SchoolworkDao {
     @Query("SELECT * FROM course_completions ORDER BY date DESC")
     suspend fun getAllCompletionsOnce(): List<CourseCompletionEntity>
 
+    @Query("DELETE FROM course_completions WHERE id = :id")
+    suspend fun deleteCompletionById(id: Long)
+
     // --- Study Logs (legacy, kept for migration compatibility) ---
 
     @Query("SELECT * FROM study_logs WHERE date = :date LIMIT 1")

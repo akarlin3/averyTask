@@ -78,6 +78,15 @@ interface SelfCareDao {
     @Query("SELECT * FROM self_care_steps ORDER BY sort_order ASC")
     suspend fun getAllStepsOnce(): List<SelfCareStepEntity>
 
+    @Query("SELECT * FROM self_care_steps WHERE step_id = :stepId AND routine_type = :routineType LIMIT 1")
+    suspend fun getStepByStepIdOnce(stepId: String, routineType: String): SelfCareStepEntity?
+
+    @Query("DELETE FROM self_care_steps WHERE id = :id")
+    suspend fun deleteStepById(id: Long)
+
+    @Query("DELETE FROM self_care_logs WHERE id = :id")
+    suspend fun deleteLogById(id: Long)
+
     /**
      * v1.4.0 V10 follow-up: find any self-care step linked to a
      * specific medication by exact name. Used when the user records a

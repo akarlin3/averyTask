@@ -3,8 +3,11 @@ package com.averycorp.prismtask.data.remote
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.dao.HabitLogDao
+import com.averycorp.prismtask.data.local.dao.LeisureDao
 import com.averycorp.prismtask.data.local.dao.MilestoneDao
 import com.averycorp.prismtask.data.local.dao.ProjectDao
+import com.averycorp.prismtask.data.local.dao.SchoolworkDao
+import com.averycorp.prismtask.data.local.dao.SelfCareDao
 import com.averycorp.prismtask.data.local.dao.SyncMetadataDao
 import com.averycorp.prismtask.data.local.dao.TagDao
 import com.averycorp.prismtask.data.local.dao.TaskCompletionDao
@@ -12,6 +15,7 @@ import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.dao.TaskTemplateDao
 import com.averycorp.prismtask.data.local.entity.SyncMetadataEntity
 import com.averycorp.prismtask.data.local.entity.TaskTagCrossRef
+import com.averycorp.prismtask.data.preferences.BuiltInSyncPreferences
 import com.averycorp.prismtask.data.remote.mapper.SyncMapper
 import com.averycorp.prismtask.data.remote.sync.PrismSyncLogger
 import com.averycorp.prismtask.data.remote.sync.SyncStateRepository
@@ -47,7 +51,11 @@ constructor(
     private val logger: PrismSyncLogger,
     private val syncStateRepository: SyncStateRepository,
     private val builtInHabitReconciler: BuiltInHabitReconciler,
-    private val sortPreferencesSyncService: SortPreferencesSyncService
+    private val sortPreferencesSyncService: SortPreferencesSyncService,
+    private val schoolworkDao: SchoolworkDao,
+    private val leisureDao: LeisureDao,
+    private val selfCareDao: SelfCareDao,
+    private val builtInSyncPreferences: BuiltInSyncPreferences
 ) {
     private val firestore by lazy { FirebaseFirestore.getInstance() }
     private val listeners = mutableListOf<ListenerRegistration>()
@@ -304,6 +312,77 @@ constructor(
                 )
             }
         }
+
+        // One-shot backfill for entity types added in the course/leisure/self-care
+        // sync pipeline. Runs exactly once per install (guarded by flag). After the
+        // first run, ongoing changes are handled by the regular push pipeline.
+        if (!builtInSyncPreferences.isNewEntitiesBackfillDone()) {
+            val courses = schoolworkDao.getAllCoursesOnce()
+            logger.debug("upload.courses", status = "begin", detail = "count=${courses.size}")
+            for (course in courses) {
+                try {
+                    val docRef = userCollection("courses")?.document() ?: continue
+                    docRef.set(SyncMapper.courseToMap(course)).await()
+                    syncMetadataDao.upsert(SyncMetadataEntity(localId = course.id, entityType = "course", cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()))
+                } catch (e: Exception) {
+                    logger.error(operation = "upload.course", entity = "course", id = course.id.toString(), detail = course.name, throwable = e)
+                }
+            }
+
+            // course_completions AFTER courses so course cloud IDs are in sync_metadata.
+            val courseCompletions = schoolworkDao.getAllCompletionsOnce()
+            logger.debug("upload.course_completions", status = "begin", detail = "count=${courseCompletions.size}")
+            for (completion in courseCompletions) {
+                try {
+                    val courseCloudId = syncMetadataDao.getCloudId(completion.courseId, "course") ?: continue
+                    val docRef = userCollection("course_completions")?.document() ?: continue
+                    docRef.set(SyncMapper.courseCompletionToMap(completion, courseCloudId)).await()
+                    syncMetadataDao.upsert(SyncMetadataEntity(localId = completion.id, entityType = "course_completion", cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()))
+                } catch (e: Exception) {
+                    logger.error(operation = "upload.course_completion", entity = "course_completion", id = completion.id.toString(), throwable = e)
+                }
+            }
+
+            val leisureLogs = leisureDao.getAllLogsOnce()
+            logger.debug("upload.leisure_logs", status = "begin", detail = "count=${leisureLogs.size}")
+            for (log in leisureLogs) {
+                try {
+                    val docRef = userCollection("leisure_logs")?.document() ?: continue
+                    docRef.set(SyncMapper.leisureLogToMap(log)).await()
+                    syncMetadataDao.upsert(SyncMetadataEntity(localId = log.id, entityType = "leisure_log", cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()))
+                } catch (e: Exception) {
+                    logger.error(operation = "upload.leisure_log", entity = "leisure_log", id = log.id.toString(), throwable = e)
+                }
+            }
+
+            val selfCareSteps = selfCareDao.getAllStepsOnce()
+            logger.debug("upload.self_care_steps", status = "begin", detail = "count=${selfCareSteps.size}")
+            for (step in selfCareSteps) {
+                try {
+                    val docRef = userCollection("self_care_steps")?.document() ?: continue
+                    docRef.set(SyncMapper.selfCareStepToMap(step)).await()
+                    syncMetadataDao.upsert(SyncMetadataEntity(localId = step.id, entityType = "self_care_step", cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()))
+                } catch (e: Exception) {
+                    logger.error(operation = "upload.self_care_step", entity = "self_care_step", id = step.id.toString(), throwable = e)
+                }
+            }
+
+            // self_care_logs AFTER self_care_steps (logical dependency).
+            val selfCareLogs = selfCareDao.getAllLogsOnce()
+            logger.debug("upload.self_care_logs", status = "begin", detail = "count=${selfCareLogs.size}")
+            for (log in selfCareLogs) {
+                try {
+                    val docRef = userCollection("self_care_logs")?.document() ?: continue
+                    docRef.set(SyncMapper.selfCareLogToMap(log)).await()
+                    syncMetadataDao.upsert(SyncMetadataEntity(localId = log.id, entityType = "self_care_log", cloudId = docRef.id, lastSyncedAt = System.currentTimeMillis()))
+                } catch (e: Exception) {
+                    logger.error(operation = "upload.self_care_log", entity = "self_care_log", id = log.id.toString(), throwable = e)
+                }
+            }
+
+            builtInSyncPreferences.setNewEntitiesBackfillDone(true)
+            logger.info("upload.new_entities_backfill", status = "success")
+        }
     }
 
     fun launchInitialUpload() {
@@ -397,6 +476,10 @@ constructor(
         "habit_log" -> "habit_logs"
         "task_completion" -> "task_completions"
         "task_template" -> "task_templates"
+        "course_completion" -> "course_completions"
+        "leisure_log" -> "leisure_logs"
+        "self_care_step" -> "self_care_steps"
+        "self_care_log" -> "self_care_logs"
         else -> entityType + "s"
     }
 
@@ -457,6 +540,27 @@ constructor(
                 val templateProjectCloudId = template.templateProjectId?.let { syncMetadataDao.getCloudId(it, "project") }
                 SyncMapper.taskTemplateToMap(template, templateProjectCloudId)
             }
+            "course" -> {
+                val course = schoolworkDao.getCourseById(meta.localId) ?: return
+                SyncMapper.courseToMap(course)
+            }
+            "course_completion" -> {
+                val completion = schoolworkDao.getAllCompletionsOnce().find { it.id == meta.localId } ?: return
+                val courseCloudId = syncMetadataDao.getCloudId(completion.courseId, "course") ?: return
+                SyncMapper.courseCompletionToMap(completion, courseCloudId)
+            }
+            "leisure_log" -> {
+                val log = leisureDao.getAllLogsOnce().find { it.id == meta.localId } ?: return
+                SyncMapper.leisureLogToMap(log)
+            }
+            "self_care_step" -> {
+                val step = selfCareDao.getAllStepsOnce().find { it.id == meta.localId } ?: return
+                SyncMapper.selfCareStepToMap(step)
+            }
+            "self_care_log" -> {
+                val log = selfCareDao.getAllLogsOnce().find { it.id == meta.localId } ?: return
+                SyncMapper.selfCareLogToMap(log)
+            }
             else -> return
         }
         docRef.set(data).await()
@@ -494,6 +598,27 @@ constructor(
                 val template = taskTemplateDao.getTemplateById(meta.localId) ?: return
                 val templateProjectCloudId = template.templateProjectId?.let { syncMetadataDao.getCloudId(it, "project") }
                 SyncMapper.taskTemplateToMap(template, templateProjectCloudId)
+            }
+            "course" -> {
+                val course = schoolworkDao.getCourseById(meta.localId) ?: return
+                SyncMapper.courseToMap(course)
+            }
+            "course_completion" -> {
+                val completion = schoolworkDao.getAllCompletionsOnce().find { it.id == meta.localId } ?: return
+                val courseCloudId = syncMetadataDao.getCloudId(completion.courseId, "course") ?: return
+                SyncMapper.courseCompletionToMap(completion, courseCloudId)
+            }
+            "leisure_log" -> {
+                val log = leisureDao.getAllLogsOnce().find { it.id == meta.localId } ?: return
+                SyncMapper.leisureLogToMap(log)
+            }
+            "self_care_step" -> {
+                val step = selfCareDao.getAllStepsOnce().find { it.id == meta.localId } ?: return
+                SyncMapper.selfCareStepToMap(step)
+            }
+            "self_care_log" -> {
+                val log = selfCareDao.getAllLogsOnce().find { it.id == meta.localId } ?: return
+                SyncMapper.selfCareLogToMap(log)
             }
             else -> return
         }
@@ -754,6 +879,145 @@ constructor(
         applied += taskTemplatesResult.applied
         skipped += taskTemplatesResult.skipped
 
+        // Courses before course_completions so courseCloudId FK can be resolved.
+        val coursesResult = pullCollection("courses") { data, cloudId ->
+            val localId = syncMetadataDao.getLocalId(cloudId, "course")
+            if (localId == null) {
+                val course = SyncMapper.mapToCourse(data)
+                val newId = schoolworkDao.insertCourse(course)
+                syncMetadataDao.upsert(
+                    SyncMetadataEntity(
+                        localId = newId,
+                        entityType = "course",
+                        cloudId = cloudId,
+                        lastSyncedAt = System.currentTimeMillis()
+                    )
+                )
+            } else {
+                val course = SyncMapper.mapToCourse(data, localId)
+                schoolworkDao.updateCourse(course)
+                syncMetadataDao.clearPendingAction(localId, "course")
+            }
+            true
+        }
+        applied += coursesResult.applied
+        skipped += coursesResult.skipped
+
+        val courseCompletionsResult = pullCollection("course_completions") { data, cloudId ->
+            val localId = syncMetadataDao.getLocalId(cloudId, "course_completion")
+            val courseCloudId = data["courseCloudId"] as? String
+                ?: return@pullCollection false
+            val courseLocalId = syncMetadataDao.getLocalId(courseCloudId, "course")
+                ?: return@pullCollection false
+            if (localId == null) {
+                val completion = SyncMapper.mapToCourseCompletion(data, courseLocalId = courseLocalId)
+                val newId = schoolworkDao.insertCompletion(completion)
+                syncMetadataDao.upsert(
+                    SyncMetadataEntity(
+                        localId = newId,
+                        entityType = "course_completion",
+                        cloudId = cloudId,
+                        lastSyncedAt = System.currentTimeMillis()
+                    )
+                )
+            } else {
+                val completion = SyncMapper.mapToCourseCompletion(data, localId, courseLocalId)
+                schoolworkDao.updateCompletion(completion)
+                syncMetadataDao.clearPendingAction(localId, "course_completion")
+            }
+            true
+        }
+        applied += courseCompletionsResult.applied
+        skipped += courseCompletionsResult.skipped
+
+        val leisureLogsResult = pullCollection("leisure_logs") { data, cloudId ->
+            val localId = syncMetadataDao.getLocalId(cloudId, "leisure_log")
+            if (localId == null) {
+                val log = SyncMapper.mapToLeisureLog(data)
+                val newId = leisureDao.insertLog(log)
+                syncMetadataDao.upsert(
+                    SyncMetadataEntity(
+                        localId = newId,
+                        entityType = "leisure_log",
+                        cloudId = cloudId,
+                        lastSyncedAt = System.currentTimeMillis()
+                    )
+                )
+            } else {
+                val log = SyncMapper.mapToLeisureLog(data, localId)
+                leisureDao.updateLog(log)
+                syncMetadataDao.clearPendingAction(localId, "leisure_log")
+            }
+            true
+        }
+        applied += leisureLogsResult.applied
+        skipped += leisureLogsResult.skipped
+
+        // self_care_steps before self_care_logs (logical dependency).
+        // Dedup by stepId+routineType to avoid duplicating built-in default steps
+        // that are seeded locally on both devices before sign-in.
+        val selfCareStepsResult = pullCollection("self_care_steps") { data, cloudId ->
+            val localId = syncMetadataDao.getLocalId(cloudId, "self_care_step")
+            if (localId == null) {
+                val stepId = data["stepId"] as? String
+                val routineType = data["routineType"] as? String
+                val existingByStepId = if (stepId != null && routineType != null)
+                    selfCareDao.getStepByStepIdOnce(stepId, routineType) else null
+                if (existingByStepId != null) {
+                    // Link existing local step to this cloud doc instead of duplicating.
+                    syncMetadataDao.upsert(
+                        SyncMetadataEntity(
+                            localId = existingByStepId.id,
+                            entityType = "self_care_step",
+                            cloudId = cloudId,
+                            lastSyncedAt = System.currentTimeMillis()
+                        )
+                    )
+                } else {
+                    val step = SyncMapper.mapToSelfCareStep(data)
+                    val newId = selfCareDao.insertStep(step)
+                    syncMetadataDao.upsert(
+                        SyncMetadataEntity(
+                            localId = newId,
+                            entityType = "self_care_step",
+                            cloudId = cloudId,
+                            lastSyncedAt = System.currentTimeMillis()
+                        )
+                    )
+                }
+            } else {
+                val step = SyncMapper.mapToSelfCareStep(data, localId)
+                selfCareDao.updateStep(step)
+                syncMetadataDao.clearPendingAction(localId, "self_care_step")
+            }
+            true
+        }
+        applied += selfCareStepsResult.applied
+        skipped += selfCareStepsResult.skipped
+
+        val selfCareLogsResult = pullCollection("self_care_logs") { data, cloudId ->
+            val localId = syncMetadataDao.getLocalId(cloudId, "self_care_log")
+            if (localId == null) {
+                val log = SyncMapper.mapToSelfCareLog(data)
+                val newId = selfCareDao.insertLog(log)
+                syncMetadataDao.upsert(
+                    SyncMetadataEntity(
+                        localId = newId,
+                        entityType = "self_care_log",
+                        cloudId = cloudId,
+                        lastSyncedAt = System.currentTimeMillis()
+                    )
+                )
+            } else {
+                val log = SyncMapper.mapToSelfCareLog(data, localId)
+                selfCareDao.updateLog(log)
+                syncMetadataDao.clearPendingAction(localId, "self_care_log")
+            }
+            true
+        }
+        applied += selfCareLogsResult.applied
+        skipped += selfCareLogsResult.skipped
+
         if (skipped > 0) {
             logger.warn(
                 operation = "pull.summary",
@@ -909,7 +1173,7 @@ constructor(
 
     fun startRealtimeListeners() {
         stopRealtimeListeners()
-        listOf("tasks", "projects", "tags", "habits", "habit_completions", "habit_logs", "task_completions", "milestones", "task_templates").forEach { collection ->
+        listOf("tasks", "projects", "tags", "habits", "habit_completions", "habit_logs", "task_completions", "milestones", "task_templates", "courses", "course_completions", "leisure_logs", "self_care_steps", "self_care_logs").forEach { collection ->
             val reg = userCollection(collection)?.addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     logger.warn(
@@ -974,6 +1238,11 @@ constructor(
             "task_completions" -> "task_completion"
             "milestones" -> "milestone"
             "task_templates" -> "task_template"
+            "courses" -> "course"
+            "course_completions" -> "course_completion"
+            "leisure_logs" -> "leisure_log"
+            "self_care_steps" -> "self_care_step"
+            "self_care_logs" -> "self_care_log"
             else -> return
         }
         var deleted = 0
@@ -990,6 +1259,11 @@ constructor(
                     "task_completion" -> taskCompletionDao.deleteById(localId)
                     "milestone" -> milestoneDao.deleteById(localId)
                     "task_template" -> taskTemplateDao.deleteTemplate(localId)
+                    "course" -> schoolworkDao.deleteCourse(localId)
+                    "course_completion" -> schoolworkDao.deleteCompletionById(localId)
+                    "leisure_log" -> leisureDao.deleteLogById(localId)
+                    "self_care_step" -> selfCareDao.deleteStepById(localId)
+                    "self_care_log" -> selfCareDao.deleteLogById(localId)
                 }
                 syncMetadataDao.delete(localId, entityType)
                 logger.info(
