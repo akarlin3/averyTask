@@ -362,7 +362,7 @@ class MainActivity : ComponentActivity() {
                         notificationSnackbarScope.launch {
                             taskBehaviorPreferences.setStartOfDay(h, m)
                             com.averycorp.prismtask.workers.DailyResetWorker
-                                .schedule(this@MainActivity, h)
+                                .schedule(this@MainActivity, h, m)
                         }
                     },
                     onDismiss = { }

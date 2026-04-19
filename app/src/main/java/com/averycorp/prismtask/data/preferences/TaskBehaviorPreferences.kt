@@ -39,6 +39,18 @@ data class StartOfDay(
     val hasBeenSet: Boolean = false
 )
 
+/**
+ * Read-only source of truth for the current Start of Day, used by components
+ * that need SoD outside of the DataStore-aware flow model (e.g. the offline
+ * NLP regex parser, which cannot suspend). Production binds to
+ * [TaskBehaviorPreferences.getStartOfDay] via Hilt; tests substitute a
+ * fixed provider.
+ */
+interface StartOfDayProvider {
+    /** Suspending read — preferred for coroutine contexts. */
+    suspend fun current(): StartOfDay
+}
+
 @Singleton
 class TaskBehaviorPreferences
 @Inject

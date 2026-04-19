@@ -1147,7 +1147,11 @@ constructor(
         viewModelScope.launch {
             taskBehaviorPreferences.setStartOfDay(hour, minute)
             // Reschedule the daily rollover worker to fire at the new boundary.
-            com.averycorp.prismtask.workers.DailyResetWorker.schedule(appContext, hour)
+            com.averycorp.prismtask.workers.DailyResetWorker.schedule(
+                appContext,
+                hour,
+                minute
+            )
         }
     }
 
