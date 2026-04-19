@@ -28,6 +28,7 @@ constructor(
         private val BUILT_INS_RECONCILED = booleanPreferencesKey("built_ins_reconciled")
         private val DRIFT_CLEANUP_DONE = booleanPreferencesKey("drift_cleanup_done")
         private val BUILT_IN_BACKFILL_DONE = booleanPreferencesKey("built_in_backfill_done")
+        private val NEW_ENTITIES_BACKFILL_DONE = booleanPreferencesKey("new_entities_backfill_done")
     }
 
     suspend fun isBuiltInsReconciled(): Boolean =
@@ -49,5 +50,12 @@ constructor(
 
     suspend fun setBuiltInBackfillDone(done: Boolean) {
         context.builtInSyncDataStore.edit { it[BUILT_IN_BACKFILL_DONE] = done }
+    }
+
+    suspend fun isNewEntitiesBackfillDone(): Boolean =
+        context.builtInSyncDataStore.data.first()[NEW_ENTITIES_BACKFILL_DONE] ?: false
+
+    suspend fun setNewEntitiesBackfillDone(done: Boolean) {
+        context.builtInSyncDataStore.edit { it[NEW_ENTITIES_BACKFILL_DONE] = done }
     }
 }

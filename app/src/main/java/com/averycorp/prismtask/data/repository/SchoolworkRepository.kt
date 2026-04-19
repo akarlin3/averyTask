@@ -9,6 +9,7 @@ import com.averycorp.prismtask.data.local.entity.CourseEntity
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
+import com.averycorp.prismtask.data.remote.SyncTracker
 import com.averycorp.prismtask.util.DayBoundary
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -25,7 +26,8 @@ constructor(
     private val dao: SchoolworkDao,
     private val habitDao: HabitDao,
     private val habitCompletionDao: HabitCompletionDao,
-    private val taskBehaviorPreferences: TaskBehaviorPreferences
+    private val taskBehaviorPreferences: TaskBehaviorPreferences,
+    private val syncTracker: SyncTracker
 ) {
     private suspend fun startOfToday(): Long =
         DayBoundary.startOfCurrentDay(taskBehaviorPreferences.getDayStartHour().first())
@@ -41,11 +43,21 @@ constructor(
 
     suspend fun getCourseById(id: Long): CourseEntity? = dao.getCourseById(id)
 
-    suspend fun insertCourse(course: CourseEntity): Long = dao.insertCourse(course)
+    suspend fun insertCourse(course: CourseEntity): Long {
+        val id = dao.insertCourse(course)
+        syncTracker.trackCreate(id, "course")
+        return id
+    }
 
-    suspend fun updateCourse(course: CourseEntity) = dao.updateCourse(course)
+    suspend fun updateCourse(course: CourseEntity) {
+        dao.updateCourse(course)
+        syncTracker.trackUpdate(course.id, "course")
+    }
 
-    suspend fun deleteCourse(id: Long) = dao.deleteCourse(id)
+    suspend fun deleteCourse(id: Long) {
+        syncTracker.trackDelete(id, "course")
+        dao.deleteCourse(id)
+    }
 
     // --- Assignments ---
 
@@ -85,6 +97,7 @@ constructor(
         val existing = dao.getCompletionOnce(today, courseId)
         if (existing != null) {
             if (existing.completed) {
+                syncTracker.trackDelete(existing.id, "course_completion")
                 dao.deleteCompletion(today, courseId)
             } else {
                 dao.updateCompletion(
@@ -93,9 +106,10 @@ constructor(
                         completedAt = System.currentTimeMillis()
                     )
                 )
+                syncTracker.trackUpdate(existing.id, "course_completion")
             }
         } else {
-            dao.insertCompletion(
+            val id = dao.insertCompletion(
                 CourseCompletionEntity(
                     date = today,
                     courseId = courseId,
@@ -103,12 +117,15 @@ constructor(
                     completedAt = System.currentTimeMillis()
                 )
             )
+            syncTracker.trackCreate(id, "course_completion")
         }
         syncHabitCompletion()
     }
 
     suspend fun resetToday() {
-        dao.deleteCompletionsForDate(startOfToday())
+        val today = startOfToday()
+        dao.getCompletionsForDateOnce(today).forEach { syncTracker.trackDelete(it.id, "course_completion") }
+        dao.deleteCompletionsForDate(today)
         syncHabitCompletion()
     }
 
