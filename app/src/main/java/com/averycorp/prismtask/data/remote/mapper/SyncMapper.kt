@@ -245,18 +245,38 @@ object SyncMapper {
         "localId" to completion.id,
         "habitCloudId" to habitCloudId,
         "completedDate" to completion.completedDate,
+        "completedDateLocal" to (
+            completion.completedDateLocal
+                ?: epochToLocalDateString(completion.completedDate)
+            ),
         "completedAt" to completion.completedAt,
         "notes" to completion.notes
     )
 
-    fun mapToHabitCompletion(data: Map<String, Any?>, localId: Long = 0, habitLocalId: Long = 0): HabitCompletionEntity =
-        HabitCompletionEntity(
+    fun mapToHabitCompletion(data: Map<String, Any?>, localId: Long = 0, habitLocalId: Long = 0): HabitCompletionEntity {
+        val completedDate = (data["completedDate"] as? Number)?.toLong() ?: 0
+        // Prefer the timezone-neutral string field. Fall back to epoch-derived
+        // LocalDate in the pulling device's zone for legacy Firestore docs
+        // written before the completedDateLocal field existed — see PR body for
+        // cross-timezone caveats.
+        val completedDateLocal = (data["completedDateLocal"] as? String)
+            ?.takeIf { it.isNotBlank() }
+            ?: epochToLocalDateString(completedDate)
+        return HabitCompletionEntity(
             id = localId,
             habitId = habitLocalId,
-            completedDate = (data["completedDate"] as? Number)?.toLong() ?: 0,
+            completedDate = completedDate,
             completedAt = (data["completedAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
-            notes = data["notes"] as? String
+            notes = data["notes"] as? String,
+            completedDateLocal = completedDateLocal
         )
+    }
+
+    private fun epochToLocalDateString(epochMillis: Long): String =
+        java.time.Instant.ofEpochMilli(epochMillis)
+            .atZone(java.time.ZoneId.systemDefault())
+            .toLocalDate()
+            .toString()
 
     fun habitLogToMap(log: HabitLogEntity, habitCloudId: String): Map<String, Any?> = mapOf(
         "localId" to log.id,

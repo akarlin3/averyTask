@@ -133,6 +133,10 @@ internal fun habitCompletionToOperation(completion: HabitCompletionEntity): Sync
         addProperty("id", completion.id)
         addProperty("habit_id", completion.habitId)
         addProperty("completed_date", completion.completedDate)
+        addProperty(
+            "completed_date_local",
+            completion.completedDateLocal ?: millisToLocalDate(completion.completedDate)
+        )
         addProperty("completed_at", completion.completedAt)
         if (completion.notes != null) addProperty("notes", completion.notes)
     }

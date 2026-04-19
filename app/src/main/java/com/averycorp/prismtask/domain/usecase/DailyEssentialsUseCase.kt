@@ -158,15 +158,16 @@ constructor(
     fun observeToday(): Flow<DailyEssentialsUiState> =
         taskBehaviorPreferences.getDayStartHour().flatMapLatest { dayStartHour ->
             val todayStart = DayBoundary.startOfCurrentDay(dayStartHour)
+            val todayLocal = DayBoundary.currentLocalDateString(dayStartHour)
             val windowStart = DayBoundary.calendarMidnightOfCurrentDay(dayStartHour)
             val windowEnd = DayBoundary.calendarMidnightOfNextDay(dayStartHour)
 
             combine(
                 observeRoutineCard("morning", "Morning Routine", todayStart),
                 observeRoutineCard("bedtime", "Bedtime Routine", todayStart),
-                observeHouseworkCard(todayStart),
+                observeHouseworkCard(todayLocal),
                 observeRoutineCard("housework", "Housework", todayStart),
-                observeSchoolworkCard(todayStart, windowStart, windowEnd),
+                observeSchoolworkCard(todayLocal, windowStart, windowEnd),
                 leisureRepository.getTodayLog(),
                 medicationStatusUseCase.observeDueDosesToday(),
                 slotCompletionDao.observeForDate(todayStart),
@@ -264,7 +265,7 @@ constructor(
         )
     }
 
-    private fun observeHouseworkCard(todayStart: Long): Flow<HabitCardState?> =
+    private fun observeHouseworkCard(todayLocal: String): Flow<HabitCardState?> =
         dailyEssentialsPreferences.houseworkHabitId.flatMapLatest { habitId ->
             if (habitId == null) {
                 flowOf(null)
@@ -273,7 +274,7 @@ constructor(
                     if (habit == null || habit.isArchived) {
                         flowOf(null)
                     } else {
-                        habitCompletionDao.isCompletedOnDate(habit.id, todayStart)
+                        habitCompletionDao.isCompletedOnDateLocal(habit.id, todayLocal)
                             .map { completed -> habit.toHabitCardState(completed) }
                     }
                 }
@@ -281,7 +282,7 @@ constructor(
         }
 
     private fun observeSchoolworkCard(
-        todayStart: Long,
+        todayLocal: String,
         windowStart: Long,
         windowEnd: Long
     ): Flow<SchoolworkCardState?> {
@@ -294,7 +295,7 @@ constructor(
                         if (habit == null || habit.isArchived) {
                             flowOf(null)
                         } else {
-                            habitCompletionDao.isCompletedOnDate(habit.id, todayStart)
+                            habitCompletionDao.isCompletedOnDateLocal(habit.id, todayLocal)
                                 .map { completed -> habit.toHabitCardState(completed) }
                         }
                     }
