@@ -311,7 +311,10 @@ private fun DateField(
             onDismissRequest = { showPicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    onChange(state.selectedDateMillis)
+                    onChange(
+                        com.averycorp.prismtask.ui.components
+                            .datePickerToLocalMillis(state.selectedDateMillis)
+                    )
                     showPicker = false
                 }) { Text("OK") }
             },

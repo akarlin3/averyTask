@@ -334,7 +334,11 @@ internal fun ScheduleTabContent(viewModel: AddEditTaskViewModel) {
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    viewModel.onDueDateChange(state.selectedDateMillis)
+                    viewModel.onDueDateChange(
+                        com.averycorp.prismtask.ui.components.datePickerToLocalMillis(
+                            state.selectedDateMillis
+                        )
+                    )
                     showDatePicker = false
                 }) { Text("OK") }
             },

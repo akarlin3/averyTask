@@ -321,7 +321,7 @@ internal fun RecurrenceDialog(
             onDismissRequest = { showEndDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    endDate = state.selectedDateMillis
+                    endDate = datePickerToLocalMillis(state.selectedDateMillis)
                     showEndDatePicker = false
                 }) { Text("OK") }
             },
