@@ -199,27 +199,56 @@ def main():
                 uid = user_docs[idx].id
                 user_ref = db.collection('users').document(uid)
 
-    # If /users/ didn't work, probe each top-level collection for our sub-collections
+    # If /users/ didn't work, dump everything we can find for diagnosis
     if user_ref is None:
         AUDIT_COLLECTIONS = {p[0] for p in AUDIT_PLAN}
-        print("  /users/ empty — probing other collections for task/habit data...")
+        print("  /users/ collection exists but streaming returned no documents.")
+        print("  This can happen if the collection has documents but no direct fields.")
+        print("\n  Attempting to probe /users/ document IDs via sub-collection listing...")
+
+        # Try listing sub-collections of the /users/ path directly via REST isn't
+        # possible, but we can try known UIDs from auth if the user provides one.
+        # Instead, dump every top-level collection's documents and their sub-collections.
         for col in top_collections:
-            sample = list(col.limit(3).stream())
+            print(f"\n  Probing /{col.id}/...")
+            sample = list(col.limit(5).stream())
+            if not sample:
+                print(f"    (no documents returned)")
+                continue
             for doc in sample:
-                sub_names = {s.id for s in doc.reference.collections()}
-                if sub_names & AUDIT_COLLECTIONS:
+                sub_cols = [s.id for s in doc.reference.collections()]
+                print(f"    doc: {doc.id}  sub-collections: {sub_cols}")
+                # Check if any sub-collection matches our audit plan
+                if set(sub_cols) & AUDIT_COLLECTIONS:
                     uid = doc.id
                     user_ref = doc.reference
-                    print(f"  Found user data under /{col.id}/{uid}/ (sub-collections: {sub_names & AUDIT_COLLECTIONS})")
+                    print(f"    ✓ Matched! Using /{col.id}/{uid}/ as user root.")
                     break
+                # Even if no exact match, pick the first doc with ANY sub-collections
+                # and let the user confirm
+                elif sub_cols and user_ref is None:
+                    print(f"    Sub-collections don't match audit plan but may be renamed.")
+                    print(f"    Candidate: /{col.id}/{doc.id}/ with subs: {sub_cols}")
+                    answer = input(f"    Use this as user root? [y/N]: ").strip().lower()
+                    if answer == 'y':
+                        uid = doc.id
+                        user_ref = doc.reference
+                        # Update audit plan collection names to match actual names
+                        actual = set(sub_cols)
+                        print(f"    Actual sub-collections: {actual}")
+                        break
             if user_ref:
                 break
 
     if user_ref is None:
         print("\nERROR: Could not locate user data.")
-        print(f"  Top-level collections: {top_names}")
-        print("  None contained sub-collections matching the audit plan.")
-        print("  Please inspect Firestore Console and check the data path.")
+        print(f"  Top-level collections found: {top_names}")
+        print("\n  Possible causes:")
+        print("  1. The app has never synced — run a full sync on Device A first")
+        print("  2. Data lives in a named Firestore database (not '(default)')")
+        print("  3. Security rules block the service account — check IAM: needs")
+        print("     'Cloud Datastore User' or 'Firebase Admin' role")
+        print("\n  Check Firebase Console → Firestore → Data tab to see the actual structure.")
         sys.exit(1)
     now_str = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
 
