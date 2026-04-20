@@ -16,8 +16,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -42,7 +40,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -90,23 +87,9 @@ import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private const val TOTAL_PAGES = 8
+private const val TOTAL_PAGES = 9
 private const val LAST_PAGE_INDEX = TOTAL_PAGES - 1
 
-private val accentColors = listOf(
-    "#2563EB",
-    "#7C3AED",
-    "#DB2777",
-    "#DC2626",
-    "#EA580C",
-    "#D97706",
-    "#65A30D",
-    "#059669",
-    "#0891B2",
-    "#6366F1",
-    "#8B5CF6",
-    "#EC4899"
-)
 
 @Composable
 fun OnboardingScreen(
@@ -133,12 +116,13 @@ fun OnboardingScreen(
         ) { page ->
             when (page) {
                 0 -> WelcomePage(viewModel = viewModel)
-                1 -> SmartTasksPage()
-                2 -> NaturalLanguagePage()
-                3 -> HabitsPage()
-                4 -> TemplatesPage(viewModel = viewModel)
-                5 -> ViewsPage()
-                6 -> BrainModePage(viewModel = viewModel)
+                1 -> ThemePickerPage()
+                2 -> SmartTasksPage()
+                3 -> NaturalLanguagePage()
+                4 -> HabitsPage()
+                5 -> TemplatesPage(viewModel = viewModel)
+                6 -> ViewsPage()
+                7 -> BrainModePage(viewModel = viewModel)
                 LAST_PAGE_INDEX -> SetupPage(
                     viewModel = viewModel,
                     onComplete = {
@@ -223,7 +207,13 @@ fun OnboardingScreen(
                             }
                         }
                     ) {
-                        Text(if (pagerState.currentPage == 0) "Get Started" else "Next")
+                        Text(
+                            when (pagerState.currentPage) {
+                                0 -> "Get Started"
+                                1 -> "Continue"
+                                else -> "Next"
+                            }
+                        )
                     }
                 }
             }
@@ -852,7 +842,6 @@ private fun BrainModeCard(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SetupPage(
     viewModel: OnboardingViewModel,
@@ -862,18 +851,6 @@ private fun SetupPage(
     val signInState by viewModel.signInState
         .let { flow ->
             val state = remember { mutableStateOf<SignInState>(SignInState.NotSignedIn) }
-            LaunchedEffect(Unit) { flow.collect { state.value = it } }
-            state
-        }
-    val themeMode by viewModel.themeMode
-        .let { flow ->
-            val state = remember { mutableStateOf("system") }
-            LaunchedEffect(Unit) { flow.collect { state.value = it } }
-            state
-        }
-    val accentColor by viewModel.accentColor
-        .let { flow ->
-            val state = remember { mutableStateOf("#2563EB") }
             LaunchedEffect(Unit) { flow.collect { state.value = it } }
             state
         }
@@ -974,63 +951,7 @@ private fun SetupPage(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 2. Theme Card
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant
-            )
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("Pick Your Theme", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Medium)
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("light" to "Light", "dark" to "Dark", "system" to "System").forEach { (value, label) ->
-                        FilterChip(
-                            selected = themeMode == value,
-                            onClick = { viewModel.setThemeMode(value) },
-                            label = { Text(label) }
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    accentColors.forEach { hex ->
-                        val color = try {
-                            Color(android.graphics.Color.parseColor(hex))
-                        } catch (_: Exception) {
-                            Color.Gray
-                        }
-                        val isSelected = accentColor.equals(hex, ignoreCase = true)
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(color)
-                                .then(
-                                    if (isSelected) {
-                                        Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
-                                    } else {
-                                        Modifier
-                                    }
-                                ).clickable { viewModel.setAccentColor(hex) },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (isSelected) {
-                                Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // 3. Quick Task Card
+        // 2. Quick Task Card
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
