@@ -701,9 +701,12 @@ constructor(
                 // Resolve any sort preference that was stashed while waiting for this project.
                 sortPreferencesSyncService.notifyProjectSynced(cloudId)
             } else {
-                val project = SyncMapper.mapToProject(data, localId)
-                projectDao.update(project)
-                syncMetadataDao.clearPendingAction(localId, "project")
+                val localProject = projectDao.getProjectByIdOnce(localId)
+                val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+                if (localProject == null || remoteUpdatedAt > localProject.updatedAt) {
+                    projectDao.update(SyncMapper.mapToProject(data, localId))
+                    syncMetadataDao.clearPendingAction(localId, "project")
+                }
             }
             true
         }
@@ -748,9 +751,12 @@ constructor(
                     )
                 )
             } else {
-                val habit = SyncMapper.mapToHabit(data, localId)
-                habitDao.update(habit)
-                syncMetadataDao.clearPendingAction(localId, "habit")
+                val localHabit = habitDao.getHabitByIdOnce(localId)
+                val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+                if (localHabit == null || remoteUpdatedAt > localHabit.updatedAt) {
+                    habitDao.update(SyncMapper.mapToHabit(data, localId))
+                    syncMetadataDao.clearPendingAction(localId, "habit")
+                }
             }
             true
         }
@@ -784,9 +790,12 @@ constructor(
                     tagDao.addTagToTask(TaskTagCrossRef(taskId = newId, tagId = tagLocalId))
                 }
             } else {
-                val task = SyncMapper.mapToTask(data, localId, projectLocalId, parentTaskLocalId, sourceHabitLocalId)
-                taskDao.update(task)
-                syncMetadataDao.clearPendingAction(localId, "task")
+                val localTask = taskDao.getTaskByIdOnce(localId)
+                val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+                if (localTask == null || remoteUpdatedAt > localTask.updatedAt) {
+                    taskDao.update(SyncMapper.mapToTask(data, localId, projectLocalId, parentTaskLocalId, sourceHabitLocalId))
+                    syncMetadataDao.clearPendingAction(localId, "task")
+                }
             }
             true
         }
@@ -885,9 +894,12 @@ constructor(
                     )
                 )
             } else {
-                val milestone = SyncMapper.mapToMilestone(data, projectLocalId, localId)
-                milestoneDao.update(milestone)
-                syncMetadataDao.clearPendingAction(localId, "milestone")
+                val localMilestone = milestoneDao.getByIdOnce(localId)
+                val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+                if (localMilestone == null || remoteUpdatedAt > localMilestone.updatedAt) {
+                    milestoneDao.update(SyncMapper.mapToMilestone(data, projectLocalId, localId))
+                    syncMetadataDao.clearPendingAction(localId, "milestone")
+                }
             }
             true
         }
@@ -910,9 +922,12 @@ constructor(
                     )
                 )
             } else {
-                val template = SyncMapper.mapToTaskTemplate(data, localId, templateProjectLocalId)
-                taskTemplateDao.updateTemplate(template)
-                syncMetadataDao.clearPendingAction(localId, "task_template")
+                val localTemplate = taskTemplateDao.getTemplateById(localId)
+                val remoteUpdatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+                if (localTemplate == null || remoteUpdatedAt > localTemplate.updatedAt) {
+                    taskTemplateDao.updateTemplate(SyncMapper.mapToTaskTemplate(data, localId, templateProjectLocalId))
+                    syncMetadataDao.clearPendingAction(localId, "task_template")
+                }
             }
             true
         }
