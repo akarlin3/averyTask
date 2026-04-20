@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed — Start-of-Day Prompt on Skip Onboarding (pre-fix install race)
+- Start-of-day prompt no longer appears on first launch after skipping
+  onboarding for pre-fix installs. The earlier two-`LaunchedEffect`
+  arrangement (separate `LaunchedEffect(Unit)` backfill + `LaunchedEffect(
+  hasCompletedOnboarding)` gate check) ran the two bodies as concurrent
+  coroutines whose execution order was not guaranteed by source ordering;
+  the gate check could win the race and show the prompt before the
+  backfill's DataStore write took effect. The backfill is now collapsed
+  into the gate `LaunchedEffect`'s body so it runs sequentially before the
+  gate's `.first()` read in the same coroutine — structural ordering
+  replaces scheduling luck. The gate's `showStartOfDayPrompt = true` line
+  is retained as defensive coverage for future edge cases. Backfill
+  removal tracked for v2.2+.
+
 ### Fixed — Theme Sync Timestamp Race
 - **Theme sync no longer breaks when devices have minor clock skew.** The pull
   path previously overwrote `THEME_UPDATED_AT_KEY` with the remote device's
