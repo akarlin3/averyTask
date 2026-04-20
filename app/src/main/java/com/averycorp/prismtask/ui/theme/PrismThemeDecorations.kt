@@ -21,32 +21,48 @@ import kotlin.math.sin
 // ─── Glow shadow helpers ───────────────────────────────────────────────────
 
 /**
- * Returns a [Modifier] that paints a soft colored glow behind the composable.
- * Internally uses [BlurMaskFilter] on an offscreen [Canvas]. The effect is
- * skipped when [attrs.glow] is [GlowLevel.NONE] so Void layouts stay clean.
+ * Returns a [Modifier] that paints a two-layer colored glow behind the composable,
+ * matching the JS `glowShadow()` formula exactly:
+ *
+ * - [GlowLevel.NONE]   → no-op
+ * - [GlowLevel.SOFT]   → single layer: blur 10dp, α 0.38
+ * - [GlowLevel.STRONG] → inner (blur 14dp, α 0.60) + outer (blur 28dp, α 0.20)
+ * - [GlowLevel.HEAVY]  → inner (blur 20dp, α 0.50) + outer (blur 40dp, α 0.25)
+ *
+ * Both passes share one [drawBehind] block. [intensity] scales both blur radii
+ * and alpha values proportionally (default 1.0).
  */
-fun Modifier.prismGlow(color: Color, attrs: PrismThemeAttrs, intensity: Float = 1f): Modifier {
-    if (attrs.glow == GlowLevel.NONE) return this
-    val radius = when (attrs.glow) {
-        GlowLevel.HEAVY -> 20.dp
-        GlowLevel.STRONG -> 14.dp
-        GlowLevel.SOFT -> 10.dp
-        GlowLevel.NONE -> 0.dp
-    }
-    val blurRadius = radius * intensity
+fun Modifier.prismGlow(color: Color, level: GlowLevel, intensity: Float = 1f): Modifier {
+    if (level == GlowLevel.NONE) return this
     return this.drawBehind {
-        drawIntoCanvas { canvas ->
-            val paint = Paint().apply {
-                asFrameworkPaint().maskFilter =
-                    BlurMaskFilter(blurRadius.toPx(), BlurMaskFilter.Blur.NORMAL)
+        when (level) {
+            GlowLevel.SOFT -> {
+                drawGlowCircle(color, (10.dp * intensity).toPx(), 0.38f * intensity)
             }
-            paint.color = color.copy(alpha = 0.55f * intensity)
-            canvas.drawCircle(
-                center = Offset(size.width / 2f, size.height / 2f),
-                radius = minOf(size.width, size.height) / 2f,
-                paint = paint
-            )
+            GlowLevel.STRONG -> {
+                drawGlowCircle(color, (14.dp * intensity).toPx(), 0.60f * intensity)
+                drawGlowCircle(color, (28.dp * intensity).toPx(), 0.20f * intensity)
+            }
+            GlowLevel.HEAVY -> {
+                drawGlowCircle(color, (20.dp * intensity).toPx(), 0.50f * intensity)
+                drawGlowCircle(color, (40.dp * intensity).toPx(), 0.25f * intensity)
+            }
+            GlowLevel.NONE -> Unit
         }
+    }
+}
+
+private fun DrawScope.drawGlowCircle(color: Color, blurPx: Float, alpha: Float) {
+    drawIntoCanvas { canvas ->
+        val paint = Paint().apply {
+            asFrameworkPaint().maskFilter = BlurMaskFilter(blurPx, BlurMaskFilter.Blur.NORMAL)
+        }
+        paint.color = color.copy(alpha = alpha.coerceIn(0f, 1f))
+        canvas.drawCircle(
+            center = Offset(size.width / 2f, size.height / 2f),
+            radius = minOf(size.width, size.height) / 2f,
+            paint = paint
+        )
     }
 }
 
