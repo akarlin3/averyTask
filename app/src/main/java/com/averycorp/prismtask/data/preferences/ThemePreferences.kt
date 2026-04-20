@@ -5,10 +5,12 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -35,6 +37,8 @@ constructor(
         private val PRIORITY_COLOR_URGENT_KEY = stringPreferencesKey("priority_color_urgent")
         private val RECENT_CUSTOM_COLORS_KEY = stringPreferencesKey("recent_custom_colors")
         private val PRISM_THEME_KEY = stringPreferencesKey("pref_prism_theme")
+        private val THEME_UPDATED_AT_KEY = longPreferencesKey("theme_updated_at")
+        private val THEME_LAST_SYNCED_AT_KEY = longPreferencesKey("theme_last_synced_at")
 
         private const val MAX_RECENT_CUSTOM_COLORS = 5
 
@@ -172,7 +176,34 @@ constructor(
      * selection. [themeName] should be the enum name (e.g. "VOID", "CYBERPUNK").
      */
     suspend fun setPrismTheme(themeName: String) {
-        context.themePrefsDataStore.edit { prefs -> prefs[PRISM_THEME_KEY] = themeName }
+        context.themePrefsDataStore.edit { prefs ->
+            prefs[PRISM_THEME_KEY] = themeName
+            prefs[THEME_UPDATED_AT_KEY] = System.currentTimeMillis()
+        }
+    }
+
+    // --- Sync support -----------------------------------------------------------
+
+    /** Emits Unit whenever any theme preference changes. */
+    val flowOfThemeChanges: Flow<Unit> = context.themePrefsDataStore.data.map { }
+
+    suspend fun getThemeUpdatedAt(): Long =
+        context.themePrefsDataStore.data.first()[THEME_UPDATED_AT_KEY] ?: 0L
+
+    suspend fun getThemeLastSyncedAt(): Long =
+        context.themePrefsDataStore.data.first()[THEME_LAST_SYNCED_AT_KEY] ?: 0L
+
+    internal suspend fun setThemeLastSyncedAt(timestamp: Long) {
+        context.themePrefsDataStore.edit { prefs -> prefs[THEME_LAST_SYNCED_AT_KEY] = timestamp }
+    }
+
+    /** Applies a remote theme value, setting both timestamps so the push observer skips a round-trip. */
+    internal suspend fun applyRemoteTheme(themeName: String, updatedAt: Long) {
+        context.themePrefsDataStore.edit { prefs ->
+            prefs[PRISM_THEME_KEY] = themeName
+            prefs[THEME_UPDATED_AT_KEY] = updatedAt
+            prefs[THEME_LAST_SYNCED_AT_KEY] = updatedAt
+        }
     }
 
     suspend fun resetColorOverrides() {
