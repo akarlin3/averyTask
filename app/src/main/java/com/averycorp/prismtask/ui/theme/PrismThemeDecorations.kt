@@ -1,9 +1,21 @@
 package com.averycorp.prismtask.ui.theme
 
 import android.graphics.BlurMaskFilter
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Paint
@@ -66,10 +78,44 @@ private fun DrawScope.drawGlowCircle(color: Color, blurPx: Float, alpha: Float) 
     }
 }
 
+// ─── Scanlines (Cyberpunk / Matrix CRT overlay) ───────────────────────────
+
+/**
+ * Overlays horizontal CRT scanlines on top of the composable, matching the
+ * JS `repeating-linear-gradient` spec:
+ *
+ *   per-line alpha = (16/255) × [outerAlpha]  (replicates CSS `${primary}10`)
+ *   blend mode     = [BlendMode.Screen]         (additive highlight)
+ *
+ * Cyberpunk: [spacingDp]=3dp, [outerAlpha]=0.55 → effective α ≈ 0.035
+ * Matrix:    [spacingDp]=2dp, [outerAlpha]=0.70 → effective α ≈ 0.044
+ *
+ * Only the [PrismTaskTheme] root calls this; individual composables should
+ * never apply it directly.
+ */
+fun Modifier.scanlines(color: Color, spacingDp: Dp, outerAlpha: Float): Modifier {
+    val lineAlpha = (16f / 255f) * outerAlpha
+    return this.drawWithContent {
+        drawContent()
+        drawIntoCanvas { canvas ->
+            val paint = Paint().apply {
+                this.color = color.copy(alpha = lineAlpha.coerceIn(0f, 1f))
+                blendMode = BlendMode.Screen
+            }
+            val spacingPx = spacingDp.toPx()
+            var y = 0f
+            while (y <= size.height) {
+                canvas.drawLine(Offset(0f, y), Offset(size.width, y), paint)
+                y += spacingPx
+            }
+        }
+    }
+}
+
 // ─── Corner brackets (Cyberpunk HUD) ──────────────────────────────────────
 
 /**
- * Draws four Cyberpunk-style corner brackets (⌜⌝⌞⌟) behind the receiver.
+ * Draws four Cyberpunk-style corner brackets (⌜⌝⌞⌟) in front of the receiver.
  * Only active when [attrs.brackets] is true; a no-op for all other themes.
  *
  * @param color   Bracket stroke color — typically [PrismThemeColors.primary].
@@ -83,10 +129,10 @@ fun Modifier.cornerBrackets(
     stroke: Dp = 1.5.dp
 ): Modifier {
     if (!attrs.brackets) return this
-    return this.drawBehind {
+    return this.drawWithContent {
+        drawContent()
         val arm = sizeDP.toPx()
         val sw = stroke.toPx()
-        val paint = Stroke(width = sw, cap = StrokeCap.Square)
         val bracketColor = color.copy(alpha = 0.8f)
 
         // Top-left
