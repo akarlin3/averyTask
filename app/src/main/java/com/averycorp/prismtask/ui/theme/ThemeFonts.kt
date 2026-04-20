@@ -1,5 +1,6 @@
 package com.averycorp.prismtask.ui.theme
 
+import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
@@ -77,19 +78,20 @@ private val Vt323: FontFamily by lazy {
 
 // ── Space Grotesk — Void body/mono ───────────────────────────────────────────
 // Variable font (wght axis 300–700); one file serves all weights.
+@OptIn(ExperimentalTextApi::class)
 private val SpaceGrotesk: FontFamily by lazy {
     FontFamily(
         Font(
             R.font.space_grotesk, FontWeight.Normal,
-            variationSettings = FontVariation.Settings(FontVariation.weight(400f))
+            variationSettings = FontVariation.Settings(FontVariation.weight(400))
         ),
         Font(
             R.font.space_grotesk, FontWeight.Medium,
-            variationSettings = FontVariation.Settings(FontVariation.weight(500f))
+            variationSettings = FontVariation.Settings(FontVariation.weight(500))
         ),
         Font(
             R.font.space_grotesk, FontWeight.Bold,
-            variationSettings = FontVariation.Settings(FontVariation.weight(700f))
+            variationSettings = FontVariation.Settings(FontVariation.weight(700))
         )
     )
 }
@@ -97,19 +99,20 @@ private val SpaceGrotesk: FontFamily by lazy {
 // ── Fraunces — Void display ───────────────────────────────────────────────────
 // Variable font with separate upright and italic files.
 // fraunces.ttf covers the upright axis; fraunces_italic.ttf the italic axis.
+@OptIn(ExperimentalTextApi::class)
 private val Fraunces: FontFamily by lazy {
     FontFamily(
         Font(
             R.font.fraunces, FontWeight.Normal,
-            variationSettings = FontVariation.Settings(FontVariation.weight(400f))
+            variationSettings = FontVariation.Settings(FontVariation.weight(400))
         ),
         Font(
             R.font.fraunces, FontWeight.Bold,
-            variationSettings = FontVariation.Settings(FontVariation.weight(700f))
+            variationSettings = FontVariation.Settings(FontVariation.weight(700))
         ),
         Font(
             R.font.fraunces_italic, FontWeight.Normal, FontStyle.Italic,
-            variationSettings = FontVariation.Settings(FontVariation.weight(400f))
+            variationSettings = FontVariation.Settings(FontVariation.weight(400))
         )
     )
 }

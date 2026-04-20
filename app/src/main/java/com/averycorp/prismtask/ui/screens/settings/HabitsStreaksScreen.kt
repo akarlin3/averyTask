@@ -42,7 +42,7 @@ fun HabitsStreaksScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { ThemedSubScreenTitle("Habits title = { Text("Habits & Streaks") } Streaks") },
+                title = { ThemedSubScreenTitle("Habits & Streaks") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")

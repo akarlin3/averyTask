@@ -104,7 +104,7 @@ fun DataBackupScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { ThemedSubScreenTitle("Data title = { Text("Data & Backup") } Backup") },
+                title = { ThemedSubScreenTitle("Data & Backup") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
