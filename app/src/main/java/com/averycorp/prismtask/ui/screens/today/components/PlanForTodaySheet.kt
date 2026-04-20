@@ -350,7 +350,7 @@ internal fun PlanForTodaySheet(
                             PlanGroupHeader(
                                 title = "From Earlier",
                                 count = filteredOverdue.size,
-                                color = NeutralGray,
+                                color = neutralGray(),
                                 expanded = overdueExpanded,
                                 onToggle = { overdueExpanded = !overdueExpanded },
                                 trailing = {

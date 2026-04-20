@@ -47,6 +47,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.prismtask.domain.usecase.RefillUrgency
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -130,11 +131,12 @@ private fun MedicationCard(
     onDelete: () -> Unit
 ) {
     var showRefillDialog by remember { mutableStateOf(false) }
+    val c = LocalPrismColors.current
     val urgencyColor = when (item.forecast.urgency) {
-        RefillUrgency.HEALTHY -> Color(0xFF37A669)
-        RefillUrgency.UPCOMING -> Color(0xFFE6B800)
-        RefillUrgency.URGENT -> Color(0xFFE68A00)
-        RefillUrgency.OUT_OF_STOCK -> Color(0xFFE05353)
+        RefillUrgency.HEALTHY -> c.successColor
+        RefillUrgency.UPCOMING -> c.warningColor
+        RefillUrgency.URGENT -> c.urgentAccent
+        RefillUrgency.OUT_OF_STOCK -> c.destructiveColor
     }
 
     Card(

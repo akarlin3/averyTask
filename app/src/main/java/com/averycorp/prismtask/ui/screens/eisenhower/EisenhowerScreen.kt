@@ -59,25 +59,32 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
-
-private val Q1_COLOR = Color(0xFFEF4444) // Red
-private val Q2_COLOR = Color(0xFF3B82F6) // Blue
-private val Q3_COLOR = Color(0xFFF59E0B) // Yellow/Amber
-private val Q4_COLOR = Color(0xFF6B7280) // Gray
+import com.averycorp.prismtask.ui.theme.LocalPriorityColors
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 
 private data class QuadrantInfo(
     val key: String,
     val title: String,
-    val subtitle: String,
-    val color: Color
+    val subtitle: String
 )
 
 private val QUADRANTS = listOf(
-    QuadrantInfo("Q1", "Do First", "Urgent + Important", Q1_COLOR),
-    QuadrantInfo("Q2", "Schedule", "Not Urgent + Important", Q2_COLOR),
-    QuadrantInfo("Q3", "Delegate", "Urgent + Not Important", Q3_COLOR),
-    QuadrantInfo("Q4", "Eliminate", "Not Urgent + Not Important", Q4_COLOR)
+    QuadrantInfo("Q1", "Do First", "Urgent + Important"),
+    QuadrantInfo("Q2", "Schedule", "Not Urgent + Important"),
+    QuadrantInfo("Q3", "Delegate", "Urgent + Not Important"),
+    QuadrantInfo("Q4", "Eliminate", "Not Urgent + Not Important")
 )
+
+@Composable
+private fun quadrantAccentColor(key: String): Color {
+    val c = LocalPrismColors.current
+    return when (key) {
+        "Q1" -> c.destructiveColor
+        "Q2" -> c.primary
+        "Q3" -> c.warningColor
+        else -> c.muted
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -259,10 +266,11 @@ private fun QuadrantCell(
     onMoveTask: (Long, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val accent = quadrantAccentColor(info.key)
     Card(
         modifier = modifier.fillMaxHeight(),
         colors = CardDefaults.cardColors(
-            containerColor = info.color.copy(alpha = 0.08f)
+            containerColor = accent.copy(alpha = 0.08f)
         ),
         shape = RoundedCornerShape(12.dp)
     ) {
@@ -279,7 +287,7 @@ private fun QuadrantCell(
                     modifier = Modifier
                         .size(8.dp)
                         .clip(CircleShape)
-                        .background(info.color)
+                        .background(accent)
                 )
                 Spacer(Modifier.width(6.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -287,7 +295,7 @@ private fun QuadrantCell(
                         text = info.title,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        color = info.color
+                        color = accent
                     )
                     Text(
                         text = info.subtitle,
@@ -297,8 +305,8 @@ private fun QuadrantCell(
                     )
                 }
                 Badge(
-                    containerColor = info.color.copy(alpha = 0.2f),
-                    contentColor = info.color
+                    containerColor = accent.copy(alpha = 0.2f),
+                    contentColor = accent
                 ) {
                     Text(tasks.size.toString(), fontSize = 10.sp)
                 }
@@ -313,7 +321,7 @@ private fun QuadrantCell(
                     CircularProgressIndicator(
                         modifier = Modifier.size(20.dp),
                         strokeWidth = 2.dp,
-                        color = info.color
+                        color = accent
                     )
                 }
             } else if (tasks.isEmpty()) {
@@ -337,7 +345,6 @@ private fun QuadrantCell(
                     items(tasks, key = { it.id }) { task ->
                         CompactTaskCard(
                             task = task,
-                            quadrantColor = info.color,
                             onClick = { onTaskClick(task.id) },
                             onComplete = { onCompleteTask(task.id) },
                             onMoveTask = { quadrant -> onMoveTask(task.id, quadrant) }
@@ -352,7 +359,6 @@ private fun QuadrantCell(
 @Composable
 private fun CompactTaskCard(
     task: TaskEntity,
-    quadrantColor: Color,
     onClick: () -> Unit,
     onComplete: () -> Unit,
     onMoveTask: (String) -> Unit
@@ -376,18 +382,11 @@ private fun CompactTaskCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Priority dot
-            val priorityColor = when (task.priority) {
-                4 -> Color(0xFFEF4444)
-                3 -> Color(0xFFF59E0B)
-                2 -> Color(0xFF3B82F6)
-                1 -> Color(0xFF22C55E)
-                else -> Color(0xFF9CA3AF)
-            }
             Box(
                 modifier = Modifier
                     .size(6.dp)
                     .clip(CircleShape)
-                    .background(priorityColor)
+                    .background(LocalPriorityColors.current.forLevel(task.priority))
             )
             Spacer(Modifier.width(6.dp))
 
@@ -402,9 +401,10 @@ private fun CompactTaskCard(
             // Due date indicator
             if (task.dueDate != null) {
                 val daysUntil = ((task.dueDate - System.currentTimeMillis()) / (1000 * 60 * 60 * 24)).toInt()
+                val prismColors = LocalPrismColors.current
                 val dateColor = when {
-                    daysUntil < 0 -> Color(0xFFEF4444)
-                    daysUntil == 0 -> Color(0xFFF59E0B)
+                    daysUntil < 0 -> prismColors.destructiveColor
+                    daysUntil == 0 -> prismColors.warningColor
                     else -> MaterialTheme.colorScheme.onSurfaceVariant
                 }
                 Text(
@@ -445,6 +445,7 @@ private fun CompactTaskCard(
         ) {
             QUADRANTS.forEach { q ->
                 if (q.key != task.eisenhowerQuadrant) {
+                    val qAccent = quadrantAccentColor(q.key)
                     DropdownMenuItem(
                         text = { Text("Move to ${q.key} (${q.title})") },
                         onClick = {
@@ -456,7 +457,7 @@ private fun CompactTaskCard(
                                 modifier = Modifier
                                     .size(10.dp)
                                     .clip(CircleShape)
-                                    .background(q.color)
+                                    .background(qAccent)
                             )
                         }
                     )
@@ -490,6 +491,7 @@ private fun ExpandedQuadrantView(
     onMoveTask: (Long, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val accent = quadrantAccentColor(info.key)
     Column(modifier = modifier.fillMaxSize()) {
         Row(
             modifier = Modifier
@@ -504,7 +506,7 @@ private fun ExpandedQuadrantView(
                 modifier = Modifier
                     .size(12.dp)
                     .clip(CircleShape)
-                    .background(info.color)
+                    .background(accent)
             )
             Spacer(Modifier.width(8.dp))
             Column {
@@ -512,7 +514,7 @@ private fun ExpandedQuadrantView(
                     "${info.key}: ${info.title}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = info.color
+                    color = accent
                 )
                 Text(
                     info.subtitle,
@@ -522,8 +524,8 @@ private fun ExpandedQuadrantView(
             }
             Spacer(Modifier.weight(1f))
             Badge(
-                containerColor = info.color.copy(alpha = 0.2f),
-                contentColor = info.color
+                containerColor = accent.copy(alpha = 0.2f),
+                contentColor = accent
             ) {
                 Text("${tasks.size} tasks")
             }
@@ -550,7 +552,6 @@ private fun ExpandedQuadrantView(
                 items(tasks, key = { it.id }) { task ->
                     CompactTaskCard(
                         task = task,
-                        quadrantColor = info.color,
                         onClick = { onTaskClick(task.id) },
                         onComplete = { onCompleteTask(task.id) },
                         onMoveTask = { quadrant -> onMoveTask(task.id, quadrant) }

@@ -75,7 +75,7 @@ import com.averycorp.prismtask.ui.screens.today.components.CompletedTaskItem
 import com.averycorp.prismtask.ui.screens.today.components.FloatingQuickAddBar
 import com.averycorp.prismtask.ui.screens.today.components.HabitChipRow
 import com.averycorp.prismtask.ui.screens.today.components.MorningCheckInBanner
-import com.averycorp.prismtask.ui.screens.today.components.NeutralGray
+import com.averycorp.prismtask.ui.screens.today.components.neutralGray
 import com.averycorp.prismtask.ui.screens.today.components.OverloadBanner
 import com.averycorp.prismtask.ui.screens.today.components.PlanForTodaySheet
 import com.averycorp.prismtask.ui.screens.today.components.SelfCareNudgeCard
@@ -426,7 +426,7 @@ fun TodayScreen(
                                 emoji = "\uD83D\uDCC2",
                                 title = "From Earlier",
                                 count = overdueTasks.size,
-                                accentColor = NeutralGray,
+                                accentColor = neutralGray(),
                                 expanded = expanded,
                                 onToggle = { viewModel.onToggleSectionCollapsed(SECTION_OVERDUE) }
                             ) {

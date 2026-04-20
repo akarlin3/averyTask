@@ -4,21 +4,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import com.averycorp.prismtask.data.local.entity.TaskEntity
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
 /**
- * Accent color for "Today" labels — shared between [GroupHeader] and
- * [formatDueDate]. Matches the orange used across the Today screen.
- */
-internal val TodayOrange = Color(0xFFE8872A)
-
-/**
  * A due-date label together with the color it should render in.
  * Overdue dates keep the normal on-surface-variant color; "Today"
- * picks up [TodayOrange] for the quick visual scan.
+ * picks up [warningColor] for the quick visual scan.
  */
 internal data class DueDateLabel(
     val text: String,
@@ -45,6 +40,7 @@ internal fun formatDueDate(epochMillis: Long): DueDateLabel {
     val startOfDayAfter = cal.timeInMillis
 
     val normal = MaterialTheme.colorScheme.onSurfaceVariant
+    val todayColor = LocalPrismColors.current.warningColor
     val dateFmt = SimpleDateFormat("EEE, MMM d", Locale.getDefault())
 
     return when {
@@ -52,7 +48,7 @@ internal fun formatDueDate(epochMillis: Long): DueDateLabel {
             val formatted = dateFmt.format(Date(epochMillis))
             DueDateLabel(formatted, normal)
         }
-        epochMillis < startOfTomorrow -> DueDateLabel("Today", TodayOrange)
+        epochMillis < startOfTomorrow -> DueDateLabel("Today", todayColor)
         epochMillis < startOfDayAfter -> DueDateLabel("Tomorrow", normal)
         else -> DueDateLabel(dateFmt.format(Date(epochMillis)), normal)
     }
