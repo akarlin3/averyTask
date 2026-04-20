@@ -72,10 +72,10 @@ android {
                 ?: "https://averytask-production.up.railway.app"
             buildConfigField("String", "API_BASE_URL", "\"$debugApiUrl\"")
             // Route Firebase clients at the local Firebase Emulator Suite.
-            // Debug builds default to emulator ON — flip to "false" here (and
-            // rebuild) to point a debug APK at production Firestore/Auth.
-            // See docs/FIREBASE_EMULATOR.md for the full workflow.
-            buildConfigField("boolean", "USE_FIREBASE_EMULATOR", "true")
+            // Debug builds default to emulator OFF — flip to "true" here (and
+            // rebuild) to point a debug APK at the local Firestore/Auth
+            // emulator. See docs/FIREBASE_EMULATOR.md for the full workflow.
+            buildConfigField("boolean", "USE_FIREBASE_EMULATOR", "false")
             // Speed up debug builds
             isDebuggable = true
             signingConfig = signingConfigs.getByName("debug")

@@ -1,8 +1,14 @@
 # Firebase Emulator Suite (Local Sync Testing)
 
-Debug builds of PrismTask default to talking to a local Firebase Emulator
-Suite instead of production Firestore/Auth. This lets you exercise two-device
-sync scenarios against a throwaway local instance — no Google account, no
+> **Status:** infrastructure in place, disabled by default. To enable, change
+> `USE_FIREBASE_EMULATOR` in `app/build.gradle.kts` debug variant to `true`
+> and rebuild. Google sign-in does not currently work against the emulator —
+> use the debug-only email/password button (also gated on the same flag) or
+> defer to production auth.
+
+Debug builds of PrismTask can be routed at a local Firebase Emulator Suite
+instead of production Firestore/Auth. This lets you exercise two-device sync
+scenarios against a throwaway local instance — no Google account, no
 production data touched.
 
 ## What's Emulated
