@@ -53,6 +53,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
+import com.averycorp.prismtask.ui.theme.LocalPrismFonts
 
 data class LeisureOption(
     val id: String,
@@ -449,7 +450,7 @@ internal fun SectionTimer(
             Text(
                 timeText,
                 style = MaterialTheme.typography.titleLarge.copy(
-                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                    fontFamily = LocalPrismFonts.current.mono,
                     fontWeight = FontWeight.Medium,
                     letterSpacing = 1.sp
                 ),
