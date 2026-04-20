@@ -1,5 +1,6 @@
 package com.averycorp.prismtask.data.export
 
+import com.averycorp.prismtask.BuildConfig
 import com.averycorp.prismtask.data.calendar.CalendarSyncPreferences
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
@@ -147,7 +148,7 @@ constructor(
                 timeZone = java.util.TimeZone.getTimeZone("UTC")
             }.format(Date())
         )
-        root.addProperty("appVersion", "0.7.1")
+        root.addProperty("appVersion", BuildConfig.VERSION_NAME)
         root.addProperty("deviceModel", android.os.Build.MODEL ?: "")
         root.addProperty("includeDerivedData", options.includeDerivedData)
 
