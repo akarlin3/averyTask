@@ -5,7 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased — v1.4.0 Wellness-Aware Productivity Layer
+## Unreleased
+
+_No unreleased changes._
+
+## v1.4.0 — Wellness-Aware Productivity Layer (April 2026)
 
 ### Fixed — Sync Reliability (Apr 18–19, PRs #536–557)
 - **Habit uncheck cross-device sync**: `processRemoteDeletions()` in `SyncService` was a
@@ -891,6 +895,7 @@ Skips the v1.2.0 tag and ships everything developed since v1.1.0 together.
 - Kotlin 2.2.10, Compose BOM 2024.12.01, Gradle 8.13
 - Min SDK 26 (Android 8.0), Target SDK 35 (Android 15)
 
+[1.4.0]: https://github.com/akarlin3/prismTask/releases/tag/v1.4.0
 [0.7.0]: https://github.com/akarlin3/prismTask/releases/tag/v0.7.0
 [0.6.0]: https://github.com/akarlin3/prismTask/releases/tag/v0.6.0
 [0.5.0]: https://github.com/akarlin3/prismTask/releases/tag/v0.5.0
