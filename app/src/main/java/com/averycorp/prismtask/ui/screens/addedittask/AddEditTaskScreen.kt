@@ -27,6 +27,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.averycorp.prismtask.ui.theme.LocalPrismShapes
+import com.averycorp.prismtask.ui.theme.ThemedSubScreenTitle
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -109,10 +110,7 @@ fun AddEditTaskScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = if (viewModel.isEditMode) "Edit Task" else "New Task",
-                        fontWeight = FontWeight.Bold
-                    )
+                    ThemedSubScreenTitle(if (viewModel.isEditMode) "Edit Task" else "New Task")
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
