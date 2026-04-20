@@ -43,7 +43,7 @@ fun LayoutScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { ThemedSubScreenTitle("Layout title = { Text("Layout & Navigation") } Navigation") },
+                title = { ThemedSubScreenTitle("Layout & Navigation") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
