@@ -183,6 +183,43 @@ fun PrismBracket(
     }
 }
 
+// ─── PrismHudDivider (Cyberpunk dashed separator) ─────────────────────────
+
+/**
+ * Themed horizontal divider. Cyberpunk renders a dashed 1dp line in
+ * [PrismThemeColors.primary] at 60% alpha, matching the JS `border: 1px dashed
+ * ${primary}60` spec. All other themes fall back to a standard
+ * [HorizontalDivider] using [MaterialTheme.colorScheme.outlineVariant].
+ */
+@Composable
+fun PrismHudDivider(modifier: Modifier = Modifier) {
+    val attrs = LocalPrismAttrs.current
+    if (!attrs.hudDividers) {
+        HorizontalDivider(
+            modifier = modifier,
+            color = MaterialTheme.colorScheme.outlineVariant
+        )
+        return
+    }
+    val lineColor = LocalPrismColors.current.primary.copy(alpha = 0.6f)
+    Canvas(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(1.dp)
+    ) {
+        drawLine(
+            color = lineColor,
+            start = Offset(0f, size.height / 2f),
+            end = Offset(size.width, size.height / 2f),
+            strokeWidth = 1.dp.toPx(),
+            pathEffect = PathEffect.dashPathEffect(
+                floatArrayOf(6.dp.toPx(), 4.dp.toPx()),
+                0f
+            )
+        )
+    }
+}
+
 // ─── Timer / progress ring helpers ────────────────────────────────────────
 
 /**

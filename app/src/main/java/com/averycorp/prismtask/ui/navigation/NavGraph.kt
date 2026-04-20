@@ -3,9 +3,7 @@ package com.averycorp.prismtask.ui.navigation
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -65,6 +63,7 @@ import com.averycorp.prismtask.ui.screens.today.TodayScreen
 import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import com.averycorp.prismtask.ui.theme.LocalPrismFonts
+import com.averycorp.prismtask.ui.theme.PrismHudDivider
 import com.averycorp.prismtask.ui.theme.prismGlow
 import kotlinx.coroutines.launch
 
@@ -401,14 +400,7 @@ fun PrismTaskNavGraph(
         bottomBar = {
             if (showBottomBar) {
                 Column {
-                    // Faint top border so the nav bar reads as a distinct band
-                    // against the screen background on all four themes.
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(1.dp)
-                            .background(prismColors.border)
-                    )
+                    PrismHudDivider()
                     NavigationBar(
                         containerColor = prismColors.background,
                         contentColor = prismColors.onBackground,
