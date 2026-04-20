@@ -2,10 +2,12 @@ package com.averycorp.prismtask.ui.screens.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.averycorp.prismtask.BuildConfig
 import com.averycorp.prismtask.data.remote.AuthManager
 import com.averycorp.prismtask.data.remote.SortPreferencesSyncService
 import com.averycorp.prismtask.data.remote.SyncService
 import com.averycorp.prismtask.data.remote.ThemePreferencesSyncService
+import com.averycorp.prismtask.testing.EmulatorAuthHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -73,6 +75,31 @@ constructor(
 
     fun onSignInError(message: String) {
         _authState.value = AuthState.Error(message)
+    }
+
+    /**
+     * Debug-only: sign in against the Firebase Auth emulator as the default
+     * test user so two-device sync can be exercised without a real Google
+     * account. The UI gates this behind the same compile-time flags, but the
+     * early return here guards against accidental calls from release code.
+     */
+    fun signInAsEmulatorTestUser() {
+        if (!BuildConfig.DEBUG || !BuildConfig.USE_FIREBASE_EMULATOR) return
+        viewModelScope.launch {
+            _authState.value = AuthState.Loading
+            try {
+                EmulatorAuthHelper.signInAsTestUser()
+                _authState.value = AuthState.SignedIn
+                syncService.launchInitialUpload()
+                syncService.startRealtimeListeners()
+                sortPreferencesSyncService.startAfterSignIn()
+                themePreferencesSyncService.startAfterSignIn()
+            } catch (e: Exception) {
+                _authState.value = AuthState.Error(
+                    "Emulator sign-in failed: ${e.message ?: e.javaClass.simpleName}"
+                )
+            }
+        }
     }
 
     fun onSignOut() {

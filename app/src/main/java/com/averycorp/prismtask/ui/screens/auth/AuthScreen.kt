@@ -16,6 +16,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -204,6 +205,16 @@ fun AuthScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Sign In with Google")
+            }
+
+            if (BuildConfig.DEBUG && BuildConfig.USE_FIREBASE_EMULATOR) {
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedButton(
+                    onClick = { viewModel.signInAsEmulatorTestUser() },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Sign in as test user (emulator)")
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
