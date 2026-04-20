@@ -30,6 +30,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -52,6 +53,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -62,6 +64,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -70,10 +73,18 @@ import androidx.compose.ui.unit.sp
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.averycorp.prismtask.BuildConfig
 import com.averycorp.prismtask.ui.screens.templates.TemplatePickerContent
 import com.averycorp.prismtask.ui.screens.templates.TemplateSelections
+import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
+import com.averycorp.prismtask.ui.theme.LocalPrismFonts
+import com.averycorp.prismtask.ui.theme.PrismTheme
+import com.averycorp.prismtask.ui.theme.ThemeViewModel
+import com.averycorp.prismtask.ui.theme.prismThemeAttrs
+import com.averycorp.prismtask.ui.theme.prismThemeColors
+import com.averycorp.prismtask.ui.theme.prismThemeFonts
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import kotlinx.coroutines.delay
@@ -1126,5 +1137,182 @@ private fun OnboardingPageLayout(
         }
         Spacer(modifier = Modifier.height(32.dp))
         illustration()
+    }
+}
+
+// ─── Theme Picker Page ────────────────────────────────────────────────────────
+
+// Hardcoded neutral palette — intentionally does NOT read from LocalPrismColors
+// so the picker chrome stays unbiased regardless of which theme is currently set.
+private val ThemePickerBg = Color(0xFF0B0B0F)
+private val ThemePickerCardBg = Color(0xFF16161F)
+private val ThemePickerText = Color(0xFFE8E8F0)
+private val ThemePickerSubtext = Color(0xFF8A8AA8)
+private val ThemePickerBorder = Color(0xFF2A2A3A)
+
+private data class OnboardingThemeEntry(
+    val theme: PrismTheme,
+    val displayName: String,
+    val tagline: String
+)
+
+private val OnboardingThemeEntries = listOf(
+    OnboardingThemeEntry(PrismTheme.CYBERPUNK, "Cyberpunk", "Neon and precise"),
+    OnboardingThemeEntry(PrismTheme.SYNTHWAVE, "Synthwave", "Retro and dreamy"),
+    OnboardingThemeEntry(PrismTheme.MATRIX, "Matrix", "Terminal and focused"),
+    OnboardingThemeEntry(PrismTheme.VOID, "Void", "Calm and minimal")
+)
+
+@Composable
+private fun ThemePickerPage() {
+    val viewModel: ThemeViewModel = hiltViewModel()
+    var selectedTheme by remember { mutableStateOf(viewModel.currentTheme.value) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(ThemePickerBg)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp)
+                .padding(top = 72.dp, bottom = 140.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Choose your vibe",
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontFamily = FontFamily.Default,
+                    fontWeight = FontWeight.Bold,
+                    color = ThemePickerText
+                )
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "You can always change this in Settings",
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontFamily = FontFamily.Default,
+                    color = ThemePickerSubtext
+                ),
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(28.dp))
+            OnboardingThemeEntries.forEach { entry ->
+                OnboardingThemeCard(
+                    entry = entry,
+                    isSelected = selectedTheme == entry.theme,
+                    onSelect = {
+                        selectedTheme = entry.theme
+                        viewModel.setTheme(entry.theme)
+                    }
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun OnboardingThemeCard(
+    entry: OnboardingThemeEntry,
+    isSelected: Boolean,
+    onSelect: () -> Unit
+) {
+    val themeColors = remember(entry.theme) { prismThemeColors(entry.theme) }
+    val themeAttrs = remember(entry.theme) { prismThemeAttrs(entry.theme) }
+    val themeFonts = remember(entry.theme) { prismThemeFonts(entry.theme) }
+    val borderColor = if (isSelected) themeColors.primary else ThemePickerBorder
+    val borderWidth = if (isSelected) 2.dp else 1.dp
+
+    Card(
+        onClick = onSelect,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = ThemePickerCardBg),
+        border = BorderStroke(borderWidth, borderColor)
+    ) {
+        CompositionLocalProvider(
+            LocalPrismColors provides themeColors,
+            LocalPrismAttrs provides themeAttrs,
+            LocalPrismFonts provides themeFonts
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = entry.displayName,
+                            fontFamily = LocalPrismFonts.current.display,
+                            fontWeight = FontWeight.Bold,
+                            color = LocalPrismColors.current.primary,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = entry.tagline,
+                            fontFamily = LocalPrismFonts.current.body,
+                            color = LocalPrismColors.current.muted,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    if (isSelected) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "${entry.displayName} selected",
+                            tint = LocalPrismColors.current.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+                OnboardingMockTaskCard()
+            }
+        }
+    }
+}
+
+// Mini task card rendered entirely in the surrounding theme's tokens via
+// CompositionLocalProvider — gives each OnboardingThemeCard an authentic
+// live preview without a DataStore round-trip.
+@Composable
+private fun OnboardingMockTaskCard() {
+    val colors = LocalPrismColors.current
+    val fonts = LocalPrismFonts.current
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(colors.surface)
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .clip(CircleShape)
+                    .background(colors.primary)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Review weekly goals",
+                    fontFamily = fonts.body,
+                    fontWeight = FontWeight.Medium,
+                    color = colors.onSurface,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Today",
+                    fontFamily = fonts.body,
+                    color = colors.muted,
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+        }
     }
 }
