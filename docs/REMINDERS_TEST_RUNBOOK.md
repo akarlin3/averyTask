@@ -1,6 +1,6 @@
 # Reminders Test Runbook (v1.4.0 Pass 1)
 
-Ten on-device scenarios covering the reminders feature end-to-end.
+Eleven on-device scenarios covering the reminders feature end-to-end.
 Target devices: **Samsung Galaxy S25 Ultra** and **one Pixel** (Pixel 7
 or later). Run every scenario on both unless the "Device" column
 specifies one.
@@ -20,7 +20,6 @@ flow replays from a clean state.
 - ☑ = pass
 - ☒ = fail (add a note below the box with `adb logcat` snippet or a
   short description)
-- **SoD** = Start of Day
 - **BO** = Battery Optimization
 
 ---
@@ -285,17 +284,24 @@ AI-gated workers (debug tier override in Settings).
 
 **Preconditions:** permissions granted.
 
+> **Note on interval choice:** 1 minute is used here for practical test
+> runtime. The scheduler logic is interval-length-agnostic, so passing
+> this scenario at 1-minute intervals confirms the same behavior at any
+> realistic medication interval (1 hour, 4 hours, etc). If timing bugs
+> surface only at longer intervals, they would indicate a separate bug
+> in interval-arithmetic, which is covered by unit tests.
+
 **Steps:**
 1. Create habit "S9-med" with:
    - Repeat reminder after logging = ON
-   - Interval = 1 hour
+   - Interval = 1 minute
    - Times per day = 2
 2. Save.
 3. Tap **Log** action on the first notification (or log via the habit card).
 
 **Expected:**
-- First reminder fires ~1 hour after save (subject to Android doze).
-- Logging the habit triggers the next reminder ~1 hour later (dose 2 of 2).
+- First reminder fires ~1 minute after save (subject to Android doze).
+- Logging the habit triggers the next reminder ~1 minute later (dose 2 of 2).
 - After dose 2, no further reminders until tomorrow.
 - Notification subtitle shows "Dose 1 of 2" / "Dose 2 of 2".
 
@@ -347,6 +353,61 @@ AI-gated workers (debug tier override in Settings).
 - ☐ Pixel: disable cancels the alarm
 - ☐ Pixel: re-enable re-registers the alarm
 - ☐ Pixel: alarm survives reboot
+
+---
+
+## Scenario 11 — Overnight Doze survival test
+
+**Device(s):** S25 Ultra + Pixel
+
+**Preconditions:**
+- POST_NOTIFICATIONS granted.
+- Battery-optimization exemption granted on both devices.
+- Device clock accurate (±1 min of wall clock).
+- Both devices off the charger (plugging in disables Doze).
+- Devices kept in a stationary location (motion keeps device out of Doze).
+- No app activity for the full duration — lock both devices and set aside.
+
+**Steps:**
+1. At approximately bedtime (or whenever you can reliably set the
+   device aside for 8+ hours), open Add Task on each device.
+2. Create task "S11-overnight-S25" on S25 Ultra and "S11-overnight-Pixel"
+   on Pixel.
+3. Set reminder for 8 hours from now (wall-clock math — pick a specific
+   morning time).
+4. Save. Lock both devices. Leave them stationary, off charger.
+
+**Expected:**
+- Reminder fires within **±5 minutes** of the target time on each device.
+- Reminder should NOT fire more than 5 minutes early (early firing would
+  indicate Doze isn't engaging).
+- Reminder should NOT be delayed more than 15 minutes (any delay beyond
+  this suggests Samsung is deprioritizing the alarm despite exemption).
+
+**If a device fails:**
+- Capture `adb logcat -d | grep -i 'alarm\|doze\|standby\|prismtask'`
+  from the failing device as soon as you notice.
+- Note the actual fire time vs target.
+- Check `adb shell dumpsys deviceidle` for the device's Doze state at
+  fire time (light/deep/idle).
+- If Samsung-specific: check Settings → Battery → Unrestricted to
+  confirm exemption still applied (Samsung occasionally re-optimizes
+  apps silently).
+
+**Why this matters:** this is the single most important Pass 1 test for
+real-world reliability. If reminders don't fire overnight, users will
+notice immediately. All other scenarios pass on a device that's been
+active — this is the only one that tests the adversarial case.
+
+**Checklist:**
+- ☐ S25 Ultra: reminder fired within ±5 minutes of target
+- ☐ S25 Ultra: Doze state during fire captured if late
+- ☐ Pixel: reminder fired within ±5 minutes of target
+- ☐ Pixel: Doze state during fire captured if late
+
+**Scheduling note:** this is the only scenario that cannot be batched
+into a same-day test session. Run it as the last thing before bed on
+the test day; check results first thing in the morning.
 
 ---
 
