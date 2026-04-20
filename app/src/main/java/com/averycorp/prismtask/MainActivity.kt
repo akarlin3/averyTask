@@ -51,6 +51,7 @@ import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 import com.averycorp.prismtask.data.remote.AuthManager
 import com.averycorp.prismtask.data.remote.SortPreferencesSyncService
 import com.averycorp.prismtask.data.remote.SyncService
+import com.averycorp.prismtask.data.remote.ThemePreferencesSyncService
 import com.averycorp.prismtask.data.remote.UpdateChecker
 import com.averycorp.prismtask.data.remote.VersionInfo
 import com.averycorp.prismtask.data.remote.sync.BackendSyncService
@@ -84,6 +85,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var sortPreferencesSyncService: SortPreferencesSyncService
+
+    @Inject
+    lateinit var themePreferencesSyncService: ThemePreferencesSyncService
 
     @Inject
     lateinit var onboardingPreferences: OnboardingPreferences
@@ -153,6 +157,11 @@ class MainActivity : ComponentActivity() {
             sortPreferencesSyncService.startPushObserver()
         } catch (e: Exception) {
             Log.e("MainActivity", "Sort prefs push observer failed to start", e)
+        }
+        try {
+            themePreferencesSyncService.startPushObserver()
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Theme prefs push observer failed to start", e)
         }
         try {
             billingManager.initialize(this)

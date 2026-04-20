@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.data.remote.AuthManager
 import com.averycorp.prismtask.data.remote.SortPreferencesSyncService
 import com.averycorp.prismtask.data.remote.SyncService
+import com.averycorp.prismtask.data.remote.ThemePreferencesSyncService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -31,7 +32,8 @@ class AuthViewModel
 constructor(
     private val authManager: AuthManager,
     private val syncService: SyncService,
-    private val sortPreferencesSyncService: SortPreferencesSyncService
+    private val sortPreferencesSyncService: SortPreferencesSyncService,
+    private val themePreferencesSyncService: ThemePreferencesSyncService
 ) : ViewModel() {
     private val _authState = MutableStateFlow<AuthState>(
         if (authManager.isSignedIn.value) AuthState.SignedIn else AuthState.SignedOut
@@ -57,6 +59,7 @@ constructor(
                 syncService.launchInitialUpload()
                 syncService.startRealtimeListeners()
                 sortPreferencesSyncService.startAfterSignIn()
+                themePreferencesSyncService.startAfterSignIn()
             } else {
                 // Firebase rejected the token (commonly a stale/revoked
                 // credential from Credential Manager auto-select). Clear the
@@ -76,6 +79,7 @@ constructor(
         viewModelScope.launch {
             syncService.stopRealtimeListeners()
             sortPreferencesSyncService.stopAfterSignOut()
+            themePreferencesSyncService.stopAfterSignOut()
             authManager.signOut()
             _authState.value = AuthState.SignedOut
         }
