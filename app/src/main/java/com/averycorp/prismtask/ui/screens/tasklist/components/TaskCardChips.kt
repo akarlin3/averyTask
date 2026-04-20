@@ -25,6 +25,7 @@ import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.ui.theme.ChipShape
 import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
 import com.averycorp.prismtask.ui.theme.LocalPriorityColors
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 
 /*
  * Small decorative chips and badges used inside TaskItem. Kept in
@@ -57,11 +58,12 @@ internal fun PriorityDot(priority: Int) {
  */
 @Composable
 internal fun EisenhowerBadge(quadrant: String) {
+    val c = LocalPrismColors.current
     val (color, label) = when (quadrant) {
-        "Q1" -> Color(0xFFEF4444) to "1"
-        "Q2" -> Color(0xFF3B82F6) to "2"
-        "Q3" -> Color(0xFFF59E0B) to "3"
-        "Q4" -> Color(0xFF6B7280) to "4"
+        "Q1" -> c.destructiveColor to "1"
+        "Q2" -> c.primary to "2"
+        "Q3" -> c.warningColor to "3"
+        "Q4" -> c.muted to "4"
         else -> return
     }
     Box(

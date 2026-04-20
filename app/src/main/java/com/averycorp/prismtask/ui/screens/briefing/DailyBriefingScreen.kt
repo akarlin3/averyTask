@@ -56,19 +56,8 @@ import com.averycorp.prismtask.ui.components.ProFeature
 import com.averycorp.prismtask.ui.components.ProUpgradePrompt
 import com.averycorp.prismtask.ui.components.shimmer
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 
-private val DAY_TYPE_LIGHT = Color(0xFF4CAF50)
-private val DAY_TYPE_MODERATE = Color(0xFFFFC107)
-private val DAY_TYPE_HEAVY = Color(0xFFEF4444)
-
-private val PRIORITY_BORDER_COLORS = listOf(
-    // #1 - Indigo
-    Color(0xFF6366F1),
-    // #2 - Blue
-    Color(0xFF3B82F6),
-    // #3 - Emerald
-    Color(0xFF10B981)
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -281,10 +270,11 @@ private fun SectionHeader(title: String) {
 
 @Composable
 private fun DayTypeChip(dayType: String) {
+    val c = LocalPrismColors.current
     val (label, color) = when (dayType.lowercase()) {
-        "light" -> "Light Day" to DAY_TYPE_LIGHT
-        "heavy" -> "Heavy Day" to DAY_TYPE_HEAVY
-        else -> "Moderate Day" to DAY_TYPE_MODERATE
+        "light" -> "Light Day" to c.successColor
+        "heavy" -> "Heavy Day" to c.destructiveColor
+        else -> "Moderate Day" to c.warningColor
     }
     Box(
         modifier = Modifier
@@ -307,7 +297,8 @@ private fun PriorityCard(
     priority: BriefingPriority,
     onClick: () -> Unit
 ) {
-    val borderColor = PRIORITY_BORDER_COLORS.getOrElse(index - 1) { PRIORITY_BORDER_COLORS.last() }
+    val palette = LocalPrismColors.current.dataVisualizationPalette
+    val borderColor = palette.getOrElse(index - 1) { palette.last() }
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -366,7 +357,7 @@ private fun HeadsUpRow(warning: String) {
             Icons.Default.Warning,
             contentDescription = null,
             modifier = Modifier.size(18.dp),
-            tint = DAY_TYPE_MODERATE
+            tint = LocalPrismColors.current.warningColor
         )
         Spacer(Modifier.width(8.dp))
         Text(

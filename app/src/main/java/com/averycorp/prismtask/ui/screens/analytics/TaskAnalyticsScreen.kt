@@ -59,6 +59,7 @@ import androidx.navigation.NavController
 import com.averycorp.prismtask.ui.components.ContributionGrid
 import com.averycorp.prismtask.ui.components.EmptyState
 import com.averycorp.prismtask.ui.components.StreakBadge
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import java.time.DayOfWeek
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -339,10 +340,11 @@ private fun StreakStatCard(label: String, streak: Int) {
 @Composable
 private fun OnTimeRateCard(overdueRate: Double?) {
     val onTimeRate = if (overdueRate != null) (100.0 - overdueRate) else 100.0
+    val c = LocalPrismColors.current
     val color = when {
-        onTimeRate >= 80.0 -> Color(0xFF4CAF50)
-        onTimeRate >= 60.0 -> Color(0xFFFF9800)
-        else -> Color(0xFFF44336)
+        onTimeRate >= 80.0 -> c.successColor
+        onTimeRate >= 60.0 -> c.warningColor
+        else -> c.destructiveColor
     }
     Card(
         modifier = Modifier.width(120.dp),
@@ -425,9 +427,10 @@ private fun DayOfWeekBarChart(
             days.forEachIndexed { i, day ->
                 val count = completions[day] ?: 0
                 val heightFraction = (count.toFloat() / maxVal).coerceIn(0.05f, 1f)
+                val prismColors = LocalPrismColors.current
                 val barColor = when (day) {
-                    bestDay -> Color(0xFF4CAF50)
-                    worstDay -> Color(0xFFFF9800)
+                    bestDay -> prismColors.successColor
+                    worstDay -> prismColors.warningColor
                     else -> color
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -471,7 +474,7 @@ private fun TimeOfDayChart(
                     val count = completionsByHour[hour] ?: 0
                     val heightFraction = count.toFloat() / maxVal
                     val barHeight = heightFraction * size.height
-                    val barColor = if (hour == peakHour) Color(0xFF4CAF50) else color
+                    val barColor = if (hour == peakHour) LocalPrismColors.current.successColor else color
                     drawRect(
                         color = barColor,
                         topLeft = Offset(hour * barWidth, size.height - barHeight),

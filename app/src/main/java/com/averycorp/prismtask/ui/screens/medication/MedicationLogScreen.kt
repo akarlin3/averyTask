@@ -44,6 +44,7 @@ import com.averycorp.prismtask.data.local.entity.SelfCareLogEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
 import com.averycorp.prismtask.data.repository.MedStepLog
 import com.averycorp.prismtask.domain.model.SelfCareRoutines
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -167,7 +168,7 @@ private fun LogDayCard(
                     modifier = Modifier
                         .size(24.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF10B981)),
+                        .background(LocalPrismColors.current.successColor),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -257,20 +258,21 @@ private fun StepRow(label: String, entry: MedStepLog?) {
             .padding(vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        val successColor = LocalPrismColors.current.successColor
         Box(
             modifier = Modifier
                 .size(14.dp)
                 .clip(CircleShape)
                 .background(
                     if (logged) {
-                        Color(0xFF10B981)
+                        successColor
                     } else {
                         MaterialTheme.colorScheme.surfaceContainerHigh
                     }
                 ).border(
                     1.dp,
                     if (logged) {
-                        Color(0xFF10B981)
+                        successColor
                     } else {
                         MaterialTheme.colorScheme.outlineVariant
                     },

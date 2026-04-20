@@ -36,7 +36,7 @@ internal fun AllCaughtUpCard(
             .padding(vertical = 8.dp),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = CompletedGreen.copy(alpha = 0.15f)
+            containerColor = completedGreen().copy(alpha = 0.15f)
         )
     ) {
         Column(

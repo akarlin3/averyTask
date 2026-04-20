@@ -68,6 +68,7 @@ import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
 import com.averycorp.prismtask.data.preferences.MedicationScheduleMode
 import com.averycorp.prismtask.domain.model.SelfCareRoutines
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import com.averycorp.prismtask.ui.screens.medication.components.EditableMedItem
 import com.averycorp.prismtask.ui.screens.medication.components.MedDialog
 import com.averycorp.prismtask.ui.screens.medication.components.MedItem
@@ -318,8 +319,9 @@ fun MedicationScreen(
                     // Neutral color until the user has actually checked at least
                     // one time-of-day; no default tier color is applied.
                     val neutralColor = MaterialTheme.colorScheme.primary
+                    val successColor = LocalPrismColors.current.successColor
                     val progressColor by animateColorAsState(
-                        targetValue = if (allDone) Color(0xFF10B981) else neutralColor,
+                        targetValue = if (allDone) successColor else neutralColor,
                         animationSpec = tween(300),
                         label = "progressColor"
                     )
@@ -368,7 +370,7 @@ fun MedicationScreen(
                                 text = "All Times Checked \u2014 Nice Work.",
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF10B981),
+                                color = successColor,
                                 modifier = Modifier.fillMaxWidth(),
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )

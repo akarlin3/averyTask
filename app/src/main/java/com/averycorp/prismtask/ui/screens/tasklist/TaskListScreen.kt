@@ -107,7 +107,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private val TodayOrange = Color(0xFFE8872A)
 
 /**
  * Segmented toggle sides for the Tasks tab. Persisted via [rememberSaveable]
