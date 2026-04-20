@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed — Start-of-Day Prompt on Skip Onboarding
+- Start-of-day prompt no longer appears after an existing user is auto-skipped
+  through onboarding (fixed cross-DataStore observer race). The three
+  preference writes in `OnboardingViewModel.checkExistingUserAndMaybeSkip` now
+  persist `hasSetStartOfDay` and `tierOnboardingShown` **before**
+  `setOnboardingCompleted` — the last of the three is the write whose
+  DataStore emission re-keys the SoD and tier gates in `MainActivity` /
+  `NavGraph`, so any flag a gate reads must land first.
+- Added a one-shot migration backfill in `MainActivity` that heals installs
+  already in the transitional `completed=true / sodSet=false` state. Runs
+  ahead of the SoD prompt gate on every cold start; idempotent. Covers both
+  pre-fix installs and any future variant of the race the reorder doesn't
+  fully close. Removal tracked for v2.1+.
+
 ### Changed — Default Templates & Routine Steps
 - Expanded starter content for the five built-in habit-template categories:
   **School** and **Leisure** now land as parent-with-subtasks templates
