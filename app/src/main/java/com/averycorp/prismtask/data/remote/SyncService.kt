@@ -522,6 +522,7 @@ constructor(
         else -> entityType + "s"
     }
 
+    @Suppress("ReturnCount") // TODO: refactor pushCreate to reduce early return statements
     private suspend fun pushCreate(meta: SyncMetadataEntity) {
         val collection = userCollection(collectionNameFor(meta.entityType)) ?: return
         val docRef = collection.document()
