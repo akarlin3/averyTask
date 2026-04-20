@@ -83,7 +83,9 @@ import com.averycorp.prismtask.ui.screens.today.components.SwipeableTaskItem
 import com.averycorp.prismtask.ui.screens.today.components.TodayBalanceSection
 import com.averycorp.prismtask.ui.screens.today.dailyessentials.DailyEssentialsActions
 import com.averycorp.prismtask.ui.screens.today.dailyessentials.DailyEssentialsSection
+import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
+import com.averycorp.prismtask.ui.theme.prismGlow
 
 private const val SECTION_OVERDUE = "overdue"
 private const val SECTION_TODAY_TASKS = "today_tasks"
@@ -187,6 +189,7 @@ fun TodayScreen(
     }
 
     val prismColors = LocalPrismColors.current
+    val attrs = LocalPrismAttrs.current
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = viewModel.snackbarHostState) },
         containerColor = prismColors.background,
@@ -231,6 +234,7 @@ fun TodayScreen(
                         editorSheetTaskId = null
                         showEditorSheet = true
                     },
+                    modifier = Modifier.prismGlow(MaterialTheme.colorScheme.primary, attrs.glow),
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 ) {

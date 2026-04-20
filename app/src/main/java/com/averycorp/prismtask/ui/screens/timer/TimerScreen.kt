@@ -75,6 +75,7 @@ import com.averycorp.prismtask.ui.theme.LocalPrismTheme
 import com.averycorp.prismtask.ui.theme.PrismTheme
 import com.averycorp.prismtask.ui.theme.PrismThemeAttrs
 import com.averycorp.prismtask.ui.theme.drawCyberpunkTimerTicks
+import com.averycorp.prismtask.ui.theme.prismGlow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -428,7 +429,8 @@ private fun ThemedStartButton(
         onClick = onClick,
         modifier = Modifier
             .height(64.dp)
-            .width(160.dp),
+            .width(160.dp)
+            .prismGlow(activeColor, attrs.glow),
         shape = buttonShape,
         colors = ButtonDefaults.buttonColors(
             containerColor = containerColor,

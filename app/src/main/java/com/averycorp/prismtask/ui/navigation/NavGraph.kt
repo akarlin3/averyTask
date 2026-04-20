@@ -62,8 +62,10 @@ import com.averycorp.prismtask.ui.screens.settings.SettingsScreen
 import com.averycorp.prismtask.ui.screens.tasklist.TaskListScreen
 import com.averycorp.prismtask.ui.screens.timer.TimerScreen
 import com.averycorp.prismtask.ui.screens.today.TodayScreen
+import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import com.averycorp.prismtask.ui.theme.LocalPrismFonts
+import com.averycorp.prismtask.ui.theme.prismGlow
 import kotlinx.coroutines.launch
 
 sealed class PrismTaskRoute(
@@ -391,6 +393,7 @@ fun PrismTaskNavGraph(
 
     val prismColors = LocalPrismColors.current
     val prismFonts = LocalPrismFonts.current.body
+    val attrs = LocalPrismAttrs.current
 
     Scaffold(
         modifier = shortcutModifier,
@@ -432,7 +435,9 @@ fun PrismTaskNavGraph(
                                     Icon(
                                         imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
                                         contentDescription = item.label,
-                                        modifier = Modifier.scale(iconScale)
+                                        modifier = Modifier
+                                            .scale(iconScale)
+                                            .then(if (selected) Modifier.prismGlow(prismColors.primary, attrs.glow) else Modifier)
                                     )
                                 },
                                 label = {

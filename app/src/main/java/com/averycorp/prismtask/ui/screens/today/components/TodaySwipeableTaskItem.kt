@@ -53,9 +53,11 @@ import androidx.compose.ui.unit.dp
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.ui.components.CircularCheckbox
+import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
-import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import com.averycorp.prismtask.ui.theme.LocalPrismFonts
+import com.averycorp.prismtask.ui.theme.LocalPrismShapes
+import com.averycorp.prismtask.ui.theme.prismGlow
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -84,6 +86,7 @@ internal fun SwipeableTaskItem(
     var showOverflowMenu by remember { mutableStateOf(false) }
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val colors = LocalPrismColors.current
+    val attrs = LocalPrismAttrs.current
     val fonts = LocalPrismFonts.current.body
     val tomorrowBlue = colors.secondary
     val dismissState = rememberSwipeToDismissBoxState(
@@ -142,6 +145,7 @@ internal fun SwipeableTaskItem(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .then(if (backgroundColor != Color.Transparent) Modifier.prismGlow(backgroundColor, attrs.glow) else Modifier)
                     .clip(RoundedCornerShape(12.dp))
                     .background(backgroundColor)
                     .padding(horizontal = 20.dp),
