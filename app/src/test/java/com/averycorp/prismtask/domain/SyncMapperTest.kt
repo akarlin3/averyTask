@@ -46,7 +46,9 @@ class SyncMapperTest {
         assertEquals("a", tags[0])
     }
 
-    @Ignore("CI-RE-ENABLE: round-trip returns null instead of 42L — SyncMapper.mapToTask is not reading sourceHabitId back from the Firestore map. Real bug in the mapper; fix separately so sync cleanly preserves habit-sourced tasks. Tracked with re-enable-android-ci.")
+    @Ignore(
+        "CI-RE-ENABLE: round-trip returns null instead of 42L — SyncMapper.mapToTask is not reading sourceHabitId back from the Firestore map. Real bug in the mapper; fix separately so sync cleanly preserves habit-sourced tasks. Tracked with re-enable-android-ci."
+    )
     @Test
     fun task_sourceHabitId_roundTrip() {
         val task = TaskEntity(

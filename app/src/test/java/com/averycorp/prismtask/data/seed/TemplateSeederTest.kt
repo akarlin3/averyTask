@@ -18,7 +18,9 @@ import org.junit.Test
  * database or DataStore-backed [com.averycorp.prismtask.data.preferences.TemplatePreferences].
  */
 class TemplateSeederTest {
-    @Ignore("CI-RE-ENABLE: expected 6 built-in templates but TemplateSeeder now inserts 5. One of the template blueprints was dropped between 2026-04-18 (CI disabled) and now. Reconcile the expected set with the current seeder contents. Tracked with re-enable-android-ci.")
+    @Ignore(
+        "CI-RE-ENABLE: expected 6 built-in templates but TemplateSeeder now inserts 5. One of the template blueprints was dropped between 2026-04-18 (CI disabled) and now. Reconcile the expected set with the current seeder contents. Tracked with re-enable-android-ci."
+    )
     @Test
     fun seedIfNeeded_insertsAllBuiltInTemplatesOnFirstRun() = runBlocking {
         val dao = FakeTemplateDao()

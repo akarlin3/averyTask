@@ -313,7 +313,9 @@ class NaturalLanguageParserTest {
     // Proper fix: inject a clock into NaturalLanguageParser and pin it in
     // tests. Tracked with re-enable-android-ci.
 
-    @Ignore("CI-RE-ENABLE: time-of-day tests assume parser returns today at HH:mm; parser now rolls past times to tomorrow. Needs an injectable clock.")
+    @Ignore(
+        "CI-RE-ENABLE: time-of-day tests assume parser returns today at HH:mm; parser now rolls past times to tomorrow. Needs an injectable clock."
+    )
     @Test
     fun test_atTime() {
         val result = parser.parse("Call at 3pm")
