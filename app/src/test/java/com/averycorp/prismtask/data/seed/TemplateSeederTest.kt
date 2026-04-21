@@ -227,5 +227,16 @@ class TemplateSeederTest {
         override suspend fun deleteAll() {
             templates.clear()
         }
+
+        override suspend fun deleteAllBuiltIn() {
+            templates.removeAll { it.isBuiltIn }
+        }
+
+        override suspend fun getBuiltInTemplatesOnce(): List<TaskTemplateEntity> =
+            templates.filter { it.isBuiltIn }
+
+        override suspend fun deleteById(id: Long) {
+            templates.removeAll { it.id == id }
+        }
     }
 }

@@ -317,6 +317,10 @@ class ProjectRepositoryTest {
             projects.removeAll { it.id == project.id }
         }
 
+        override suspend fun deleteById(id: Long) {
+            projects.removeAll { it.id == id }
+        }
+
         override fun getAllProjects(): Flow<List<ProjectEntity>> = flowOf(projects.toList())
 
         override fun getProjectById(id: Long): Flow<ProjectEntity?> =

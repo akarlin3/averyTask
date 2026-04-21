@@ -35,8 +35,12 @@ import com.averycorp.prismtask.data.remote.api.TimeBlockResponse
 import com.averycorp.prismtask.data.remote.api.TokenResponse
 import com.averycorp.prismtask.data.remote.api.UserInfoResponse
 import com.averycorp.prismtask.data.remote.api.VersionResponse
+import com.averycorp.prismtask.data.remote.api.AdminBugReportResponse
+import com.averycorp.prismtask.data.remote.api.BugReportStatusUpdateRequest
 import com.averycorp.prismtask.data.remote.api.WeeklyPlanRequest
 import com.averycorp.prismtask.data.remote.api.WeeklyPlanResponse
+import com.averycorp.prismtask.data.remote.api.WeeklyReviewRequest
+import com.averycorp.prismtask.data.remote.api.WeeklyReviewResponse
 import com.averycorp.prismtask.data.remote.sync.SyncPullResponse
 import com.averycorp.prismtask.data.remote.sync.SyncPushRequest
 import com.averycorp.prismtask.data.remote.sync.SyncPushResponse
@@ -133,6 +137,23 @@ class NaturalLanguageParserTest {
             error("not used in offline parser tests")
 
         override suspend fun confirmSyllabus(request: SyllabusConfirmRequest): SyllabusConfirmResponse =
+            error("not used in offline parser tests")
+
+        override suspend fun getWeeklyReview(request: WeeklyReviewRequest): WeeklyReviewResponse =
+            error("not used in offline parser tests")
+
+        override suspend fun listBugReports(
+            statusFilter: String?,
+            severity: String?,
+            page: Int,
+            limit: Int
+        ): List<AdminBugReportResponse> =
+            error("not used in offline parser tests")
+
+        override suspend fun updateBugReportStatus(
+            reportId: String,
+            body: BugReportStatusUpdateRequest
+        ): AdminBugReportResponse =
             error("not used in offline parser tests")
     }
 
