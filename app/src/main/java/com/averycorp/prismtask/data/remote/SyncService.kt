@@ -140,6 +140,7 @@ constructor(
         }
     }
 
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     private suspend fun doInitialUpload() {
         val projects = projectDao.getAllProjectsOnce()
         logger.debug("upload.projects", status = "begin", detail = "count=${projects.size}")
@@ -784,6 +785,7 @@ constructor(
      *   projects → tags → habits → tasks → task_completions →
      *   habit_completions → habit_logs → milestones → task_templates
      */
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     suspend fun pullRemoteChanges(): Int {
         var applied = 0
         var skipped = 0

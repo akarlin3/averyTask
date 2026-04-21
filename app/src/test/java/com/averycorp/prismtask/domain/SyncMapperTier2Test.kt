@@ -238,8 +238,7 @@ class SyncMapperTier2Test {
         assertEquals("outputMapper must use entity.updatedAt, not current time", knownTimestamp, map["updatedAt"])
         assertTrue(
             "entity.updatedAt must not be overwritten with system clock",
-            map["updatedAt"] as Long<System.currentTimeMillis
-            ()
+            (map["updatedAt"] as Long) < System.currentTimeMillis()
         )
     }
 }
