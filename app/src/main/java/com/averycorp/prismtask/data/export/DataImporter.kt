@@ -1,6 +1,5 @@
 package com.averycorp.prismtask.data.export
 
-import androidx.room.withTransaction
 import com.averycorp.prismtask.data.calendar.CalendarSyncPreferences
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
@@ -150,7 +149,7 @@ constructor(
     private val leisureDao: LeisureDao,
     private val selfCareDao: SelfCareDao,
     private val schoolworkDao: SchoolworkDao,
-    private val database: com.averycorp.prismtask.data.local.database.PrismTaskDatabase,
+    private val transactionRunner: com.averycorp.prismtask.data.local.database.DatabaseTransactionRunner,
     private val themePreferences: ThemePreferences,
     private val archivePreferences: ArchivePreferences,
     private val dashboardPreferences: DashboardPreferences,
@@ -247,7 +246,7 @@ constructor(
             // tasks missing their tag/subtask links. Config (DataStore) writes
             // happen outside the transaction because DataStore has its own
             // atomicity model.
-            database.withTransaction {
+            transactionRunner.withTransaction {
                 if (mode == ImportMode.REPLACE) {
                     val scope = options.replaceScope
                     if (ReplaceSection.TASKS_PROJECTS in scope) {
