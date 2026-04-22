@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Medications — Top-level entity (PR 4.5 — Dual-write shim + scheduler disarm)
+- **Dual-write shim.** `SelfCareRepository`'s medication-specific write
+  paths (`addStep`, `updateStep`, `deleteStep`, `toggleStep`) now mirror
+  to `medications` / `medication_doses` so the new top-level entity
+  stays in sync with ongoing user edits during the v54 convergence
+  window. Matching rule follows the migration:
+  `COALESCE(NULLIF(TRIM(medication_name), ''), label)`. The old
+  UI stays unchanged (Compose tree keeps reading `SelfCareStepEntity` /
+  `SelfCareLogEntity`); the full Compose-type rewire is deferred to the
+  follow-up that also drops the `self_care_*` reads.
+- **Legacy scheduler disarm** — after
+  `MedicationMigrationRunner.preserveScheduleIfNeeded` writes the
+  schedule onto every `MedicationEntity`, it now cancels stale
+  `+300_000`-range specific-time `PendingIntent`s, clears
+  `MedicationPreferences.specificTimes`, and nulls the built-in
+  Medication habit's `reminderIntervalMillis` / `reminderTime` (also
+  cancels its `+200_000` / `+900_000` alarms). Without this, a user
+  who had `MedicationPreferences.specificTimes = [08:00, 14:00]`
+  pre-upgrade would get BOTH legacy AND new alarms at 8:00 + 14:00
+  post-v54 boot.
+
 ### Medications — Top-level entity (PR 5 / 5 — Unit tests)
 - `BuiltInMedicationReconcilerTest` — covers the post-sync dedup-by-name
   pass: no-duplicate case, duplicate-collapse with dose-count winner
