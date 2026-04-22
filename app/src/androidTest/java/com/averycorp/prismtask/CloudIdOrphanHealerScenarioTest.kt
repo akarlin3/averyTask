@@ -71,6 +71,7 @@ class CloudIdOrphanHealerScenarioTest {
             habitLogDao = database.habitLogDao(),
             taskCompletionDao = database.taskCompletionDao(),
             taskTemplateDao = database.taskTemplateDao(),
+            milestoneDao = database.milestoneDao(),
             logger = logger
         )
     }
