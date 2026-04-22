@@ -195,12 +195,11 @@ class MedicationMigrationRunnerTest {
     @Test
     fun preserveSchedule_disarmsLegacyScheduler_nullsBuiltInHabitReminderFields() = runBlocking {
         medicationDao.rows += MedicationEntity(id = 1, name = "Lipitor")
-        // 28_800_000L = 08:00 as millis-since-midnight
         val builtIn = HabitEntity(
             id = 10,
             name = "Medication",
             reminderIntervalMillis = 6_000_000L,
-            reminderTime = 28_800_000L
+            reminderTime = 28_800_000L // 08:00 as millis-since-midnight
         )
         coEvery { medicationPreferences.getScheduleModeOnce() } returns
             MedicationScheduleMode.INTERVAL
