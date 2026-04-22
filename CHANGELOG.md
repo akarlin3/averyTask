@@ -7,6 +7,88 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Sync — Room content entities cross-device (v1.4.38)
+- **Migration 55 → 56** adds `cloud_id TEXT` (UNIQUE-indexed) to all nine
+  remaining user-authored content tables, plus `updated_at INTEGER NOT
+  NULL DEFAULT 0` to the seven that lacked it. `medication_refills` and
+  `daily_essential_slot_completions` already had `updated_at` from
+  earlier migrations so only get `cloud_id`.
+- **Entities synced**: `check_in_logs`, `mood_energy_logs`,
+  `focus_release_logs` (FK: `task_id`), `medication_refills`,
+  `weekly_reviews`, `daily_essential_slot_completions`, `assignments`
+  (FK: `course_id`), `attachments` (FK: `taskId`), `study_logs` (FKs:
+  `course_pick`, `assignment_pick`). FK-bearing entities translate
+  local ↔ cloud IDs at push/pull time via `syncMetadataDao`; rows whose
+  parent hasn't synced yet are skipped and retry on the next pass.
+- **SyncMapper** grows 18 new functions (one `entityTo*Map` + one
+  `mapTo*` per entity), all covered by `SyncMapperContentTest` (11
+  cases including null-FK and dual-FK round-trips).
+- **SyncService** wires all nine into the standard four paths. The
+  five FK-free entities reuse the existing `uploadRoomConfigFamily` /
+  `pullRoomConfigFamily` helpers from v1.4.37; the four FK-bearing
+  ones get bespoke upload/pull blocks that include FK translation.
+  `collectionNameFor`, `pushCreate`/`pushUpdate`/`pushDelete`,
+  `startRealtimeListeners`, and `processRemoteDeletions` all get nine
+  new branches.
+- **Repository SyncTracker wiring**: `CheckInLogRepository`,
+  `MoodEnergyRepository`, `MedicationRefillRepository`,
+  `WeeklyReviewRepository`, `AttachmentRepository`,
+  `DailyEssentialSlotCompletionRepository`, and the assignment CRUD
+  path on `SchoolworkRepository` now inject `SyncTracker` and call
+  `trackCreate`/`trackUpdate`/`trackDelete` on every write, stamping
+  `updated_at` on the way out. `FocusReleaseLogEntity` and
+  `StudyLogEntity` have no user-facing write path in the current
+  codebase, so their sync contract is bootstrap-on-first-sign-in +
+  pull-from-remote; incremental push is a two-line add if a UI ever
+  lands.
+- **Privacy update for `focus_release_logs`**: the pre-v1.4.38 KDoc
+  said "NEVER sent to the backend." That comment predated the current
+  request. v1.4.38 syncs focus-release analytics across the user's
+  own devices within their own Firebase project — no third-party
+  analytics backend. The KDoc is updated to match.
+- **Attachment URIs**: image attachments sync the `file://` pointer
+  but not the bytes — opening a synced image on a different device
+  falls back to the thumbnail until a future content-upload
+  extension. Link attachments round-trip cleanly.
+
+### Sync — Room config entities cross-device (v1.4.37)
+- **Migration 54 → 55** adds `cloud_id TEXT` (UNIQUE indexed) and
+  `updated_at INTEGER NOT NULL DEFAULT 0` to the seven Room tables that
+  back user configuration but were previously local-only:
+  `reminder_profiles`, `custom_sounds`, `saved_filters`, `nlp_shortcuts`,
+  `habit_templates`, `project_templates`, `boundary_rules`. Every
+  existing row starts with `cloud_id = NULL` and `updated_at = 0`;
+  the next `SyncService.doInitialUpload` assigns cloud IDs and the
+  first local write bumps `updated_at` to a current wall-clock value
+  (which beats every remote timestamp, so the first device to migrate
+  owns the seed copy cloud-side).
+- **SyncMapper** grows 14 new functions — one `entityTo*Map()` and one
+  `mapTo*()` per entity — covering every business-visible column. All
+  round-trip cleanly under `SyncMapperRoomConfigTest` (8 cases, one per
+  entity + a sparse-map defaults test).
+- **SyncService** wires each of the seven entities into the standard
+  four paths: initial upload (via a new generic
+  `uploadRoomConfigFamily` helper), real-time pull (via
+  `pullRoomConfigFamily` with last-write-wins on `updated_at`),
+  real-time listener (added to the `startRealtimeListeners` collection
+  list), and deletion (added to `processRemoteDeletions`'s
+  `collection → entityType` dispatch). `collectionNameFor` gets seven
+  new branches so `pushCreate`/`pushUpdate`/`pushDelete` can serialize
+  the right Firestore collection.
+- **Repositories**: `NotificationProfileRepository`,
+  `CustomSoundRepository`, and `BoundaryRuleRepository` now inject
+  `SyncTracker` and call `trackCreate` / `trackUpdate` / `trackDelete`
+  on every user-visible write, stamping `updated_at` on the way out.
+  Built-in rows (`isBuiltIn = true`) are not tracked — those are
+  seeded, not user-authored. The four DAO-only entities
+  (`SavedFilter`, `NlpShortcut`, `HabitTemplate`, `ProjectTemplate`)
+  currently have no UI write path, so their sync contract is
+  bootstrap-on-first-sign-in + pull-from-remote; if a UI ever lands,
+  plumbing `SyncTracker` into it is a two-line change per write site.
+- **DAOs**: every one of the seven grows `getByCloudIdOnce`,
+  `setCloudId`, `deleteById` (or `getByIdOnce`) where missing, matching
+  the contract the generic sync helpers expect.
+
 ### Preferences — Backup coverage follow-up (v1.4.36)
 - **Closes three backup gaps** identified in the post-v1.4.35 preference
   coverage audit:
