@@ -25,6 +25,7 @@ import com.averycorp.prismtask.data.local.entity.TaskTagCrossRef
 import com.averycorp.prismtask.data.preferences.A11yPreferences
 import com.averycorp.prismtask.data.preferences.ArchivePreferences
 import com.averycorp.prismtask.data.preferences.BuiltInSortOrders
+import com.averycorp.prismtask.data.preferences.CoachingPreferences
 import com.averycorp.prismtask.data.preferences.CustomLeisureActivity
 import com.averycorp.prismtask.data.preferences.DailyEssentialsPreferences
 import com.averycorp.prismtask.data.preferences.DashboardPreferences
@@ -36,7 +37,9 @@ import com.averycorp.prismtask.data.preferences.MedicationScheduleMode
 import com.averycorp.prismtask.data.preferences.MorningCheckInPreferences
 import com.averycorp.prismtask.data.preferences.NdPreferencesDataStore
 import com.averycorp.prismtask.data.preferences.NotificationPreferences
+import com.averycorp.prismtask.data.preferences.OnboardingPreferences
 import com.averycorp.prismtask.data.preferences.ShakePreferences
+import com.averycorp.prismtask.data.preferences.SortPreferences
 import com.averycorp.prismtask.data.preferences.TabPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.preferences.TemplatePreferences
@@ -174,9 +177,9 @@ constructor(
     private val morningCheckInPreferences: MorningCheckInPreferences,
     private val calendarSyncPreferences: CalendarSyncPreferences,
     private val templatePreferences: TemplatePreferences,
-    private val onboardingPreferences: com.averycorp.prismtask.data.preferences.OnboardingPreferences,
-    private val coachingPreferences: com.averycorp.prismtask.data.preferences.CoachingPreferences,
-    private val sortPreferences: com.averycorp.prismtask.data.preferences.SortPreferences
+    private val onboardingPreferences: OnboardingPreferences,
+    private val coachingPreferences: CoachingPreferences,
+    private val sortPreferences: SortPreferences
 ) {
     private val gson = Gson()
 
