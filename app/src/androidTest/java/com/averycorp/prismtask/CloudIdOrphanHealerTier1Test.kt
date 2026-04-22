@@ -7,6 +7,7 @@ import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
 import com.averycorp.prismtask.data.local.entity.HabitLogEntity
+import com.averycorp.prismtask.data.local.entity.MilestoneEntity
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskCompletionEntity
@@ -71,6 +72,7 @@ class CloudIdOrphanHealerTier1Test {
             habitLogDao = database.habitLogDao(),
             taskCompletionDao = database.taskCompletionDao(),
             taskTemplateDao = database.taskTemplateDao(),
+            milestoneDao = database.milestoneDao(),
             logger = logger
         )
     }
@@ -249,6 +251,56 @@ class CloudIdOrphanHealerTier1Test {
         healer.healOrphans(fetcher = { emptySet() })
 
         assertEquals("update", metaDao.get(id, "task_template")!!.pendingAction)
+    }
+
+    @Test
+    fun healOrphans_milestones() = runTest {
+        val projectDao = database.projectDao()
+        val milestoneDao = database.milestoneDao()
+        val metaDao = database.syncMetadataDao()
+        // Milestone has a CASCADE FK to projects — insert a parent first.
+        val projectLocalId = projectDao.insert(
+            ProjectEntity(name = "Parent", cloudId = "parent-cid")
+        )
+        val milestoneId = milestoneDao.insert(
+            MilestoneEntity(
+                projectId = projectLocalId,
+                title = "Ship RC1",
+                cloudId = "milestone-orphan-id"
+            )
+        )
+
+        healer.healOrphans(fetcher = { emptySet() })
+
+        val meta = metaDao.get(milestoneId, "milestone")
+        assertNotNull(meta)
+        assertEquals("update", meta!!.pendingAction)
+        assertEquals("milestone-orphan-id", meta.cloudId)
+    }
+
+    @Test
+    fun healOrphans_milestones_scannedAcrossAllProjects() = runTest {
+        // Ensures getAllMilestonesOnce() returns milestones regardless of
+        // which project they belong to — the healer must not miss rows
+        // just because the DAO also exposes a per-project getter
+        // (getMilestonesOnce(projectId)) used elsewhere in the app.
+        val projectDao = database.projectDao()
+        val milestoneDao = database.milestoneDao()
+        val metaDao = database.syncMetadataDao()
+
+        val projectA = projectDao.insert(ProjectEntity(name = "A", cloudId = "pa"))
+        val projectB = projectDao.insert(ProjectEntity(name = "B", cloudId = "pb"))
+        val milestoneAId = milestoneDao.insert(
+            MilestoneEntity(projectId = projectA, title = "A1", cloudId = "cid-a1")
+        )
+        val milestoneBId = milestoneDao.insert(
+            MilestoneEntity(projectId = projectB, title = "B1", cloudId = "cid-b1")
+        )
+
+        healer.healOrphans(fetcher = { emptySet() })
+
+        assertEquals("update", metaDao.get(milestoneAId, "milestone")!!.pendingAction)
+        assertEquals("update", metaDao.get(milestoneBId, "milestone")!!.pendingAction)
     }
 
     @Test

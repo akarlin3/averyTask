@@ -4,6 +4,7 @@ import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.dao.HabitLogDao
 import com.averycorp.prismtask.data.local.dao.LeisureDao
+import com.averycorp.prismtask.data.local.dao.MilestoneDao
 import com.averycorp.prismtask.data.local.dao.ProjectDao
 import com.averycorp.prismtask.data.local.dao.SchoolworkDao
 import com.averycorp.prismtask.data.local.dao.SelfCareDao
@@ -70,17 +71,18 @@ import javax.inject.Singleton
  *    `project` / `tag` push before everything else, and
  *    `task_completion` pushes last; the healer's enqueue order is
  *    irrelevant because that sort reorders at push time.
+ *  - `milestones` reference `projects` via cloudId embedded in the
+ *    Firestore doc body (resolved via
+ *    `syncMetadataDao.getCloudId(milestone.projectId, "project")` at
+ *    push time). Same orphan-safe resolution story as
+ *    habit_completions / task_completions: the parent project's
+ *    sync_metadata is preserved, so the child's push resolves to the
+ *    stale parent id which is the id the parent will re-create under.
  *
  * The healer does not gate on a one-shot flag. It is cheap to run every
  * sync (one `.get()` per tracked collection, skipped for families with
  * no local rows carrying a cloud_id) and correct — non-orphans exit the
  * per-row branch immediately.
- *
- * Milestones are intentionally out of scope in this iteration: the
- * [com.averycorp.prismtask.data.local.dao.MilestoneDao] only exposes a
- * per-project getter, not a global scan. Adding a global scan query +
- * wiring is straightforward but can wait for the first user report of
- * a milestone orphan.
  */
 @Singleton
 class CloudIdOrphanHealer
@@ -99,6 +101,7 @@ constructor(
     private val habitLogDao: HabitLogDao,
     private val taskCompletionDao: TaskCompletionDao,
     private val taskTemplateDao: TaskTemplateDao,
+    private val milestoneDao: MilestoneDao,
     private val logger: PrismSyncLogger
 ) {
     /**
@@ -197,6 +200,11 @@ constructor(
         }
         healFamily("task_templates", "task_template", fetcher) {
             taskTemplateDao.getAllTemplatesOnce().mapNotNull { entity ->
+                entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
+            }
+        }
+        healFamily("milestones", "milestone", fetcher) {
+            milestoneDao.getAllMilestonesOnce().mapNotNull { entity ->
                 entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
             }
         }
