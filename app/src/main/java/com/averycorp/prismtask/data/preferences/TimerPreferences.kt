@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private val Context.timerDataStore: DataStore<Preferences> by preferencesDataStore(name = "timer_prefs")
+internal val Context.timerDataStore: DataStore<Preferences> by preferencesDataStore(name = "timer_prefs")
 
 @Singleton
 class TimerPreferences

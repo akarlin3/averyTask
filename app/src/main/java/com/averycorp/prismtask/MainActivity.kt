@@ -50,6 +50,7 @@ import com.averycorp.prismtask.data.preferences.TabPreferences
 import com.averycorp.prismtask.data.preferences.ThemePreferences
 import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 import com.averycorp.prismtask.data.remote.AuthManager
+import com.averycorp.prismtask.data.remote.GenericPreferenceSyncService
 import com.averycorp.prismtask.data.remote.SortPreferencesSyncService
 import com.averycorp.prismtask.data.remote.SyncService
 import com.averycorp.prismtask.data.remote.ThemePreferencesSyncService
@@ -90,6 +91,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var themePreferencesSyncService: ThemePreferencesSyncService
+
+    @Inject
+    lateinit var genericPreferenceSyncService: GenericPreferenceSyncService
 
     @Inject
     lateinit var onboardingPreferences: OnboardingPreferences
@@ -179,6 +183,12 @@ class MainActivity : ComponentActivity() {
             themePreferencesSyncService.ensurePullListener()
         } catch (e: Exception) {
             Log.e("MainActivity", "Theme prefs pull listener failed to start", e)
+        }
+        try {
+            genericPreferenceSyncService.startPushObserver()
+            genericPreferenceSyncService.ensurePullListener()
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Generic prefs sync failed to start", e)
         }
         try {
             billingManager.initialize(this)

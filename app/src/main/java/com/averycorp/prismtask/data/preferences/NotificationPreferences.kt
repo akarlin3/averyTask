@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
-private val Context.notificationDataStore: DataStore<Preferences> by preferencesDataStore(
+internal val Context.notificationDataStore: DataStore<Preferences> by preferencesDataStore(
     name = "notification_prefs"
 )
 
