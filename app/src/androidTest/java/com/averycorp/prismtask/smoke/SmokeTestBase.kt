@@ -5,7 +5,10 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import com.averycorp.prismtask.MainActivity
 import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
+import com.averycorp.prismtask.data.preferences.OnboardingPreferences
+import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import dagger.hilt.android.testing.HiltAndroidRule
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Before
@@ -33,14 +36,33 @@ abstract class SmokeTestBase {
     @Inject
     lateinit var database: PrismTaskDatabase
 
+    @Inject
+    lateinit var onboardingPreferences: OnboardingPreferences
+
+    @Inject
+    lateinit var taskBehaviorPreferences: TaskBehaviorPreferences
+
     protected lateinit var seededIds: TestDataSeeder.SeededIds
 
     @Before
     fun baseSetUp() {
         hiltRule.inject()
+        // MainActivity gates the main UI behind hasCompletedOnboarding; a
+        // fresh test install has that unset so the rule launches straight
+        // into the onboarding flow, and compose assertions for "Today" /
+        // "Tasks" / etc. fail because those labels only appear in the main
+        // tab bar. Same story for hasSetStartOfDay — without this, a
+        // blocking StartOfDayPickerDialog covers the main UI. Seed both
+        // flags before any assertion runs; runBlocking guarantees the
+        // DataStore write completes before we return control to the test.
+        runBlocking {
+            onboardingPreferences.setOnboardingCompleted()
+            taskBehaviorPreferences.setHasSetStartOfDay(true)
+        }
         runTest {
             seededIds = TestDataSeeder.seed(database)
         }
+        composeRule.waitForIdle()
     }
 
     @After

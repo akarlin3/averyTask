@@ -14,8 +14,8 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreSettings
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -90,8 +90,11 @@ class CloudIdOrphanHealerEmulatorTest {
         deviceB.close()
     }
 
+    // runBlocking (not runTest) — the .await() calls wait on real Firestore
+    // I/O, which progresses in real time; runTest's virtual clock would skip
+    // to the withTimeout deadline immediately.
     @Test
-    fun outOfBandWipe_realFirestore_deviceAHealsAndDeviceBNoOps() = runTest {
+    fun outOfBandWipe_realFirestore_deviceAHealsAndDeviceBNoOps() = runBlocking {
         withTimeout(TEST_TIMEOUT_MS) {
             val stepCloudIds = (1..5).map { "fs-step-$it" }
 
@@ -147,7 +150,7 @@ class CloudIdOrphanHealerEmulatorTest {
     }
 
     @Test
-    fun divergentOrphans_realFirestoreMergesViaPush() = runTest {
+    fun divergentOrphans_realFirestoreMergesViaPush() = runBlocking {
         withTimeout(TEST_TIMEOUT_MS) {
             val aCids = listOf("a-1", "a-2", "a-3")
             val bCids = listOf("b-1", "b-2")

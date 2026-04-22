@@ -18,8 +18,8 @@ import io.mockk.coEvery
 import io.mockk.coJustRun
 import io.mockk.mockk
 import io.mockk.slot
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -97,7 +97,7 @@ class BuiltInTaskTemplateBackfillerEmulatorTest {
      *     Firestore-sourced cloud_ids surviving.
      */
     @Test
-    fun backfillOnA_pushToRealFirestore_pullOnB_reconcileOnB() = runTest {
+    fun backfillOnA_pushToRealFirestore_pullOnB_reconcileOnB() = runBlocking {
         withTimeout(TEST_TIMEOUT_MS) {
             val legacyDocs = BUILT_INS.map { (name, _) -> "fs-$name".replace(" ", "-").lowercase() to name }
 
@@ -167,7 +167,7 @@ class BuiltInTaskTemplateBackfillerEmulatorTest {
     }
 
     @Test
-    fun reconcilerBeforePull_doesNotPrematurelyMerge() = runTest {
+    fun reconcilerBeforePull_doesNotPrematurelyMerge() = runBlocking {
         withTimeout(TEST_TIMEOUT_MS) {
             val cid = "fs-weekly-review"
             userCollection("task_templates").document(cid).set(
