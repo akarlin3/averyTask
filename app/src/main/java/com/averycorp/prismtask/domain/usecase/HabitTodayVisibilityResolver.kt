@@ -46,7 +46,7 @@ class HabitTodayVisibilityResolver {
         now: Long = System.currentTimeMillis(),
         zone: ZoneId = ZoneId.systemDefault()
     ): Boolean {
-        val today = LocalDate.now(zone)
+        val today = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
         if (skipAfterCompleteDays > 0 && lastCompletionDate != null) {
             val days = TimeUnit.MILLISECONDS.toDays(now - lastCompletionDate)
             // Hide for the configured window starting the day of completion.
