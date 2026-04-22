@@ -153,8 +153,11 @@ class MedicationRepositoryTest {
     @Test
     fun unlogDose_removesDoseAndTracksDelete() = runBlocking {
         val dose = MedicationDoseEntity(
-            id = 10, medicationId = 1, slotKey = "morning",
-            takenAt = 1L, takenDateLocal = "2026-04-22"
+            id = 10,
+            medicationId = 1,
+            slotKey = "morning",
+            takenAt = 1L,
+            takenDateLocal = "2026-04-22"
         )
         medicationDoseDao.rows += dose
 
@@ -167,8 +170,11 @@ class MedicationRepositoryTest {
     @Test
     fun updateDose_bumpsUpdatedAtAndTracksUpdate() = runBlocking {
         val dose = MedicationDoseEntity(
-            id = 10, medicationId = 1, slotKey = "morning",
-            takenAt = 1L, takenDateLocal = "2026-04-22",
+            id = 10,
+            medicationId = 1,
+            slotKey = "morning",
+            takenAt = 1L,
+            takenDateLocal = "2026-04-22",
             updatedAt = 1000L
         )
         medicationDoseDao.rows += dose
