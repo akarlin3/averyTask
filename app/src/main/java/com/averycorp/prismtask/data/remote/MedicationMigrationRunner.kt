@@ -83,8 +83,11 @@ constructor(
                 val updated = when (mode) {
                     MedicationScheduleMode.SPECIFIC_TIMES -> med.copy(
                         scheduleMode = "SPECIFIC_TIMES",
-                        specificTimes = if (specificTimes.isEmpty()) null
-                        else specificTimes.joinToString(","),
+                        specificTimes = if (specificTimes.isEmpty()) {
+                            null
+                        } else {
+                            specificTimes.joinToString(",")
+                        },
                         intervalMillis = null,
                         updatedAt = now
                     )
@@ -96,13 +99,16 @@ constructor(
                         // If neither source has a real interval, fall
                         // back to the TIMES_OF_DAY default the SQL
                         // migration wrote — no net change.
-                        if (intervalMillis == null) med
-                        else med.copy(
-                            scheduleMode = "INTERVAL",
-                            intervalMillis = intervalMillis,
-                            specificTimes = null,
-                            updatedAt = now
-                        )
+                        if (intervalMillis == null) {
+                            med
+                        } else {
+                            med.copy(
+                                scheduleMode = "INTERVAL",
+                                intervalMillis = intervalMillis,
+                                specificTimes = null,
+                                updatedAt = now
+                            )
+                        }
                     }
                 }
                 if (updated !== med) {
