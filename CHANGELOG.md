@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Preferences — Universal cross-device sync (v1.4.35)
+- **New `GenericPreferenceSyncService`** syncs any registered DataStore
+  preference file to Firestore at `/users/{uid}/prefs/{docName}` with
+  document-level last-write-wins. A type-tagged payload
+  (`__pref_types` + per-key values) lets the pull side reconstruct
+  correctly-typed `Preferences.Key<T>` instances without the service
+  needing any compile-time knowledge of the preference class's keys.
+- **19 preference files registered**: `a11y_prefs`, `archive_prefs`,
+  `coaching_prefs`, `daily_essentials_prefs`, `dashboard_prefs`,
+  `habit_list_prefs`, `leisure_prefs`, `medication_prefs`,
+  `morning_checkin_prefs`, `nd_prefs`, `notification_prefs`,
+  `onboarding_prefs`, `shake_prefs`, `tab_prefs`, `task_behavior_prefs`,
+  `template_prefs`, `timer_prefs`, `user_prefs`, `voice_prefs`. The
+  pre-existing bespoke `ThemePreferencesSyncService` /
+  `SortPreferencesSyncService` keep doing their specialized work
+  (per-project cloud-id translation for sort; legacy path for theme).
+- **Explicitly excluded** from sync: `auth_token_prefs` (sensitive
+  tokens), `pro_status_prefs` (server-authoritative billing cache),
+  `backend_sync_prefs` (per-device watermark), `built_in_sync_prefs` +
+  `medication_migration_prefs` (one-time migration flags),
+  `gcal_sync_prefs` (per-device Google Calendar tokens), and the
+  service's own `sync_device_prefs` (device identity).
+- **Self-echo guard**: each push stamps the doc with a persisted per-
+  install `__pref_device_id`; the pull listener skips snapshots whose
+  `__pref_device_id` matches the local value, so the listener's own
+  echo of our push never bounces back into DataStore.
+- **Lifecycle**: `MainActivity.onCreate` calls `startPushObserver` +
+  `ensurePullListener`; `AuthViewModel` calls `startAfterSignIn` /
+  `stopAfterSignOut`, mirroring the existing theme/sort sync wiring.
+- **Tests**: `PreferenceSyncSerializationTest` (9 cases) round-trips
+  every supported DataStore value type (Boolean, Int, Long, Float,
+  Double, String, Set&lt;String&gt;), asserts the Firestore number-
+  widening behavior on pull, confirms excluded and meta-prefixed keys
+  never leak into the payload, and asserts fingerprint stability
+  across insertion order and set iteration order.
+
 ### Medications — Top-level entity (follow-up — MedicationRepository unit tests)
 - `MedicationRepositoryTest` (12 cases) covers the repository's write
   contract: insert / update / archive / delete, logDose / unlogDose /
