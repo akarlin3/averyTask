@@ -119,6 +119,18 @@ object TestDatabaseModule {
     fun provideMedicationDoseDao(database: PrismTaskDatabase) = database.medicationDoseDao()
 
     @Provides
+    fun provideSavedFilterDao(database: PrismTaskDatabase) = database.savedFilterDao()
+
+    @Provides
+    fun provideNlpShortcutDao(database: PrismTaskDatabase) = database.nlpShortcutDao()
+
+    @Provides
+    fun provideHabitTemplateDao(database: PrismTaskDatabase) = database.habitTemplateDao()
+
+    @Provides
+    fun provideProjectTemplateDao(database: PrismTaskDatabase) = database.projectTemplateDao()
+
+    @Provides
     @Singleton
     fun provideGson(): com.google.gson.Gson = com.google.gson.Gson()
 }
