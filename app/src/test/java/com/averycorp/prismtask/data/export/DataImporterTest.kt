@@ -129,8 +129,10 @@ class DataImporterTest {
             leisureDao,
             selfCareDao,
             schoolworkDao,
-            mockk(relaxed = true), // medicationDao
-            mockk(relaxed = true), // medicationDoseDao
+            // medicationDao
+            mockk(relaxed = true),
+            // medicationDoseDao
+            mockk(relaxed = true),
             transactionRunner,
             themePreferences,
             archivePreferences,
@@ -150,7 +152,10 @@ class DataImporterTest {
             dailyEssentialsPreferences,
             morningCheckInPreferences,
             calendarSyncPreferences,
-            templatePreferences
+            templatePreferences,
+            mockk(relaxed = true),
+            mockk(relaxed = true),
+            mockk(relaxed = true)
         )
     }
 

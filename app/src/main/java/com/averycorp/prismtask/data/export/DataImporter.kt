@@ -25,6 +25,7 @@ import com.averycorp.prismtask.data.local.entity.TaskTagCrossRef
 import com.averycorp.prismtask.data.preferences.A11yPreferences
 import com.averycorp.prismtask.data.preferences.ArchivePreferences
 import com.averycorp.prismtask.data.preferences.BuiltInSortOrders
+import com.averycorp.prismtask.data.preferences.CoachingPreferences
 import com.averycorp.prismtask.data.preferences.CustomLeisureActivity
 import com.averycorp.prismtask.data.preferences.DailyEssentialsPreferences
 import com.averycorp.prismtask.data.preferences.DashboardPreferences
@@ -36,7 +37,9 @@ import com.averycorp.prismtask.data.preferences.MedicationScheduleMode
 import com.averycorp.prismtask.data.preferences.MorningCheckInPreferences
 import com.averycorp.prismtask.data.preferences.NdPreferencesDataStore
 import com.averycorp.prismtask.data.preferences.NotificationPreferences
+import com.averycorp.prismtask.data.preferences.OnboardingPreferences
 import com.averycorp.prismtask.data.preferences.ShakePreferences
+import com.averycorp.prismtask.data.preferences.SortPreferences
 import com.averycorp.prismtask.data.preferences.TabPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.preferences.TemplatePreferences
@@ -173,7 +176,10 @@ constructor(
     private val dailyEssentialsPreferences: DailyEssentialsPreferences,
     private val morningCheckInPreferences: MorningCheckInPreferences,
     private val calendarSyncPreferences: CalendarSyncPreferences,
-    private val templatePreferences: TemplatePreferences
+    private val templatePreferences: TemplatePreferences,
+    private val onboardingPreferences: OnboardingPreferences,
+    private val coachingPreferences: CoachingPreferences,
+    private val sortPreferences: SortPreferences
 ) {
     private val gson = Gson()
 
@@ -932,6 +938,9 @@ constructor(
                 importMorningCheckInConfig(config)
                 importCalendarSyncConfig(config)
                 importTemplatesConfig(config)
+                importOnboardingConfig(config)
+                importCoachingConfig(config)
+                importSortConfig(config)
                 ctx.configImported = true
             } catch (e: Exception) {
                 ctx.errors.add("Failed to import config: ${e.message}")
@@ -1439,6 +1448,7 @@ constructor(
         b("dailyBriefingEnabled")?.let { p.setDailyBriefingEnabled(it) }
         b("eveningSummaryEnabled")?.let { p.setEveningSummaryEnabled(it) }
         b("weeklySummaryEnabled")?.let { p.setWeeklySummaryEnabled(it) }
+        b("weeklyTaskSummaryEnabled")?.let { p.setWeeklyTaskSummaryEnabled(it) }
         b("overloadAlertsEnabled")?.let { p.setOverloadAlertsEnabled(it) }
         b("reengagementEnabled")?.let { p.setReengagementEnabled(it) }
         b("fullScreenNotificationsEnabled")?.let { p.setFullScreenNotificationsEnabled(it) }
@@ -1558,6 +1568,64 @@ constructor(
             }
             t.get("templatesFirstSyncDone")?.takeIf { !it.isJsonNull }?.asBoolean?.let {
                 templatePreferences.setFirstSyncDone(it)
+            }
+        }
+    }
+
+    /**
+     * Restores onboarding state from a v5+ backup. Writes the original
+     * `completed_at` timestamp verbatim rather than re-stamping to `now`,
+     * so a restored install doesn't look like it just finished onboarding.
+     */
+    private suspend fun importOnboardingConfig(config: JsonObject) {
+        config.getAsJsonObject("onboarding")?.let { o ->
+            val completed = o.get("hasCompletedOnboarding")?.takeIf { !it.isJsonNull }?.asBoolean
+                ?: return
+            val completedAt = o.get("onboardingCompletedAt")?.takeIf { !it.isJsonNull }?.asLong ?: 0L
+            val batteryPromptShown =
+                o.get("hasShownBatteryOptimizationPrompt")?.takeIf { !it.isJsonNull }?.asBoolean
+                    ?: false
+            onboardingPreferences.restoreImportedState(
+                hasCompletedOnboarding = completed,
+                onboardingCompletedAt = completedAt,
+                hasShownBatteryOptimizationPrompt = batteryPromptShown
+            )
+        }
+    }
+
+    /**
+     * Restores coaching state from a v5+ backup. Most keys are day-scoped
+     * (today's AI-breakdown count, today's energy check-in, today's
+     * welcome-back dismissal) and effectively reset when the calendar date
+     * differs between export and import, but `last_app_open` carries real
+     * signal for welcome-back detection.
+     */
+    private suspend fun importCoachingConfig(config: JsonObject) {
+        config.getAsJsonObject("coaching")?.let { c ->
+            c.get("lastAppOpen")?.takeIf { !it.isJsonNull }?.asLong?.let {
+                coachingPreferences.setLastAppOpen(it)
+            }
+        }
+    }
+
+    /**
+     * Restores per-screen sort mode/direction selections from a v5+ backup.
+     * Uses [SortPreferences.applyRemoteSnapshot] so cloud-id keys
+     * (`sort_project_cloud_<cloudId>`) produced by
+     * [com.averycorp.prismtask.data.remote.SortPreferencesSyncService] push
+     * paths also round-trip correctly.
+     */
+    private suspend fun importSortConfig(config: JsonObject) {
+        config.getAsJsonObject("sort")?.let { s ->
+            val keys = mutableMapOf<String, String>()
+            for ((key, value) in s.entrySet()) {
+                if (value.isJsonNull) continue
+                val str = value.asString ?: continue
+                if (str.isBlank()) continue
+                keys[key] = str
+            }
+            if (keys.isNotEmpty()) {
+                sortPreferences.applyRemoteSnapshot(keys, System.currentTimeMillis())
             }
         }
     }
