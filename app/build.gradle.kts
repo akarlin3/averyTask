@@ -361,6 +361,7 @@ dependencies {
     androidTestImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     androidTestImplementation("com.google.dagger:hilt-android-testing:2.59.2")
     androidTestImplementation("io.mockk:mockk-android:1.13.13")
+    androidTestImplementation("androidx.work:work-testing:2.9.1")
     kspAndroidTest("com.google.dagger:hilt-compiler:2.59.2")
 
     // Debug

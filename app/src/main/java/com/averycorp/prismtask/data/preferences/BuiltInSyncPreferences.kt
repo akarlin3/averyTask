@@ -202,4 +202,15 @@ constructor(
         val prefs = context.builtInSyncDataStore.data.first()
         return prefs[key] ?: prefs[NEW_ENTITIES_BACKFILL_DONE] ?: false
     }
+
+    /**
+     * Clear every preference key this class writes. Intended for tests only —
+     * `setXxx(false)` can't replace this because the legacy-fallback readers
+     * distinguish "unset" from "explicitly false," and tests that want the
+     * legacy-fallback path need keys fully removed.
+     */
+    @androidx.annotation.VisibleForTesting
+    suspend fun clearAllForTest() {
+        context.builtInSyncDataStore.edit { it.clear() }
+    }
 }

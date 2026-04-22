@@ -5,8 +5,8 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreSettings
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -73,8 +73,13 @@ class FirebaseEmulatorSmokeTest {
         }
     }
 
+    // runBlocking (not runTest): the `await()` calls below wait on real
+    // Firestore/Auth I/O, which runs on real time. `runTest`'s virtual
+    // clock would skip ahead to the withTimeout deadline instantly because
+    // no virtual-time `delay()` calls gate the I/O — the error message is
+    // explicit about this (see https://kotlinlang.org/docs/debug-coroutines-in-idea.html).
     @Test
-    fun emulator_roundTrip_signInWriteReadDelete() = runTest {
+    fun emulator_roundTrip_signInWriteReadDelete() = runBlocking {
         withTimeout(TEST_TIMEOUT_MS) {
             val auth = FirebaseAuth.getInstance()
             // Auth emulator accepts any email/password and creates the

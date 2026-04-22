@@ -26,25 +26,17 @@ class BuiltInSyncPreferencesLegacyFallbackTest {
     @Before
     fun setUp() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        // Single app-wide DataStore means tests share state — reset
-        // everything we touch in both setUp and tearDown so order-
-        // independence is preserved.
+        // Single app-wide DataStore means tests share state. Clear the keys
+        // entirely (not `setXxx(false)`) so the legacy-fallback test path
+        // is actually reachable — the fallback only activates when a
+        // per-family key is unset.
         prefs = BuiltInSyncPreferences(context)
-        runBlocking { resetAllFlags() }
+        runBlocking { prefs.clearAllForTest() }
     }
 
     @After
     fun tearDown() {
-        runBlocking { resetAllFlags() }
-    }
-
-    private suspend fun resetAllFlags() {
-        prefs.setNewEntitiesBackfillDone(false)
-        prefs.setCoursesBackfillDone(false)
-        prefs.setCourseCompletionsBackfillDone(false)
-        prefs.setLeisureLogsBackfillDone(false)
-        prefs.setSelfCareStepsBackfillDone(false)
-        prefs.setSelfCareLogsBackfillDone(false)
+        runBlocking { prefs.clearAllForTest() }
     }
 
     @Test
