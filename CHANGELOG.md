@@ -16,6 +16,15 @@ without any backend or Android-side changes. See
 and `docs/WEB_PARITY_PHASE_G_PROMPT_TEMPLATE.md` for the remaining
 Phase G roadmap.
 
+- **Eisenhower classify_text (slice 7)** — wires
+  `POST /ai/eisenhower/classify_text`, the text-only variant of the
+  Eisenhower endpoint that classifies a draft task (title, optional
+  description, due date, priority) without needing a persisted
+  Firestore ID. Surfaces as a "Classify Text" button on
+  `EisenhowerScreen` opening a small modal that renders the returned
+  quadrant (Q1–Q4) with its reason. Pro-gated. Closes the last unwired
+  primary AI endpoint on web.
+
 - **Pomodoro+ coaching (slice 6)** — wires `POST /ai/pomodoro-coaching`
   as a self-contained `PomodoroCoachPanel` that mounts on
   `PomodoroScreen`. One component covers all three backend triggers:
