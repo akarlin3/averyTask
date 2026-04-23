@@ -18,6 +18,7 @@ import {
   Check,
   Bell,
   Smartphone,
+  Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useThemeStore, ACCENT_COLORS } from '@/stores/themeStore';
@@ -29,6 +30,7 @@ import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { KeyboardShortcutsModal } from '@/components/shared/KeyboardShortcutsModal';
 import { ProUpgradeModal } from '@/components/shared/ProUpgradeModal';
+import { BatchHistorySection } from '@/features/settings/sections/BatchHistorySection';
 import { exportJson, exportCsv } from '@/utils/export';
 import { parseImportFile, importData } from '@/utils/import';
 import {
@@ -387,6 +389,14 @@ export function SettingsScreen() {
           checked={settings.showWeekends}
           onChange={(v) => settings.setSetting('showWeekends', v)}
         />
+      </SettingsSection>
+
+      {/* Recent Batch Commands */}
+      <SettingsSection
+        icon={<Sparkles className="h-5 w-5 text-[var(--color-accent)]" />}
+        title="Recent Batch Commands"
+      >
+        <BatchHistorySection />
       </SettingsSection>
 
       {/* Data */}

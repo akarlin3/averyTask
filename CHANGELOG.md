@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Web
+
+- **NLP batch ops (slice 1 of the web parity push)** — the quick-add bar
+  in `NLPInput.tsx` now detects batch-style commands (e.g. "reschedule
+  all overdue tasks to tomorrow") using the same two-signal heuristic
+  Android ships in `BatchIntentDetector.kt`. Matching input is Pro-gated
+  and routes to a new `/batch/preview` screen that calls
+  `POST /ai/batch-parse`, renders the diff-preview, lets the user toggle
+  individual rows, then commits the approved mutations directly to
+  Firestore with a per-batch undo log. A 30-second Sonner toast offers
+  immediate undo, and Settings → Recent Batch Commands keeps the same
+  batches undoable for 24h (matches Android's `UNDO_WINDOW_MILLIS`).
+  Covered mutations on web: TASK RESCHEDULE / DELETE / COMPLETE /
+  PRIORITY_CHANGE / PROJECT_MOVE, HABIT COMPLETE / SKIP / ARCHIVE /
+  DELETE, PROJECT ARCHIVE / DELETE. TAG_CHANGE and MEDICATION are
+  surfaced but skipped at apply time pending web-side tag persistence
+  and the medication-ops worktree — both paths match the deferred
+  branches in `BatchOperationsRepository.kt`.
+
 ### Medication slot system — MedicationScreen rewire (A2 #6 PR3 + A2 #7) — closes A2
 
 - **Main MedicationScreen rewired** from the legacy `SelfCareStepEntity`
