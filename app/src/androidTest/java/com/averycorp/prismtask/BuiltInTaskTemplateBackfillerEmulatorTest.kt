@@ -7,6 +7,7 @@ import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import com.averycorp.prismtask.data.local.entity.SyncMetadataEntity
 import com.averycorp.prismtask.data.local.entity.TaskTemplateEntity
 import com.averycorp.prismtask.data.preferences.BuiltInSyncPreferences
+import com.averycorp.prismtask.data.remote.AuthManager
 import com.averycorp.prismtask.data.remote.BuiltInTaskTemplateBackfiller
 import com.averycorp.prismtask.data.remote.BuiltInTaskTemplateReconciler
 import com.averycorp.prismtask.data.remote.SyncTracker
@@ -17,6 +18,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreSettings
 import io.mockk.coEvery
 import io.mockk.coJustRun
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.coroutines.runBlocking
@@ -351,8 +353,16 @@ class BuiltInTaskTemplateBackfillerEmulatorTest {
                     flags.reconciled = reconciledSlot.captured
                 }
                 coJustRun { prefs.setNewEntitiesBackfillDone(any()) }
-                val syncTracker = mockk<SyncTracker>(relaxed = true)
                 val logger = mockk<PrismSyncLogger>(relaxed = true)
+                // Real SyncTracker with a stub AuthManager returning a non-null
+                // userId so trackUpdate() writes to syncMetadataDao. A relaxed
+                // mock silently swallows the trackUpdate calls, which makes
+                // pendingActions() return 0 even after the backfiller heals
+                // rows — the same trap that
+                // BuiltInTaskTemplateBackfillerTwoDeviceTest explicitly avoids.
+                val authManager = mockk<AuthManager>()
+                every { authManager.userId } returns "emulator-test-user"
+                val syncTracker = SyncTracker(authManager, db.syncMetadataDao(), logger)
                 val backfiller = BuiltInTaskTemplateBackfiller(
                     taskTemplateDao = db.taskTemplateDao(),
                     syncTracker = syncTracker,
