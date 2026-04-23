@@ -245,16 +245,17 @@ export function TemplateListScreen() {
 
       {activeTab === 'habits' && (
         <div className="mb-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3 text-xs text-[var(--color-text-secondary)]">
-          Starter habits from the PrismTask library. Tap Use to create a live
-          habit on your account. Custom habit-template authoring needs a
-          backend endpoint and is tracked for Phase G follow-up.
+          Starter habits from the PrismTask library plus any templates
+          you've saved. Tap Use to create a live habit on your account,
+          or New habit template to author your own — stored per-user in
+          Firestore.
         </div>
       )}
       {activeTab === 'projects' && (
         <div className="mb-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3 text-xs text-[var(--color-text-secondary)]">
-          Starter project blueprints. Use scaffolds a project with the listed
-          tasks pre-populated. Custom project templates need a backend
-          endpoint and are tracked for Phase G follow-up.
+          Starter project blueprints plus your own saved templates. Use
+          scaffolds a project with the listed tasks. New project template
+          opens an inline editor — stored per-user in Firestore.
         </div>
       )}
       {activeTab === 'habits' && <HabitStarterList />}
