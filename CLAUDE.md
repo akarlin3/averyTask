@@ -305,6 +305,13 @@ remains the final verification gate.
 - **Error handling**: ViewModels catch exceptions and surface via `SnackbarHostState` or `SharedFlow<String>`
 - **Capitalization**: Use Title Capitalization in all user-facing strings throughout the app (screen titles, tab labels, button labels, section headers, menu items, dialog titles, empty states, notifications, etc.). Capitalize the first letter of each major word.
 
+## Repo conventions
+
+- **Tagging**: every `versionName` bump in `app/build.gradle.kts` gets a matching annotated git tag (`git tag -a vX.Y.Z -m "..."`). Push the tag. The `post-commit` hook in `scripts/hooks/` reminds you if you forget.
+- **PRs**: feature work lands via merged PR, not direct push to main. Small changes (docs, version bumps, trivial fixes) may go direct to main. The `pre-push` hook warns on non-merge pushes to main and requires explicit confirmation.
+- **Worktrees**: every new feature goes on a dedicated git worktree branched from latest main. Worktree + branch are both removed via `git worktree remove` + `git branch -d/-D` after the PR merges — no manual folder deletion.
+- **Fresh clones**: run `.\scripts\hooks\install.ps1` (Windows) or `./scripts/hooks/install.sh` (unix) to install git hooks. `.git/hooks/` is not version-controlled, so every fresh clone starts without them.
+
 ## Important Files
 
 - `build.gradle.kts` — Root build file with plugin versions (AGP 9.1.0, Kotlin 2.3.20, KSP 2.3.6, Hilt 2.59.2)

@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 
 
+### Repo hygiene (v1.4.40)
+
+- Installed git hooks (pre-push warning for direct main pushes, post-commit reminder for versionName bumps without tags)
+- Tagged v1.4.40 at current HEAD
+- Cleaned up 3 stale branches (fix/integration-tests-per-test-onboarding, feature/ai-time-blocking, fix/time-block-lint) + 2 git-merged branches (claude/sync-duplication-phase2, claude/sync-duplication-phase2.5)
+- Removed averyTask-timeblock worktree (AI time blocking shipped to main in v1.4.40)
+- Added Repo conventions section to CLAUDE.md
+
 ### AI Time Blocking — horizon selector + mandatory preview (v1.4.40, A2 #5)
 - **New "Auto-Block My Day" button** on the Timeline top bar replaces the
   old in-place config flow. Tapping it opens a horizon selector

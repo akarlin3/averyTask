@@ -1,0 +1,24 @@
+#!/bin/sh
+protected_branch='main'
+remote="$1"
+while read local_ref local_sha remote_ref remote_sha; do
+  if [ "${remote_ref##refs/heads/}" = "$protected_branch" ]; then
+    parent_count=$(git rev-list --parents -n 1 "$local_sha" | awk '{print NF-1}')
+    if [ "$parent_count" -lt 2 ]; then
+      echo ""
+      echo "WARNING: Pushing a non-merge commit directly to $protected_branch."
+      echo "   Solo-dev convention: features should land via merged PRs."
+      echo "   If this is intentional (hotfix, docs, version bump), continue."
+      echo "   Otherwise, Ctrl-C and push to a feature branch instead."
+      echo ""
+      echo "   Commit: $local_sha"
+      echo "   Proceed? (yes/no)"
+      exec < /dev/tty
+      read answer
+      if [ "$answer" != "yes" ]; then
+        exit 1
+      fi
+    fi
+  fi
+done
+exit 0

@@ -1,0 +1,19 @@
+#!/bin/sh
+changed_files=$(git diff-tree --no-commit-id --name-only -r HEAD)
+if echo "$changed_files" | grep -q "build.gradle.kts"; then
+  version_diff=$(git diff HEAD~1 HEAD -- app/build.gradle.kts 2>/dev/null | grep -E "^\+\s*versionName")
+  if [ -n "$version_diff" ]; then
+    current_sha=$(git rev-parse HEAD)
+    tags_on_commit=$(git tag --points-at "$current_sha")
+    if [ -z "$tags_on_commit" ]; then
+      new_version=$(echo "$version_diff" | grep -oE '"[^"]+"' | tr -d '"')
+      echo ""
+      echo "REMINDER: versionName changed to $new_version but no tag on this commit."
+      echo "   If this is a release commit, tag it:"
+      echo "     git tag -a v$new_version -m \"v$new_version — <describe>\""
+      echo "     git push origin v$new_version"
+      echo ""
+    fi
+  fi
+fi
+exit 0
