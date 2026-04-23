@@ -37,6 +37,7 @@ import { KeyboardShortcutsModal } from '@/components/shared/KeyboardShortcutsMod
 import { ProUpgradeModal } from '@/components/shared/ProUpgradeModal';
 import { BatchHistorySection } from '@/features/settings/sections/BatchHistorySection';
 import { MedicationSlotEditor } from '@/features/medication/MedicationSlotEditor';
+import { BoundariesSection } from '@/features/settings/sections/BoundariesSection';
 import { AboutSection } from '@/features/settings/sections/AboutSection';
 import { HelpFeedbackSection } from '@/features/settings/sections/HelpFeedbackSection';
 import { AccessibilitySection } from '@/features/settings/sections/AccessibilitySection';
@@ -490,6 +491,14 @@ export function SettingsScreen() {
         title="Medication Slots"
       >
         <MedicationSlotEditor />
+      </SettingsSection>
+
+      {/* Boundaries + burnout score (slice 21) */}
+      <SettingsSection
+        icon={<AlertTriangle className="h-5 w-5 text-[var(--color-accent)]" />}
+        title="Boundaries"
+      >
+        <BoundariesSection />
       </SettingsSection>
 
       {/* Accessibility */}
