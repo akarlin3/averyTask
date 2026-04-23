@@ -601,6 +601,16 @@ class TaskRepositoryTest {
             tasks.removeAll { it.id == id }
         }
 
+        override suspend fun getTasksInHorizonOnce(
+            startMillis: Long,
+            endMillis: Long
+        ): List<TaskEntity> = emptyList()
+
+        override suspend fun getScheduledTasksInHorizonOnce(
+            startMillis: Long,
+            endMillis: Long
+        ): List<TaskEntity> = emptyList()
+
         override fun getTaskById(id: Long): Flow<TaskEntity?> =
             flowOf(tasks.firstOrNull { it.id == id })
 

@@ -8,6 +8,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 
 
+### AI Time Blocking — horizon selector + mandatory preview (v1.4.40, A2 #5)
+- **New "Auto-Block My Day" button** on the Timeline top bar replaces the
+  old in-place config flow. Tapping it opens a horizon selector
+  (Today / Today + Tomorrow / Next 7 Days) and then runs the AI plan.
+- **Mandatory preview sheet** renders the proposed schedule grouped by
+  day with Approve / Cancel buttons. Nothing writes to Room until the
+  user taps Approve — `proposed=true` is enforced both server-side and
+  client-side.
+- **Backend schema extension**: `TimeBlockRequest` now accepts
+  `horizon_days` (1/2/7), `task_signals` (Eisenhower quadrant + estimated
+  Pomodoro sessions / duration per task), and `existing_blocks` (hard
+  constraints for already-scheduled PrismTask / Pomodoro blocks in the
+  horizon window). All fields are optional; old clients keep working
+  with single-day horizon + no extra signals.
+- **Haiku prompt** upgraded to rank by Eisenhower quadrant (Q1/Q2 early,
+  Q3/Q4 deferred first), size blocks from Pomodoro session counts, and
+  route around existing blocks as hard constraints. For `horizon_days>1`
+  every returned block carries a `date` so the client can place it on
+  the correct calendar day.
+- **Rate limit** bumped from 1-per-15-min to 10/hour on `/api/v1/ai/time-block`
+  so horizon=7 requests and parse-failure retries don't lock out Pro users.
+- **Google Calendar integration is out of scope** — that work is deferred
+  to Phase F (v2.1). Existing single-day GCal event passthrough is
+  preserved and now spans the horizon window.
+- **Pro-gated** via existing `ProFeatureGate.AI_TIME_BLOCK` — no new
+  feature flags.
+- **No Room migration**: DB stays at version 57. Horizon selection is
+  session-only state held in `TimelineViewModel` (matches how
+  `timeBlockConfig` is held).
+- **New files**: `AiTimeBlockUseCase.kt`, `AiTimeBlockUseCaseTest.kt`,
+  `TimelineViewModelTest.kt`. **New DAO queries**:
+  `getTasksInHorizonOnce`, `getScheduledTasksInHorizonOnce`.
+
 ### Sync — Room content entities cross-device (v1.4.38)
 - **Migration 55 → 56** adds `cloud_id TEXT` (UNIQUE-indexed) to all nine
   remaining user-authored content tables, plus `updated_at INTEGER NOT

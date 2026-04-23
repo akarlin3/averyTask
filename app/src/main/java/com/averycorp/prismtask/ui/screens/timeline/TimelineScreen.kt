@@ -138,8 +138,8 @@ fun TimelineScreen(
                             strokeWidth = 2.dp
                         )
                     } else {
-                        IconButton(onClick = { viewModel.showAutoScheduleSheet() }) {
-                            Icon(Icons.Default.AutoAwesome, "Auto-Schedule")
+                        IconButton(onClick = { viewModel.showAutoBlockMyDaySheet() }) {
+                            Icon(Icons.Default.AutoAwesome, "Auto-Block My Day")
                         }
                     }
                     IconButton(onClick = { viewModel.onGoToToday() }) {
@@ -593,6 +593,26 @@ fun TimelineScreen(
         )
     }
 
+    // v1.4.40: Auto-Block My Day horizon picker + preview flow.
+    val showHorizonSheet by viewModel.showHorizonSheet.collectAsStateWithLifecycle()
+    if (showHorizonSheet) {
+        AutoBlockHorizonSheet(
+            selectedHorizon = viewModel.selectedHorizon.collectAsStateWithLifecycle().value,
+            onSelect = { viewModel.selectHorizon(it) },
+            onGenerate = { viewModel.runAutoBlockMyDay() },
+            onDismiss = { viewModel.dismissHorizonSheet() }
+        )
+    }
+    val showPreviewSheet by viewModel.showPreviewSheet.collectAsStateWithLifecycle()
+    val scheduleForPreview = (scheduleUiState as? AiScheduleUiState.Success)?.schedule
+    if (showPreviewSheet && scheduleForPreview != null) {
+        AutoBlockPreviewSheet(
+            schedule = scheduleForPreview,
+            onApprove = { viewModel.commitProposedSchedule() },
+            onCancel = { viewModel.cancelProposedSchedule() }
+        )
+    }
+
     if (showUpgradePrompt) {
         AlertDialog(
             onDismissRequest = { viewModel.dismissUpgradePrompt() },
@@ -755,5 +775,272 @@ private fun ScheduleBannerRow(
         ) {
             Text("Dismiss", style = MaterialTheme.typography.labelSmall)
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// v1.4.40 — Auto-Block My Day flow (horizon picker + mandatory preview).
+// ---------------------------------------------------------------------------
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AutoBlockHorizonSheet(
+    selectedHorizon: com.averycorp.prismtask.domain.usecase.TimeBlockHorizon,
+    onSelect: (com.averycorp.prismtask.domain.usecase.TimeBlockHorizon) -> Unit,
+    onGenerate: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = androidx.compose.material3.rememberModalBottomSheetState(
+        skipPartiallyExpanded = true
+    )
+    androidx.compose.material3.ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = "Auto-Block My Day",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "Let AI rank your tasks and fit them into a schedule. Pick how far to plan:",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                HorizonOptionRow(
+                    label = "Today",
+                    sublabel = "Schedule just today's work",
+                    selected = selectedHorizon == com.averycorp.prismtask.domain.usecase.TimeBlockHorizon.TODAY,
+                    onClick = { onSelect(com.averycorp.prismtask.domain.usecase.TimeBlockHorizon.TODAY) }
+                )
+                HorizonOptionRow(
+                    label = "Today + Tomorrow",
+                    sublabel = "Spread across two days",
+                    selected = selectedHorizon == com.averycorp.prismtask.domain.usecase.TimeBlockHorizon.TODAY_PLUS_ONE,
+                    onClick = { onSelect(com.averycorp.prismtask.domain.usecase.TimeBlockHorizon.TODAY_PLUS_ONE) }
+                )
+                HorizonOptionRow(
+                    label = "Next 7 Days",
+                    sublabel = "Plan the whole week",
+                    selected = selectedHorizon == com.averycorp.prismtask.domain.usecase.TimeBlockHorizon.WEEK,
+                    onClick = { onSelect(com.averycorp.prismtask.domain.usecase.TimeBlockHorizon.WEEK) }
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            androidx.compose.material3.Button(
+                onClick = onGenerate,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Generate Schedule")
+            }
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun HorizonOptionRow(
+    label: String,
+    sublabel: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerLow
+            }
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            androidx.compose.material3.RadioButton(
+                selected = selected,
+                onClick = onClick
+            )
+            Spacer(Modifier.width(8.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = sublabel,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AutoBlockPreviewSheet(
+    schedule: AiSchedule,
+    onApprove: () -> Unit,
+    onCancel: () -> Unit
+) {
+    val sheetState = androidx.compose.material3.rememberModalBottomSheetState(
+        skipPartiallyExpanded = true
+    )
+    androidx.compose.material3.ModalBottomSheet(
+        onDismissRequest = onCancel,
+        sheetState = sheetState
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "Proposed Schedule",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            val stats = schedule.stats
+            Text(
+                text = "${stats.tasksScheduled} tasks · " +
+                    "${stats.totalWorkMinutes / 60}h ${stats.totalWorkMinutes % 60}m work · " +
+                    "${stats.totalBreakMinutes}m breaks",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            if (schedule.blocks.isEmpty()) {
+                Text(
+                    text = "No blocks proposed.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            } else {
+                val grouped = schedule.blocks.groupBy { it.date }.toSortedMap()
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = false)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    grouped.forEach { (date, dayBlocks) ->
+                        Text(
+                            text = formatPreviewDay(date),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                        dayBlocks.sortedBy { it.start }.forEach { block ->
+                            PreviewBlockCard(block)
+                        }
+                    }
+                }
+            }
+
+            if (schedule.unscheduledTasks.isNotEmpty()) {
+                Text(
+                    text = "Deferred: ${schedule.unscheduledTasks.joinToString { it.second }}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                androidx.compose.material3.OutlinedButton(
+                    onClick = onCancel,
+                    modifier = Modifier.weight(1f)
+                ) { Text("Cancel") }
+                androidx.compose.material3.Button(
+                    onClick = onApprove,
+                    modifier = Modifier.weight(1f)
+                ) { Text("Approve") }
+            }
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun PreviewBlockCard(block: AiScheduleBlock) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "${block.start}-${block.end}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.width(88.dp)
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = block.title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (block.reason.isNotBlank()) {
+                    Text(
+                        text = block.reason,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            if (block.type != "task") {
+                androidx.compose.material3.AssistChip(
+                    onClick = {},
+                    label = {
+                        Text(
+                            text = block.type.replaceFirstChar { it.titlecase() },
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                )
+            }
+        }
+    }
+}
+
+private fun formatPreviewDay(isoDate: String): String {
+    return try {
+        val parsed = LocalDate.parse(isoDate)
+        parsed.format(DateTimeFormatter.ofPattern("EEE, MMM d"))
+    } catch (_: Exception) {
+        isoDate
     }
 }

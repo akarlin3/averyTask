@@ -517,6 +517,16 @@ class TaskTemplateRepositoryTest {
         override suspend fun getSubtasksOnce(parentTaskId: Long): List<TaskEntity> =
             tasks.filter { it.parentTaskId == parentTaskId }.sortedBy { it.sortOrder }
 
+        override suspend fun getTasksInHorizonOnce(
+            startMillis: Long,
+            endMillis: Long
+        ): List<TaskEntity> = unsupported()
+
+        override suspend fun getScheduledTasksInHorizonOnce(
+            startMillis: Long,
+            endMillis: Long
+        ): List<TaskEntity> = unsupported()
+
         // --- Unused methods: throw so an accidental call in future tests is loud. ---
         override fun getAllTasks(): Flow<List<TaskEntity>> = unsupported()
 

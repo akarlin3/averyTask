@@ -11,11 +11,11 @@ import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.preferences.SortPreferences
-import com.averycorp.prismtask.data.remote.api.PrismTaskApi
-import com.averycorp.prismtask.data.remote.api.TimeBlockRequest
 import com.averycorp.prismtask.data.repository.ProjectRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
+import com.averycorp.prismtask.domain.usecase.AiTimeBlockUseCase
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
+import com.averycorp.prismtask.domain.usecase.TimeBlockHorizon
 import com.averycorp.prismtask.ui.components.QuickRescheduleFormatter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -58,7 +58,11 @@ data class AiScheduleBlock(
     val type: String,
     val taskId: Long?,
     val title: String,
-    val reason: String
+    val reason: String,
+    // v1.4.40: ISO date of the day this block belongs to. Always populated
+    // on new-flow responses — the use case backfills from the request
+    // anchor when Haiku omits it.
+    val date: String
 )
 
 data class AiTimeBlockStats(
@@ -72,7 +76,9 @@ data class AiTimeBlockStats(
 data class AiSchedule(
     val blocks: List<AiScheduleBlock>,
     val unscheduledTasks: List<Pair<Long, String>>,
-    val stats: AiTimeBlockStats
+    val stats: AiTimeBlockStats,
+    // v1.4.40: how many days the proposed schedule covers (1 / 2 / 7).
+    val horizonDays: Int = 1
 )
 
 /**
@@ -97,13 +103,24 @@ constructor(
     private val taskRepository: TaskRepository,
     private val projectRepository: ProjectRepository,
     private val sortPreferences: SortPreferences,
-    private val api: PrismTaskApi,
+    private val aiTimeBlockUseCase: AiTimeBlockUseCase,
     private val proFeatureGate: ProFeatureGate
 ) : ViewModel() {
     val userTier: StateFlow<UserTier> = proFeatureGate.userTier
 
     private val _timeBlockConfig = MutableStateFlow(TimeBlockConfig())
     val timeBlockConfig: StateFlow<TimeBlockConfig> = _timeBlockConfig
+
+    // v1.4.40: Auto-block my day flow state. Horizon selection is
+    // session-only (no DataStore) — matches how timeBlockConfig lives.
+    private val _selectedHorizon = MutableStateFlow(TimeBlockHorizon.TODAY)
+    val selectedHorizon: StateFlow<TimeBlockHorizon> = _selectedHorizon
+
+    private val _showHorizonSheet = MutableStateFlow(false)
+    val showHorizonSheet: StateFlow<Boolean> = _showHorizonSheet
+
+    private val _showPreviewSheet = MutableStateFlow(false)
+    val showPreviewSheet: StateFlow<Boolean> = _showPreviewSheet
 
     private val _scheduleUiState = MutableStateFlow<AiScheduleUiState>(AiScheduleUiState.Idle)
     val scheduleUiState: StateFlow<AiScheduleUiState> = _scheduleUiState
@@ -392,25 +409,57 @@ constructor(
         _timeBlockConfig.value = config
     }
 
-    fun generateTimeBlocks() {
+    // v1.4.40 entry point — opens the horizon picker rather than the legacy
+    // config sheet. Gated on Pro identically to [showAutoScheduleSheet].
+    fun showAutoBlockMyDaySheet() {
+        if (!proFeatureGate.hasAccess(ProFeatureGate.AI_TIME_BLOCK)) {
+            _showUpgradePrompt.value = true
+            return
+        }
+        _showHorizonSheet.value = true
+    }
+
+    fun dismissHorizonSheet() {
+        _showHorizonSheet.value = false
+    }
+
+    fun selectHorizon(horizon: TimeBlockHorizon) {
+        _selectedHorizon.value = horizon
+    }
+
+    fun dismissPreviewSheet() {
+        _showPreviewSheet.value = false
+    }
+
+    /**
+     * Horizon-aware Auto-Block flow. Sends the current horizon, per-task
+     * signals, and pre-existing blocks to Haiku, then surfaces the result
+     * in the preview sheet for the user to approve or cancel.
+     */
+    fun runAutoBlockMyDay() {
+        if (!proFeatureGate.hasAccess(ProFeatureGate.AI_TIME_BLOCK)) {
+            _showUpgradePrompt.value = true
+            return
+        }
         viewModelScope.launch {
             _scheduleUiState.value = AiScheduleUiState.Loading
             _scheduleError.value = null
-            _showTimeBlockSheet.value = false
+            _showHorizonSheet.value = false
             try {
                 val cfg = _timeBlockConfig.value
-                val dateStr = _currentDate.value.format(DateTimeFormatter.ISO_LOCAL_DATE)
-                val response = api.getTimeBlock(
-                    TimeBlockRequest(
-                        date = dateStr,
-                        dayStart = cfg.dayStart,
-                        dayEnd = cfg.dayEnd,
-                        blockSizeMinutes = cfg.blockSizeMinutes,
-                        includeBreaks = cfg.includeBreaks,
-                        breakFrequencyMinutes = cfg.breakFrequencyMinutes,
-                        breakDurationMinutes = cfg.breakDurationMinutes
-                    )
+                val horizon = _selectedHorizon.value
+                val anchor = _currentDate.value
+                val response = aiTimeBlockUseCase(
+                    anchorDate = anchor,
+                    horizon = horizon,
+                    dayStart = cfg.dayStart,
+                    dayEnd = cfg.dayEnd,
+                    blockSizeMinutes = cfg.blockSizeMinutes,
+                    includeBreaks = cfg.includeBreaks,
+                    breakFrequencyMinutes = cfg.breakFrequencyMinutes,
+                    breakDurationMinutes = cfg.breakDurationMinutes
                 )
+                val anchorIso = anchor.format(DateTimeFormatter.ISO_LOCAL_DATE)
                 val schedule = AiSchedule(
                     blocks = response.schedule.map { block ->
                         AiScheduleBlock(
@@ -419,7 +468,8 @@ constructor(
                             type = block.type,
                             taskId = block.taskId,
                             title = block.title,
-                            reason = block.reason
+                            reason = block.reason,
+                            date = block.date ?: anchorIso
                         )
                     },
                     unscheduledTasks = response.unscheduledTasks.map { it.taskId to it.title },
@@ -429,12 +479,9 @@ constructor(
                         totalFreeMinutes = response.stats.totalFreeMinutes,
                         tasksScheduled = response.stats.tasksScheduled,
                         tasksDeferred = response.stats.tasksDeferred
-                    )
+                    ),
+                    horizonDays = response.horizonDays
                 )
-                // Empty in both senses: nothing was scheduled and nothing
-                // was explicitly deferred. Treat as "Nothing to schedule
-                // right now" rather than silently rendering "0 tasks
-                // • 0h work • 0m breaks • 0m free".
                 if (schedule.blocks.isEmpty() && schedule.unscheduledTasks.isEmpty()) {
                     _scheduleUiState.value = AiScheduleUiState.Empty(
                         "Nothing to schedule right now."
@@ -442,53 +489,108 @@ constructor(
                     return@launch
                 }
                 _scheduleUiState.value = AiScheduleUiState.Success(schedule)
+                // Mandatory preview — never auto-commit. User approves or
+                // cancels via [commitProposedSchedule] / [cancelProposedSchedule].
+                _showPreviewSheet.value = true
             } catch (e: Exception) {
-                Log.w("TimelineVM", "Generate time blocks failed", e)
-                _scheduleUiState.value = AiScheduleUiState.Error(
-                    e.message ?: "Couldn't generate schedule"
-                )
-                _scheduleError.value = "Couldn't generate schedule"
+                Log.w("TimelineVM", "Auto-block my day failed", e)
+                val msg = classifyScheduleError(e)
+                _scheduleUiState.value = AiScheduleUiState.Error(msg)
+                _scheduleError.value = msg
             }
         }
     }
 
-    fun applyAiSchedule() {
-        val schedule = aiSchedule.value ?: return
+    fun generateTimeBlocks() {
+        // v1.4.40: the legacy config-sheet flow now funnels through the
+        // horizon-aware use case with a single-day horizon. Keeps the
+        // older entry point functional without duplicating the request
+        // path.
+        _selectedHorizon.value = TimeBlockHorizon.TODAY
+        _showTimeBlockSheet.value = false
+        runAutoBlockMyDay()
+    }
+
+    fun commitProposedSchedule() {
+        // Read from _scheduleUiState directly rather than the derived
+        // [aiSchedule] StateFlow — the latter is WhileSubscribed, so it's
+        // null whenever there's no active collector (incl. unit tests).
+        val schedule = (_scheduleUiState.value as? AiScheduleUiState.Success)
+            ?.schedule ?: return
         viewModelScope.launch {
             try {
-                val date = _currentDate.value
-                val dayStartMillis = date.atStartOfDay(zone).toInstant().toEpochMilli()
-
                 for (block in schedule.blocks) {
-                    if (block.type == "task" && block.taskId != null) {
-                        val startParts = block.start.split(":")
-                        val startMinutes = startParts[0].toInt() * 60 + startParts[1].toInt()
-                        val startMillis = dayStartMillis + startMinutes * 60 * 1000L
-
-                        val endParts = block.end.split(":")
-                        val endMinutes = endParts[0].toInt() * 60 + endParts[1].toInt()
-                        val durationMin = endMinutes - startMinutes
-
-                        val task = taskDao.getTaskByIdOnce(block.taskId) ?: continue
-                        taskDao.update(
-                            task.copy(
-                                scheduledStartTime = startMillis,
-                                estimatedDuration = durationMin,
-                                updatedAt = System.currentTimeMillis()
-                            )
-                        )
+                    if (block.type != "task" || block.taskId == null) continue
+                    val blockDate = try {
+                        LocalDate.parse(block.date)
+                    } catch (ex: Exception) {
+                        Log.w("TimelineVM", "Skipping block with bad date: ${block.date}", ex)
+                        continue
                     }
+                    val dayStartMillis = blockDate.atStartOfDay(zone).toInstant().toEpochMilli()
+                    val startMinutes = parseHourMinute(block.start) ?: continue
+                    val endMinutes = parseHourMinute(block.end) ?: continue
+                    val startMillis = dayStartMillis + startMinutes * 60 * 1000L
+                    val durationMin = (endMinutes - startMinutes).coerceAtLeast(1)
+
+                    val task = taskDao.getTaskByIdOnce(block.taskId) ?: continue
+                    taskDao.update(
+                        task.copy(
+                            scheduledStartTime = startMillis,
+                            estimatedDuration = durationMin,
+                            updatedAt = System.currentTimeMillis()
+                        )
+                    )
                 }
-                snackbarHostState.showSnackbar("Schedule applied!", duration = SnackbarDuration.Short)
+                _showPreviewSheet.value = false
+                snackbarHostState.showSnackbar(
+                    "Schedule applied!",
+                    duration = SnackbarDuration.Short
+                )
             } catch (e: Exception) {
+                Log.w("TimelineVM", "Commit proposed schedule failed", e)
                 _scheduleError.value = "Couldn't apply schedule"
             }
         }
     }
 
+    fun cancelProposedSchedule() {
+        _showPreviewSheet.value = false
+        _scheduleUiState.value = AiScheduleUiState.Idle
+    }
+
+    // Retained for backward compat with the existing Success banner's Apply button.
+    fun applyAiSchedule() = commitProposedSchedule()
+
     fun resetAiSchedule() {
         _scheduleUiState.value = AiScheduleUiState.Idle
         _scheduleError.value = null
+        _showPreviewSheet.value = false
+    }
+
+    private fun parseHourMinute(value: String): Int? {
+        val parts = value.split(":")
+        if (parts.size != 2) return null
+        val h = parts[0].toIntOrNull() ?: return null
+        val m = parts[1].toIntOrNull() ?: return null
+        return h * 60 + m
+    }
+
+    /**
+     * Map a failed AI call to a short user-facing message. The ViewModel
+     * receives Retrofit's [retrofit2.HttpException] for 4xx/5xx; we
+     * pattern-match on the status code so the UI can distinguish rate
+     * limiting (429) from a generic backend failure.
+     */
+    private fun classifyScheduleError(e: Exception): String {
+        val httpException = e as? retrofit2.HttpException
+        return when (httpException?.code()) {
+            429 -> "You've hit the AI scheduling limit. Try again in a bit."
+            503 -> "AI service is temporarily unavailable. Try again shortly."
+            500 -> "The AI returned an unexpected response. Try again."
+            null -> "Couldn't reach the scheduling service. Check your connection."
+            else -> e.message ?: "Couldn't generate schedule"
+        }
     }
 
     fun clearScheduleError() {
