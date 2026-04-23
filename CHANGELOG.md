@@ -15,8 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cleaned up 3 stale branches (fix/integration-tests-per-test-onboarding, feature/ai-time-blocking, fix/time-block-lint) + 2 git-merged branches (claude/sync-duplication-phase2, claude/sync-duplication-phase2.5)
 - Removed averyTask-timeblock worktree (AI time blocking shipped to main in v1.4.40)
 - Added Repo conventions section to CLAUDE.md
+- Promoted the Unreleased section's v1.4.35/v1.4.36/v1.4.37/v1.4.38/v1.4.40 sub-headers to top-level version headers; un-tagged entries between v1.4.0 and v1.4.34 grouped under a new "v1.4.1–v1.4.34 — Interim releases" section for later attribution
+- Added androidTest migration coverage for migrations 48→49, 49→50, 50→51, and 52→53 (all other migrations from v47→v57 now have at least one direct-SQL migration test)
 
-### AI Time Blocking — horizon selector + mandatory preview (v1.4.40, A2 #5)
+## v1.4.40 — AI Time Blocking: horizon selector + mandatory preview (April 2026)
+
+### AI Time Blocking — horizon selector + mandatory preview (A2 #5)
 - **New "Auto-Block My Day" button** on the Timeline top bar replaces the
   old in-place config flow. Tapping it opens a horizon selector
   (Today / Today + Tomorrow / Next 7 Days) and then runs the AI plan.
@@ -49,7 +53,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `TimelineViewModelTest.kt`. **New DAO queries**:
   `getTasksInHorizonOnce`, `getScheduledTasksInHorizonOnce`.
 
-### Sync — Room content entities cross-device (v1.4.38)
+## v1.4.38 — Room content entities cross-device sync (April 2026)
+
+### Sync — Room content entities cross-device
 - **Migration 55 → 56** adds `cloud_id TEXT` (UNIQUE-indexed) to all nine
   remaining user-authored content tables, plus `updated_at INTEGER NOT
   NULL DEFAULT 0` to the seven that lacked it. `medication_refills` and
@@ -93,7 +99,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   falls back to the thumbnail until a future content-upload
   extension. Link attachments round-trip cleanly.
 
-### Sync — Room config entities cross-device (v1.4.37)
+## v1.4.37 — Room config entities cross-device sync (April 2026)
+
+### Sync — Room config entities cross-device
 - **Migration 54 → 55** adds `cloud_id TEXT` (UNIQUE indexed) and
   `updated_at INTEGER NOT NULL DEFAULT 0` to the seven Room tables that
   back user configuration but were previously local-only:
@@ -131,7 +139,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `setCloudId`, `deleteById` (or `getByIdOnce`) where missing, matching
   the contract the generic sync helpers expect.
 
-### Preferences — Backup coverage follow-up (v1.4.36)
+## v1.4.36 — Preferences backup coverage follow-up (April 2026)
+
+### Preferences — Backup coverage follow-up
 - **Closes three backup gaps** identified in the post-v1.4.35 preference
   coverage audit:
   - `OnboardingPreferences` (asymmetry): already exported at
@@ -160,7 +170,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   graphs. Existing unit tests updated to pass `mockk(relaxed = true)`
   for the three new constructor parameters.
 
-### Preferences — Universal cross-device sync (v1.4.35)
+## v1.4.35 — Universal cross-device preference sync (April 2026)
+
+### Preferences — Universal cross-device sync
 - **New `GenericPreferenceSyncService`** syncs any registered DataStore
   preference file to Firestore at `/users/{uid}/prefs/{docName}` with
   document-level last-write-wins. A type-tagged payload
@@ -195,6 +207,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   widening behavior on pull, confirms excluded and meta-prefixed keys
   never leak into the payload, and asserts fingerprint stability
   across insertion order and set iteration order.
+
+## v1.4.1–v1.4.34 — Interim releases (April 2026)
+
+The entries below landed between v1.4.0 and v1.4.34 but were committed to the CHANGELOG without explicit per-version headers. They're grouped here for attribution; individual version boundaries can be reconstructed from git history if needed.
 
 ### Medications — Top-level entity (follow-up — MedicationRepository unit tests)
 - `MedicationRepositoryTest` (12 cases) covers the repository's write
