@@ -16,6 +16,21 @@ without any backend or Android-side changes. See
 and `docs/WEB_PARITY_PHASE_G_PROMPT_TEMPLATE.md` for the remaining
 Phase G roadmap.
 
+- **Theme shape + decorative flags (slice 14)** — closes the last
+  theme-parity gap with Android's `themesets/THEME_SPEC.md`. Every
+  theme in `theme/themes.ts` now carries `radius / cardRadius /
+  chipShape / density / glow / personality`. `applyThemeToDocument`
+  writes `--prism-radius / card-radius / chip-radius / glow` and
+  sets `data-personality` + `data-density` on `<html>`. New opt-in
+  utility classes in `index.css`: `.prism-card` (per-theme card shape
+  + glow + density-scaled padding), `.prism-chip` (sharp vs pill).
+  Per-personality pseudo-element treatments: Cyberpunk renders corner
+  brackets on `.prism-card`, Matrix prefixes `.prism-display` with a
+  muted `>` terminal prompt, Void adds an editorial hairline above
+  display headlines, Synthwave paints a tinted radial sunset behind
+  `.prism-card`. Utilities are additive — existing components keep
+  rendering untouched and migrate on their own schedule.
+
 - **Theme typography (slice 13)** — per-theme fonts ported from
   `themesets/themes.js`. `theme/themes.ts` now carries `fontBody /
   fontDisplay / fontMono / displayUpper / displayTracking` for each
