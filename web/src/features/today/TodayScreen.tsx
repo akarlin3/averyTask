@@ -20,6 +20,7 @@ import TaskEditor from '@/features/tasks/TaskEditor';
 import type { Task } from '@/types/task';
 import type { DashboardSummary } from '@/types/api';
 import { MedicationSlotList } from '@/features/daily-essentials/MedicationSlotList';
+import { MorningCheckInCard } from '@/features/checkin/MorningCheckInCard';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { Sparkles as SparklesIcon } from 'lucide-react';
 import { logicalToday } from '@/utils/dayBoundary';
@@ -275,6 +276,8 @@ export function TodayScreen() {
           {format(parseISO(settingsStartOfDay.todayIso), 'EEEE, MMMM d')}
         </span>
       </div>
+
+      <MorningCheckInCard />
 
       {/* AI Briefing teaser — hidden by default respect setting */}
       {settingsShowBriefing && (

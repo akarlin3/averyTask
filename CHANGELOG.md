@@ -16,6 +16,18 @@ without any backend or Android-side changes. See
 and `docs/WEB_PARITY_PHASE_G_PROMPT_TEMPLATE.md` for the remaining
 Phase G roadmap.
 
+- **Morning check-in + forgiveness streak (slice 20)** — wellness
+  cluster, continued. New `api/firestore/checkInLogs.ts` persists one
+  log per logical day at `users/{uid}/check_in_logs` with the ISO
+  date as the doc id (idempotent `setDoc(merge)` for re-submits).
+  New `utils/checkInStreak.ts` computes streaks with Android's
+  forgiveness-first semantics — a single missed day bends the streak,
+  two consecutive misses break it. `MorningCheckInCard` pins on
+  Today with streak badge, toggleable via a new
+  `showMorningCheckIn` preference in Settings. The modal captures
+  medications-confirmed / tasks-reviewed / habits-planned booleans
+  plus free-form notes. 5 new streak unit tests.
+
 - **Mood & energy tracking (slice 19)** — first wellness-cluster
   slice, Firestore-native. New `api/firestore/moodEnergyLogs.ts` +
   `utils/moodAnalytics.ts` (pure rollup + stats); logs persist at

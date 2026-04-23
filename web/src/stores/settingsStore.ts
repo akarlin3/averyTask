@@ -11,6 +11,7 @@ interface SettingsState {
   showUpcomingSection: boolean;
   showHabitChips: boolean;
   showBriefingCard: boolean;
+  showMorningCheckIn: boolean;
   upcomingDays: number;
   /** Hour (0–23) at which the "logical day" rolls over. Matches
    *  Android's `DayBoundary` / `startOfDay` preference. 0 = midnight. */
@@ -49,6 +50,7 @@ function saveSettings(state: Partial<SettingsState>) {
     showUpcomingSection,
     showHabitChips,
     showBriefingCard,
+    showMorningCheckIn,
     upcomingDays,
     startOfDayHour,
     weekStartsOn,
@@ -67,6 +69,7 @@ function saveSettings(state: Partial<SettingsState>) {
       showUpcomingSection,
       showHabitChips,
       showBriefingCard,
+      showMorningCheckIn,
       upcomingDays,
       startOfDayHour,
       weekStartsOn,
@@ -85,6 +88,7 @@ const defaults = {
   showUpcomingSection: true,
   showHabitChips: true,
   showBriefingCard: true,
+  showMorningCheckIn: true,
   upcomingDays: 7,
   startOfDayHour: 0,
   weekStartsOn: 'sunday' as const,

@@ -373,6 +373,12 @@ export function SettingsScreen() {
           checked={settings.showBriefingCard}
           onChange={(v) => settings.setSetting('showBriefingCard', v)}
         />
+        <ToggleRow
+          label="Show Morning Check-In"
+          description="Forgiveness-first streak prompt at the top of Today — one missed day bends, not breaks."
+          checked={settings.showMorningCheckIn}
+          onChange={(v) => settings.setSetting('showMorningCheckIn', v)}
+        />
         <div className="mt-2">
           <label className="mb-1 block text-sm font-medium text-[var(--color-text-primary)]">
             Upcoming Days
