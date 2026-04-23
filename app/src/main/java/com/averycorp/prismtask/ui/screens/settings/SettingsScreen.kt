@@ -278,6 +278,13 @@ fun SettingsScreen(
                                 iconBgColor = ColLifeModes,
                                 onClick = { navController.navigate("settings/life_modes") }
                             )
+                            SettingsNavRow(
+                                title = "Medication Slots",
+                                subtitle = "Times of day for medication doses",
+                                iconEmoji = "💊",
+                                iconBgColor = ColLifeModes,
+                                onClick = { navController.navigate("settings/medication_slots") }
+                            )
                         }
                         SettingsNavRow(
                             title = "Focus Timer",
@@ -366,6 +373,13 @@ fun SettingsScreen(
                             iconEmoji = "\uD83D\uDCBE",
                             iconBgColor = ColDataBackup,
                             onClick = { navController.navigate("settings/data_backup") }
+                        )
+                        SettingsNavRow(
+                            title = "Batch Command History",
+                            subtitle = "Review or undo recent AI batches (24h)",
+                            iconEmoji = "⏱",
+                            iconBgColor = ColDataBackup,
+                            onClick = { navController.navigate(PrismTaskRoute.BatchHistory.route) }
                         )
                     }
                 }

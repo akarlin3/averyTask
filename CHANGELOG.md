@@ -7,6 +7,236 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Medication slot system — MedicationScreen rewire (A2 #6 PR3 + A2 #7) — closes A2
+
+- **Main MedicationScreen rewired** from the legacy `SelfCareStepEntity`
+  + `self_care_logs.tiers_by_time` JSON path to the v1.5 data model
+  (`medications` + `medication_slots` + `medication_tier_states` +
+  `medication_doses`). Layout shows one card per active slot, grouped
+  for today's date, with auto-computed achieved tier per slot and
+  per-medication toggles inside each card.
+- **Tap-to-override**: tapping a slot's tier chip drops the achieved
+  value to `SKIPPED` and records the row with `tier_source = user_set`.
+  Tapping again clears the override and the tier returns to
+  auto-compute from today's doses. `USER_SET` rows stick through
+  dose changes — a user's explicit skip cannot be auto-upgraded to
+  COMPLETE by marking meds.
+- **New `MedicationViewModel`** operates purely on
+  `MedicationRepository` + `MedicationSlotRepository`. Reactive
+  `StateFlow` of `MedicationSlotTodayState` (slot + linked meds +
+  `takenMedicationIds` + achieved tier + `isUserSet`) is built by
+  combining the active slots, medications, today's doses, and today's
+  tier-state rows. The old SelfCareRepository dependency is removed.
+- **New `MedicationEditorDialog`** replaces the legacy MedDialog. Uses
+  `MedicationTierRadio` (from PR2) for the tier selector, wires the
+  new `MedicationSlotPicker` (from PR2) for slot linkage + per-slot
+  overrides, and persists to `medications` + junction + overrides on
+  save. Empty-state hints guide the user to Settings → Medication
+  Slots when no slots exist.
+- **Removed**: legacy `MedicationComponents.kt` (`MedDialog`,
+  `EditableMedItem`, `MedItem`, `TimePickerDialog`, `formatTime24to12`)
+  — the rewired MedicationScreen has no callers left. `HabitListViewModel`
+  and `SelfCareRepository` still read `tiers_by_time` for cross-domain
+  self-care UI; that column and data stay intact (quarantine pattern).
+- **No dual-write to `tiers_by_time`** from the medication path.
+  Evaluated and rejected: a dual-write retirement protocol (F.0 §3.4
+  referenced in the original plan) is not present in the repo and would
+  add risk without a clear consumer. Since the only cross-domain
+  consumer (`HabitListViewModel.kt:246`) reads its own self-care log
+  rows (not medication-routine rows), medication-tier writes skipping
+  `tiers_by_time` has no observable effect outside the medication UI.
+- **A2 #6 and A2 #7 closed.** The medication slot system is fully
+  shipped end-to-end: schema + backfill (PR1), Settings editor +
+  reusable composables (PR2), main screen rewire + dialog replacement
+  (this PR).
+
+### Medication slot system — slot editor + reusable pickers (A2 #6 PR2)
+
+- **New Settings screen** `Settings → Tasks & Habits → Medication Slots`
+  (route: `settings/medication_slots`). Lists every slot the user has
+  created, lets them rename / re-time / change drift, reorder via up/down
+  buttons (swapping `sort_order`), soft-delete with confirmation, and
+  restore previously deleted slots. Historical tier-state history is
+  always preserved — soft-delete flips `is_active = 0`, nothing more.
+- **`MedicationSlotsViewModel`**: Hilt-injected, exposes `allSlots`
+  `StateFlow` and proxies CRUD to `MedicationSlotRepository`.
+- **`MedicationSlotEditorSheet`**: inline create / edit dialog shared by
+  the "new slot" and "edit slot" paths. Drift presets cover ±30 / ±60 /
+  ±120 / ±180 min plus a custom numeric field; `HH:mm` input is
+  character-filtered + length-capped to keep typing smooth without
+  strict mid-edit rejection.
+- **`MedicationTierRadio`**: reusable Composable for the three-tier
+  radio (ESSENTIAL / PRESCRIPTION / COMPLETE) with inline helper text
+  explaining each option. Written against the PR1 `MedicationTier` enum
+  so it's wire-compatible with the rewire in PR3.
+- **`MedicationSlotPicker` + `MedicationSlotSelection`**: reusable
+  Composable for picking slots during the medication create / edit flow.
+  Each selected slot optionally exposes an inline "Use different time for
+  this med" toggle that edits the override fields in place. Purely
+  controlled — the parent owns selection state and persists via the
+  repository helpers added in PR1.
+- **MedDialog / MedicationScreen unchanged**. The new pickers are
+  shipped as standalone composables; wiring them into the create / edit
+  flow is part of PR3 (which swaps the screen's underlying storage from
+  `SelfCareStepEntity` to `MedicationEntity`, the shape that owns the
+  slot junction + tier column). This keeps the PR2 diff free of the
+  MedDialog rewrite and lets users exercise the slot editor immediately.
+- **ProFeatureGate audit**: no new gates. Slots are free — matches the
+  existing medication feature tier and Checkpoint 1 §3.5 decision.
+
+### Medication slot system — schema + backfill (A2 #6 PR1)
+
+- **New data model**: `medication_slots` (user-defined time slots),
+  `medication_slot_overrides` (per-medication time/drift overrides),
+  `medication_medication_slots` (junction), and `medication_tier_states`
+  (per-day achieved tier per `(medication, slot)` pair). Three new Room
+  entities + one junction cross-ref entity added to PrismTaskDatabase
+  (now at version 60, rebased from a planned 57→58/58→59 chain after
+  the NLP batch ops PR landed at 57→58 first). FKs CASCADE on both
+  sides; unique indexes on `cloud_id` and on the override/tier-state
+  identity tuples.
+- **New enums**: `MedicationTier` (ESSENTIAL/PRESCRIPTION/COMPLETE),
+  `AchievedTier` (SKIPPED + the three medication tiers — skipped only
+  valid on achieved states), `TierSource` (COMPUTED/USER_SET). All
+  stored as lowercase tokens to match the legacy `medications.tier`
+  column data (no data migration required).
+- **Migration 58→59**: creates the three slot-system tables, seeds one
+  `Default` slot (ideal_time 09:00, ±180 min drift), and links every
+  existing `medications` row to it via `INSERT OR IGNORE` (idempotent).
+  No `user_id` column on `medication_slots` — Firestore document-path
+  tenancy handles per-user isolation.
+- **Migration 59→60**: creates `medication_tier_states` and backfills
+  from the legacy `self_care_logs.tiers_by_time` JSON column into the
+  DEFAULT slot. Highest tier present in each log's JSON wins
+  (complete > prescription > essential > skipped). Legacy
+  `tiers_by_time` column is preserved (quarantine pattern) until a
+  later cleanup migration.
+- **Pure auto-compute logic**: `MedicationTierComputer.computeAchievedTier()`
+  walks the tier ladder bottom-up and returns the highest rung where
+  every med at that rung or below in the slot has been marked taken.
+- **Repository**: `MedicationSlotRepository` owns slot/override/junction/
+  tier-state CRUD and notifies `SyncTracker` with the new entity types.
+  Existing `MedicationRepository` is untouched.
+- **Sync integration**: `MedicationSyncMapper` extended with push/pull
+  mappers for the three synced families (junction rows are not synced
+  directly — `medicationToMap` now embeds a `slotCloudIds` list that
+  the pull path rebuilds the junction from, mirroring the `task_tags`
+  pattern). `SyncService` push/pull dispatches extended; real-time
+  listener registers the three new collections.
+- **Orphan healer**: `CloudIdOrphanHealer` now covers 35 families (was
+  30): added `medications` + `medication_doses` (pre-existing v1.4.37
+  gap) alongside the three new slot-system families.
+- **No UI changes**: the main `MedicationScreen` still reads from the
+  legacy `self_care_logs.tiers_by_time` JSON path. Rewire lands in PR3
+  (A2 #6 + A2 #7 closeout).
+- **Tests**: unit tests for the three new enums, `MedicationTierComputer`
+  (10 cases covering every ladder edge), sync-mapper round-trips for
+  the three new families + `medicationToMap` slot-id embedding, two
+  direct-SQL migration tests (58→59 schema + DEFAULT seed + re-run
+  idempotency; 59→60 backfill + legacy-column preservation), plus three
+  new `CloudIdOrphanHealerTest` cases for medication / slot families.
+
+### NLP batch schedule operations — Settings history + 24hr sweep (A2 pulled-from-H PR3)
+
+- **Settings → Batch Command History** screen lists every batch from
+  the last 24 hours, newest first. Each card shows the original
+  command text, the number of changes applied, when it ran (relative),
+  and either an Undo button or "Undone X minutes ago" if already
+  reversed. Tapping Details opens a per-entity detail dialog.
+- **24hr durable undo**: the same `BatchOperationsRepository.undoBatch`
+  path that powers the 30s post-Approve Snackbar (PR2) backs the
+  Settings history Undo button. Undo decodes each entry's saved
+  `pre_state_json` and reverses the mutation; partial failures are
+  surfaced via Snackbar without aborting the rest.
+- **Daily sweep worker** (`BatchUndoSweepWorker`) runs at ~03:00 local
+  time via WorkManager. Drops rows where `expires_at < now AND
+  undone_at IS NULL` (24h window lapsed) OR `undone_at < now - 7d`
+  (already-undone tail window passed). Scheduled from
+  `PrismTaskApplication.onCreate` with `ExistingPeriodicWorkPolicy.UPDATE`
+  so re-launches are no-ops. No user toggle — pure maintenance.
+- **Cross-device behavior**: device-local by design (no `cloud_id`
+  on `batch_undo_log`). The mutated entities themselves still sync
+  cross-device via the per-entity sync path; only the undo history
+  stays on the device that ran the batch. Avoids races where two
+  devices try to reverse the same batch simultaneously.
+
+
+
+### NLP batch schedule operations — QuickAddBar + preview + snackbar undo (A2 pulled-from-H PR2)
+
+- **QuickAddBar intent router**: a new `BatchIntentDetector` heuristic
+  intercepts batch commands (`"Cancel everything Friday"`, `"Move all
+  tasks tagged work to Monday"`) BEFORE the existing template / project
+  / single-task paths. The detector requires two distinct signal
+  categories (quantifier + time range, tag filter + bulk verb, etc.)
+  so normal single-task entries like `"Buy milk tomorrow"` stay on
+  the fast single-task NLP path.
+- **BatchPreviewScreen**: full-screen diff view of the proposed
+  mutations. Color-coded per mutation type (reschedule=amber,
+  delete=red, complete=green, tag change=blue, etc.), per-row
+  inclusion checkbox so the user can opt out individual changes
+  before approving. Low-confidence banner (<0.7) and ambiguous-
+  entity banner when Haiku flags a phrase it couldn't disambiguate.
+- **Approve is transactional**: a single Room transaction snapshots the
+  pre-mutation state of every touched entity to `batch_undo_log`,
+  then applies the mutations. One shared `batch_id` groups the
+  entries so a single tap reverses the whole batch.
+- **Snackbar undo on return**: a new `BatchUndoEventBus` singleton
+  fires when Approve lands. `BatchUndoListenerViewModel` (instantiated
+  by the Today screen) observes the bus and triggers
+  `TodayViewModel.showSnackbar("N changes applied", "Undo") { ... }`.
+  Undo reverses every entry in the batch using the saved
+  `pre_state_json` and marks each row `undone_at = now`.
+- **Pro-gated** via the `AI_BATCH_OPS` gate added in PR1. Free-tier
+  users see `"Batch commands are a Pro feature — upgrade to use them."`
+  as a message on the QuickAdd voice-message surface and the command
+  is not sent to Haiku.
+- **Scope**: Tasks (RESCHEDULE / DELETE / COMPLETE / PRIORITY_CHANGE
+  / TAG_CHANGE / PROJECT_MOVE), Habits (COMPLETE / SKIP / ARCHIVE),
+  Projects (ARCHIVE). Medication mutations are accepted from the AI
+  plan but skipped at apply time pending coordination with the
+  medslots worktree (Option C from the audit — deferred to follow-up).
+  Hard delete uses the existing soft-delete path (`archivedAt = now`)
+  so undo is a one-column flip instead of subtree reconstruction.
+- **Tests**: `BatchIntentDetectorTest` (unit — 11 cases covering empty
+  input, single-task false positives, quantifier+time-range,
+  tag filter, bulk-verb+plural, case-insensitivity, original-casing
+  preservation).
+
+### NLP batch schedule operations — schema + backend (A2 pulled-from-H PR1)
+
+- **Room migration v57 → v58** adds `batch_undo_log`, a device-local
+  append-only table that records the pre-mutation state of every entity
+  touched by an Approve action so the user can reverse the batch within a
+  24-hour window. Indexes on `batch_id`, `created_at`, and
+  `(expires_at, undone_at)` mirror the read paths (history list, undo
+  lookup, sweep worker).
+- **Device-local by design** — no `cloud_id` column, not registered
+  with `SyncMapper` or `CloudIdOrphanHealer`. Cross-device undo would
+  race two devices undoing the same batch, and the per-entity sync path
+  already propagates the mutated entities themselves.
+- **New backend endpoint** `POST /api/v1/ai/batch-parse`. Accepts a
+  natural-language command (`"Cancel everything Friday"`) plus the
+  client's user_context (today's date, timezone, active tasks/habits/
+  projects/medications) and returns a structured list of proposed
+  mutations across all four entity types, a confidence score, and any
+  ambiguous-entity hints. Stateless — no Firestore reads, mirroring the
+  WeeklyReviewRequest pattern.
+- **Claude Haiku prompt** with hard guardrails: never invent entity IDs,
+  return only mutations the user plausibly intended, surface ambiguity
+  rather than guess, full date-range parsing rules ("Friday" / "next
+  week" / "the weekend"), per-mutation `proposed_new_values` schemas.
+  Two-attempt JSON parse retry, same shape as the Eisenhower service.
+- **Pro-gated** at the rate limiter (10/hour, mirrors time-block) and
+  via a new `AI_BATCH_OPS` ProFeatureGate (PR2 wires the client-side
+  gate; backend tier check is already in `daily_ai_rate_limiter`).
+- **Tests**: Migration57To58Test (table + indexes + nullable columns +
+  insert/query smoke), BatchUndoLogDaoTest (insert/list/sweep/undo
+  semantics), test_ai_batch_parse.py (service success + ambiguity +
+  retry + 503/500/429/422 router cases).
+- **No UI yet** — PR2 wires the QuickAddBar intent router, the
+  BatchPreviewScreen diff view, and the 30s Snackbar undo. PR3 ships
+  the Settings batch history + 24-hour sweep worker.
 
 ### Repo hygiene (v1.4.40)
 
