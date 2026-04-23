@@ -9,12 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Web
 
-Two high-leverage parity slices landed ahead of Phase G, targeting the
+High-leverage parity slices landed ahead of Phase G, targeting the
 biggest capability gaps between the web client and Android v1.5.2
 without any backend or Android-side changes. See
 `docs/WEB_PARITY_GAP_ANALYSIS.md` for the full audit that picked these
 and `docs/WEB_PARITY_PHASE_G_PROMPT_TEMPLATE.md` for the remaining
 Phase G roadmap.
+
+- **Daily Briefing + Weekly Planner (slice 3)** — wires two previously
+  unwired AI endpoints: `POST /ai/daily-briefing` and
+  `POST /ai/weekly-plan`. New `/briefing` route renders greeting, top
+  priorities with reasons, heads-up items, suggested order with
+  times, habit reminders, and a light/moderate/heavy day-type badge.
+  New `/planner` route renders a per-day plan (task, suggested time,
+  duration, reason, habits list, hours total), an unscheduled bucket
+  with reasons, a week summary, and AI tips. Planner ships with a
+  Preferences drawer (work days, focus hours/day, front-loading flag)
+  matching the backend `WeeklyPlanPreferences` shape. Both screens are
+  Pro-gated via `useProFeature`, surface the existing `ProUpgradeModal`
+  for FREE users, and treat the backend's 429 rate-limit response
+  (weekly plan is capped at one call per 30 minutes per user) with a
+  human-readable toast. Sidebar gains **Briefing** and **Planner**
+  entries in the AI arc.
 
 - **NLP batch ops ([PR #711](https://github.com/akarlin3/prismTask/pull/711))** —
   the quick-add bar now detects batch-style commands ("reschedule all

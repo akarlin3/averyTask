@@ -1,5 +1,11 @@
 import apiClient from './client';
 import type { EisenhowerResponse } from '@/types/api';
+import type {
+  DailyBriefingRequest,
+  DailyBriefingResponse,
+  WeeklyPlanRequest,
+  WeeklyPlanResponse,
+} from '@/types/briefingPlanner';
 
 export interface PomodoroRequest {
   available_minutes: number;
@@ -148,6 +154,18 @@ export const aiApi = {
   weeklyReview(data: WeeklyReviewRequest): Promise<WeeklyReviewResponse> {
     return apiClient
       .post('/ai/weekly-review', data)
+      .then((r) => r.data);
+  },
+
+  dailyBriefing(data: DailyBriefingRequest = {}): Promise<DailyBriefingResponse> {
+    return apiClient
+      .post('/ai/daily-briefing', data)
+      .then((r) => r.data);
+  },
+
+  weeklyPlan(data: WeeklyPlanRequest = {}): Promise<WeeklyPlanResponse> {
+    return apiClient
+      .post('/ai/weekly-plan', data)
       .then((r) => r.data);
   },
 };

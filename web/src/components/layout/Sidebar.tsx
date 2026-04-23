@@ -8,6 +8,8 @@ import {
   LayoutGrid,
   Timer,
   CalendarClock,
+  CalendarDays,
+  Sparkles,
   TrendingUp,
   FileText,
   Archive,
@@ -27,7 +29,9 @@ const NAV_ITEMS = [
   { to: '/habits', icon: Activity, label: 'Habits' },
   { to: '/calendar', icon: Calendar, label: 'Calendar' },
   // AI features grouped in a "prioritize → plan → schedule → reflect" arc.
+  { to: '/briefing', icon: Sparkles, label: 'Briefing' },
   { to: '/eisenhower', icon: LayoutGrid, label: 'Eisenhower' },
+  { to: '/planner', icon: CalendarDays, label: 'Planner' },
   { to: '/pomodoro', icon: Timer, label: 'Pomodoro' },
   { to: '/timeblock', icon: CalendarClock, label: 'Time Block' },
   { to: '/weekly-review', icon: TrendingUp, label: 'Weekly Review' },
