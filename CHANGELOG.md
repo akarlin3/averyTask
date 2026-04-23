@@ -16,6 +16,21 @@ without any backend or Android-side changes. See
 and `docs/WEB_PARITY_PHASE_G_PROMPT_TEMPLATE.md` for the remaining
 Phase G roadmap.
 
+- **Boundaries + burnout scorer (slice 21)** — wellness cluster,
+  continued. New `api/firestore/boundaryRules.ts` persists
+  user-declared limits at `users/{uid}/boundary_rules` in three
+  forms: daily task cap (warn/alert when active tasks cross), work
+  hours window (info nudge outside the declared start/end hours
+  — overnight windows supported), and a weekly hour budget used by
+  the burnout scorer. `utils/boundaryEnforcer.ts` returns breach
+  objects with severity; `utils/burnoutScorer.ts` rolls breaches
+  plus recent mood/energy plus task overload into a 0–100 score
+  bucketed calm/moderate/risky/burning. A new Boundaries section in
+  Settings offers inline CRUD with per-rule enable toggles; a
+  `BoundaryTodayBanner` on Today shows the active breaches + burnout
+  bucket with color-coded severity, staying silent when everything's
+  calm. 10 new unit tests cover the enforcer + scorer.
+
 - **Morning check-in + forgiveness streak (slice 20)** — wellness
   cluster, continued. New `api/firestore/checkInLogs.ts` persists one
   log per logical day at `users/{uid}/check_in_logs` with the ISO
