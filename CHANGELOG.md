@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Medication slot system — MedicationScreen rewire (A2 #6 PR3 + A2 #7) — closes A2
+
+- **Main MedicationScreen rewired** from the legacy `SelfCareStepEntity`
+  + `self_care_logs.tiers_by_time` JSON path to the v1.5 data model
+  (`medications` + `medication_slots` + `medication_tier_states` +
+  `medication_doses`). Layout shows one card per active slot, grouped
+  for today's date, with auto-computed achieved tier per slot and
+  per-medication toggles inside each card.
+- **Tap-to-override**: tapping a slot's tier chip drops the achieved
+  value to `SKIPPED` and records the row with `tier_source = user_set`.
+  Tapping again clears the override and the tier returns to
+  auto-compute from today's doses. `USER_SET` rows stick through
+  dose changes — a user's explicit skip cannot be auto-upgraded to
+  COMPLETE by marking meds.
+- **New `MedicationViewModel`** operates purely on
+  `MedicationRepository` + `MedicationSlotRepository`. Reactive
+  `StateFlow` of `MedicationSlotTodayState` (slot + linked meds +
+  `takenMedicationIds` + achieved tier + `isUserSet`) is built by
+  combining the active slots, medications, today's doses, and today's
+  tier-state rows. The old SelfCareRepository dependency is removed.
+- **New `MedicationEditorDialog`** replaces the legacy MedDialog. Uses
+  `MedicationTierRadio` (from PR2) for the tier selector, wires the
+  new `MedicationSlotPicker` (from PR2) for slot linkage + per-slot
+  overrides, and persists to `medications` + junction + overrides on
+  save. Empty-state hints guide the user to Settings → Medication
+  Slots when no slots exist.
+- **Removed**: legacy `MedicationComponents.kt` (`MedDialog`,
+  `EditableMedItem`, `MedItem`, `TimePickerDialog`, `formatTime24to12`)
+  — the rewired MedicationScreen has no callers left. `HabitListViewModel`
+  and `SelfCareRepository` still read `tiers_by_time` for cross-domain
+  self-care UI; that column and data stay intact (quarantine pattern).
+- **No dual-write to `tiers_by_time`** from the medication path.
+  Evaluated and rejected: a dual-write retirement protocol (F.0 §3.4
+  referenced in the original plan) is not present in the repo and would
+  add risk without a clear consumer. Since the only cross-domain
+  consumer (`HabitListViewModel.kt:246`) reads its own self-care log
+  rows (not medication-routine rows), medication-tier writes skipping
+  `tiers_by_time` has no observable effect outside the medication UI.
+- **A2 #6 and A2 #7 closed.** The medication slot system is fully
+  shipped end-to-end: schema + backfill (PR1), Settings editor +
+  reusable composables (PR2), main screen rewire + dialog replacement
+  (this PR).
+
 ### Medication slot system — slot editor + reusable pickers (A2 #6 PR2)
 
 - **New Settings screen** `Settings → Tasks & Habits → Medication Slots`

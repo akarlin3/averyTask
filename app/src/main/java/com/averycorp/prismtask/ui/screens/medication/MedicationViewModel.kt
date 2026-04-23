@@ -4,232 +4,313 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.data.local.entity.MedicationDoseEntity
 import com.averycorp.prismtask.data.local.entity.MedicationEntity
-import com.averycorp.prismtask.data.local.entity.SelfCareLogEntity
-import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
-import com.averycorp.prismtask.data.preferences.MedicationPreferences
-import com.averycorp.prismtask.data.preferences.MedicationScheduleMode
+import com.averycorp.prismtask.data.local.entity.MedicationSlotEntity
+import com.averycorp.prismtask.data.local.entity.MedicationTierStateEntity
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
-import com.averycorp.prismtask.data.repository.MedStepLog
 import com.averycorp.prismtask.data.repository.MedicationRepository
-import com.averycorp.prismtask.data.repository.SelfCareRepository
-import com.averycorp.prismtask.notifications.HabitReminderScheduler
+import com.averycorp.prismtask.data.repository.MedicationSlotRepository
+import com.averycorp.prismtask.domain.model.medication.AchievedTier
+import com.averycorp.prismtask.domain.model.medication.MedicationTier
+import com.averycorp.prismtask.domain.model.medication.TierSource
+import com.averycorp.prismtask.domain.usecase.MedicationTierComputer
+import com.averycorp.prismtask.ui.screens.medication.components.MedicationSlotSelection
 import com.averycorp.prismtask.util.DayBoundary
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/**
+ * Surface the Main Medication screen needs to render one row per slot per
+ * day with auto-computed achieved tier + per-medication toggle affordance.
+ */
+data class MedicationSlotTodayState(
+    val slot: MedicationSlotEntity,
+    val medications: List<MedicationEntity>,
+    val takenMedicationIds: Set<Long>,
+    val achievedTier: AchievedTier,
+    val isUserSet: Boolean
+)
+
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class MedicationViewModel
 @Inject
-@Suppress("LongParameterList")
 constructor(
-    private val repository: SelfCareRepository,
     private val medicationRepository: MedicationRepository,
-    private val medicationPreferences: MedicationPreferences,
-    private val taskBehaviorPreferences: TaskBehaviorPreferences,
-    private val reminderScheduler: HabitReminderScheduler
+    private val slotRepository: MedicationSlotRepository,
+    private val taskBehaviorPreferences: TaskBehaviorPreferences
 ) : ViewModel() {
     private val _editMode = MutableStateFlow(false)
     val editMode: StateFlow<Boolean> = _editMode
 
-    // --- Legacy flows (still power the current Compose tree) -----------
-    //
-    // The Compose rewire from SelfCareStepEntity/SelfCareLogEntity to
-    // the new MedicationEntity/MedicationDoseEntity types is deferred
-    // to a follow-up PR that also addresses the tier-per-time-of-day
-    // UX decision (today's `tiersByTime` state doesn't have a clean
-    // home on the new model). The dual-write shim in SelfCareRepository
-    // keeps these legacy flows in sync with MedicationEntity writes.
-    val todayLog: StateFlow<SelfCareLogEntity?> = repository
-        .getTodayLog("medication")
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
-
-    val steps: StateFlow<List<SelfCareStepEntity>> = repository
-        .getSteps("medication")
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    // --- New flows (staged for the follow-up Compose rewire) -----------
-    //
-    // Same data, top-level-entity shape. Exposed now so the next session
-    // flipping the Compose types doesn't also need to touch the ViewModel.
-
-    /** Active medications from the new `medications` table. */
     val medications: StateFlow<List<MedicationEntity>> = medicationRepository
         .observeActive()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), emptyList())
 
-    /** Today's dose history keyed on the device's configured day-start hour. */
-    val todaysDoses: StateFlow<List<MedicationDoseEntity>> = taskBehaviorPreferences
+    val activeSlots: StateFlow<List<MedicationSlotEntity>> = slotRepository
+        .observeActiveSlots()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), emptyList())
+
+    /** ISO local date scoped by the user's day-start hour preference. */
+    val todayDate: StateFlow<String> = taskBehaviorPreferences
         .getDayStartHour()
         .flatMapLatest { hour ->
-            val today = DayBoundary.currentLocalDateString(hour)
-            medicationRepository.observeDosesForDate(today)
+            MutableStateFlow(DayBoundary.currentLocalDateString(hour))
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000L),
+            DayBoundary.currentLocalDateString(0)
+        )
 
-    val reminderIntervalMinutes: StateFlow<Int> = medicationPreferences
-        .getReminderIntervalMinutes()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), MedicationPreferences.DEFAULT_INTERVAL)
+    private val todaysDoses: StateFlow<List<MedicationDoseEntity>> = todayDate
+        .flatMapLatest { date -> medicationRepository.observeDosesForDate(date) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), emptyList())
 
-    val scheduleMode: StateFlow<MedicationScheduleMode> = medicationPreferences
-        .getScheduleMode()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), MedicationScheduleMode.INTERVAL)
+    private val todaysTierStates: StateFlow<List<MedicationTierStateEntity>> = todayDate
+        .flatMapLatest { date -> slotRepository.observeTierStatesForDate(date) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), emptyList())
 
-    val specificTimes: StateFlow<Set<String>> = medicationPreferences
-        .getSpecificTimes()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
-
-    fun setScheduleMode(mode: MedicationScheduleMode) {
-        viewModelScope.launch {
-            medicationPreferences.setScheduleMode(mode)
-            reminderScheduler.rescheduleAll()
+    /**
+     * Reactive list of `(slot, meds, taken, achieved)` projections — the
+     * screen renders one card per element. Junction lookups happen inside
+     * `combine`'s flatMapLatest loop rather than at render time so the
+     * `StateFlow` stays the source of truth.
+     */
+    val slotTodayStates: StateFlow<List<MedicationSlotTodayState>> = combine(
+        activeSlots,
+        medications,
+        todaysDoses,
+        todaysTierStates
+    ) { slots, meds, doses, tierStates ->
+        // For each slot, resolve its linked meds via the junction, then
+        // compute the auto-tier based on today's doses. A user-set tier
+        // in the DB sticks regardless of what auto-compute says.
+        slots.map { slot ->
+            val linkedMedIds = slotRepository.getMedicationIdsForSlotOnce(slot.id).toSet()
+            val linkedMeds = meds.filter { it.id in linkedMedIds }
+            val takenIds = doses.asSequence()
+                .filter { it.medicationId in linkedMedIds && it.slotKey == slot.id.toString() }
+                .map { it.medicationId }
+                .toSet()
+            val computed = MedicationTierComputer.computeAchievedTier(
+                medsForSlot = linkedMeds.associate { it.id to MedicationTier.fromStorage(it.tier) },
+                markedTaken = takenIds
+            )
+            val userRow = tierStates.firstOrNull { it.slotId == slot.id && it.isUserSetSource() }
+            val displayTier = userRow?.let { AchievedTier.fromStorage(it.tier) } ?: computed
+            MedicationSlotTodayState(
+                slot = slot,
+                medications = linkedMeds,
+                takenMedicationIds = takenIds,
+                achievedTier = displayTier,
+                isUserSet = userRow != null
+            )
         }
-    }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), emptyList())
 
-    fun addSpecificTime(time: String) {
-        viewModelScope.launch {
-            medicationPreferences.addSpecificTime(time)
-            if (medicationPreferences.getScheduleModeOnce() == MedicationScheduleMode.SPECIFIC_TIMES) {
-                reminderScheduler.scheduleSpecificTimes()
-            }
-        }
-    }
-
-    fun removeSpecificTime(time: String) {
-        viewModelScope.launch {
-            medicationPreferences.removeSpecificTime(time)
-            if (medicationPreferences.getScheduleModeOnce() == MedicationScheduleMode.SPECIFIC_TIMES) {
-                reminderScheduler.scheduleSpecificTimes()
-            }
-        }
-    }
-
-    fun setReminderInterval(minutes: Int) {
-        viewModelScope.launch {
-            medicationPreferences.setReminderIntervalMinutes(minutes)
-        }
-    }
+    private fun MedicationTierStateEntity.isUserSetSource(): Boolean =
+        TierSource.fromStorage(this.tierSource) == TierSource.USER_SET
 
     fun toggleEditMode() {
         _editMode.value = !_editMode.value
     }
 
-    fun setTier(tier: String) {
+    /**
+     * Toggle a single medication's dose for the current slot on today's
+     * date. Also refreshes the `medication_tier_states` row via
+     * auto-compute so the achieved-tier indicator updates reactively —
+     * unless the row is `USER_SET`, in which case the user override wins.
+     */
+    fun toggleDose(slot: MedicationSlotEntity, medication: MedicationEntity) {
         viewModelScope.launch {
-            repository.setTier("medication", tier)
+            val already = todaysDoses.value.firstOrNull {
+                it.medicationId == medication.id && it.slotKey == slot.id.toString()
+            }
+            if (already != null) {
+                medicationRepository.unlogDose(already)
+            } else {
+                medicationRepository.logDose(
+                    medicationId = medication.id,
+                    slotKey = slot.id.toString()
+                )
+            }
+            refreshTierState(slot.id)
         }
     }
-
-    fun setTierForTime(timeOfDay: String, tier: String?) {
-        viewModelScope.launch {
-            repository.setTierForTime(timeOfDay, tier)
-        }
-    }
-
-    fun getTiersByTime(log: SelfCareLogEntity?): Map<String, String> {
-        if (log == null) return emptyMap()
-        return repository.parseTiersByTime(log.tiersByTime)
-    }
-
-    fun logTier(tier: String, note: String) {
-        viewModelScope.launch {
-            repository.logTier(tier, note)
-        }
-    }
-
-    fun unlogTier(tier: String) {
-        viewModelScope.launch {
-            repository.unlogTier(tier)
-        }
-    }
-
-    fun toggleStep(stepId: String, timeOfDay: String = "", note: String? = null) {
-        viewModelScope.launch {
-            repository.toggleStep("medication", stepId, note, timeOfDay)
-        }
-    }
-
-    fun resetToday() {
-        viewModelScope.launch {
-            repository.resetToday("medication")
-        }
-    }
-
-    fun addStep(label: String, duration: String, tier: String, note: String, timeOfDay: String) {
-        viewModelScope.launch {
-            repository.addStep("medication", label, duration, tier, note, "Medications", timeOfDay = timeOfDay)
-        }
-    }
-
-    fun updateStep(step: SelfCareStepEntity) {
-        viewModelScope.launch {
-            repository.updateStep(step)
-        }
-    }
-
-    fun deleteStep(step: SelfCareStepEntity) {
-        viewModelScope.launch {
-            repository.deleteStep(step)
-        }
-    }
-
-    fun moveStep(step: SelfCareStepEntity, direction: Int) {
-        viewModelScope.launch {
-            repository.moveStep(step, direction)
-        }
-    }
-
-    fun getVisibleSteps(allSteps: List<SelfCareStepEntity>, tier: String): List<SelfCareStepEntity> =
-        repository.getVisibleStepsFromEntities(allSteps, tier, "medication")
-
-    fun computeTierTimes(steps: List<SelfCareStepEntity>): Map<String, String> =
-        repository.computeTierTimes(steps, "medication")
-
-    fun getCompletedSteps(log: SelfCareLogEntity?): Set<String> {
-        if (log == null) return emptySet()
-        return getMedStepLogs(log).map { it.id }.toSet()
-    }
-
-    fun getMedStepLogs(log: SelfCareLogEntity?): List<MedStepLog> {
-        if (log == null) return emptyList()
-        return repository.parseMedStepLogs(log.completedSteps)
-    }
-
-    /** True if [stepId] has been logged for the given time-of-day block. */
-    fun isStepDoneAt(logs: List<MedStepLog>, stepId: String, timeOfDay: String): Boolean =
-        repository.isMedLoggedAt(logs, stepId, timeOfDay)
 
     /**
-     * Returns the log entry for a step in a specific time-of-day block, or
-     * null if not logged. Prefers an exact-block match over legacy blanks.
+     * Drop the slot's tier to SKIPPED for today. Records the row as
+     * `USER_SET` so subsequent dose changes don't auto-upgrade it.
      */
-    fun getLogForStepAt(logs: List<MedStepLog>, stepId: String, timeOfDay: String): MedStepLog? {
-        val exact = logs.firstOrNull { it.id == stepId && it.timeOfDay == timeOfDay }
-        if (exact != null) return exact
-        return logs.firstOrNull { it.id == stepId && it.timeOfDay.isBlank() }
+    fun setSkippedForSlot(slot: MedicationSlotEntity) {
+        viewModelScope.launch {
+            val date = todayDate.value
+            val meds = medicationsForSlotOnce(slot.id)
+            meds.forEach { med ->
+                slotRepository.upsertTierState(
+                    medicationId = med.id,
+                    slotId = slot.id,
+                    date = date,
+                    tier = AchievedTier.SKIPPED,
+                    source = TierSource.USER_SET
+                )
+            }
+        }
     }
 
-    fun getSelectedTier(log: SelfCareLogEntity?): String = log?.selectedTier ?: "prescription"
-
-    fun isTierFullyLogged(
-        allSteps: List<SelfCareStepEntity>,
-        completedSteps: Set<String>,
-        tier: String
-    ): Boolean {
-        val visibleSteps = getVisibleSteps(allSteps, tier)
-        return visibleSteps.isNotEmpty() && visibleSteps.all { it.stepId in completedSteps }
+    /**
+     * Clear a user override so the slot's tier goes back to auto-compute.
+     */
+    fun clearUserOverrideForSlot(slot: MedicationSlotEntity) {
+        viewModelScope.launch {
+            val date = todayDate.value
+            val states = todaysTierStates.value.filter { it.slotId == slot.id }
+            states.forEach { slotRepository.deleteTierState(it) }
+            refreshTierState(slot.id)
+        }
     }
 
-    fun getStepsForTier(allSteps: List<SelfCareStepEntity>, tier: String): List<SelfCareStepEntity> =
-        getVisibleSteps(allSteps, tier)
+    /**
+     * Recompute the tier state for a slot from the current dose list and
+     * persist it as `COMPUTED`. Called after every dose toggle; no-op if
+     * the existing row is `USER_SET` (the repository respects the
+     * override inside upsertTierState).
+     */
+    private suspend fun refreshTierState(slotId: Long) {
+        val date = todayDate.value
+        val meds = medicationsForSlotOnce(slotId)
+        val doses = todaysDoses.value
+        val takenIds = doses.asSequence()
+            .filter { it.slotKey == slotId.toString() }
+            .map { it.medicationId }
+            .toSet()
+        val computed = MedicationTierComputer.computeAchievedTier(
+            medsForSlot = meds.associate { it.id to MedicationTier.fromStorage(it.tier) },
+            markedTaken = takenIds
+        )
+        meds.forEach { med ->
+            slotRepository.upsertTierState(
+                medicationId = med.id,
+                slotId = slotId,
+                date = date,
+                tier = computed,
+                source = TierSource.COMPUTED
+            )
+        }
+    }
 
-    fun getStepsInExactTier(allSteps: List<SelfCareStepEntity>, tier: String): List<SelfCareStepEntity> =
-        allSteps.filter { it.tier == tier }
+    private suspend fun medicationsForSlotOnce(slotId: Long): List<MedicationEntity> {
+        val medIds = slotRepository.getMedicationIdsForSlotOnce(slotId).toSet()
+        return medications.value.filter { it.id in medIds }
+    }
+
+    // ── Medication CRUD ────────────────────────────────────────────────
+
+    /**
+     * Insert a new medication and link it to [slotSelections]. Tier is the
+     * enum; the storage write is handled inside MedicationTier.toStorage().
+     * Per-slot overrides in [slotSelections] are written via upsertOverride
+     * so the underlying UNIQUE index is respected.
+     */
+    fun addMedication(
+        name: String,
+        tier: MedicationTier,
+        notes: String,
+        slotSelections: List<MedicationSlotSelection>
+    ) {
+        if (name.isBlank()) return
+        viewModelScope.launch {
+            val id = medicationRepository.insert(
+                MedicationEntity(
+                    name = name.trim(),
+                    tier = tier.toStorage(),
+                    notes = notes.trim()
+                )
+            )
+            slotRepository.replaceLinksForMedication(id, slotSelections.map { it.slotId })
+            slotSelections
+                .filter { it.hasOverride }
+                .forEach { sel ->
+                    slotRepository.upsertOverride(
+                        com.averycorp.prismtask.data.local.entity.MedicationSlotOverrideEntity(
+                            medicationId = id,
+                            slotId = sel.slotId,
+                            overrideIdealTime = sel.overrideIdealTime,
+                            overrideDriftMinutes = sel.overrideDriftMinutes
+                        )
+                    )
+                }
+            // Bump the med so its embedded slotCloudIds list re-pushes.
+            val inserted = medicationRepository.getByIdOnce(id) ?: return@launch
+            medicationRepository.update(inserted)
+        }
+    }
+
+    fun updateMedication(
+        medication: MedicationEntity,
+        name: String,
+        tier: MedicationTier,
+        notes: String,
+        slotSelections: List<MedicationSlotSelection>
+    ) {
+        if (name.isBlank()) return
+        viewModelScope.launch {
+            medicationRepository.update(
+                medication.copy(
+                    name = name.trim(),
+                    tier = tier.toStorage(),
+                    notes = notes.trim()
+                )
+            )
+            slotRepository.replaceLinksForMedication(medication.id, slotSelections.map { it.slotId })
+            // Replace override rows: delete any existing for slots that
+            // are no longer overridden, upsert the rest.
+            val existingOverrides = slotRepository.getOverridesForMedicationOnce(medication.id)
+            val selectedSlotIds = slotSelections.map { it.slotId }.toSet()
+            existingOverrides
+                .filter { it.slotId !in selectedSlotIds }
+                .forEach { slotRepository.deleteOverride(it) }
+            slotSelections
+                .filter { it.hasOverride }
+                .forEach { sel ->
+                    slotRepository.upsertOverride(
+                        com.averycorp.prismtask.data.local.entity.MedicationSlotOverrideEntity(
+                            medicationId = medication.id,
+                            slotId = sel.slotId,
+                            overrideIdealTime = sel.overrideIdealTime,
+                            overrideDriftMinutes = sel.overrideDriftMinutes
+                        )
+                    )
+                }
+            slotSelections
+                .filter { !it.hasOverride }
+                .forEach { sel -> slotRepository.deleteOverrideForPair(medication.id, sel.slotId) }
+        }
+    }
+
+    fun archiveMedication(medication: MedicationEntity) {
+        viewModelScope.launch { medicationRepository.archive(medication.id) }
+    }
+
+    suspend fun selectionsForMedication(medicationId: Long): List<MedicationSlotSelection> {
+        val slotIds = slotRepository.getSlotIdsForMedicationOnce(medicationId)
+        val overrides = slotRepository.getOverridesForMedicationOnce(medicationId)
+            .associateBy { it.slotId }
+        return slotIds.map { slotId ->
+            val o = overrides[slotId]
+            MedicationSlotSelection(
+                slotId = slotId,
+                overrideIdealTime = o?.overrideIdealTime,
+                overrideDriftMinutes = o?.overrideDriftMinutes
+            )
+        }
+    }
 }
