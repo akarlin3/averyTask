@@ -45,6 +45,7 @@ const AnalyticsScreen = lazy(() => import('@/features/analytics/AnalyticsScreen'
 const ConversationExtractScreen = lazy(() => import('@/features/extract/ConversationExtractScreen').then(m => ({ default: m.ConversationExtractScreen })));
 const MedicationScreen = lazy(() => import('@/features/medication/MedicationScreen').then(m => ({ default: m.MedicationScreen })));
 const MoodScreen = lazy(() => import('@/features/mood/MoodScreen').then(m => ({ default: m.MoodScreen })));
+const FocusReleaseScreen = lazy(() => import('@/features/focus/FocusReleaseScreen').then(m => ({ default: m.FocusReleaseScreen })));
 
 function LazyRoute({ Component, fallback }: { Component: ComponentType; fallback?: React.ReactNode }) {
   return (
@@ -117,6 +118,7 @@ const routes: RouteObject[] = [
       { path: 'extract', element: <LazyRoute Component={ConversationExtractScreen} /> },
       { path: 'medication', element: <LazyRoute Component={MedicationScreen} /> },
       { path: 'mood', element: <LazyRoute Component={MoodScreen} /> },
+      { path: 'focus', element: <LazyRoute Component={FocusReleaseScreen} /> },
     ],
   },
 
