@@ -29,6 +29,7 @@ import { toast } from 'sonner';
 import { analyticsApi } from '@/api/analytics';
 import { dashboardApi } from '@/api/dashboard';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ProjectProgressPanel } from '@/features/analytics/ProjectProgressPanel';
 import { ProUpgradeModal } from '@/components/shared/ProUpgradeModal';
 import { useProFeature } from '@/hooks/useProFeature';
 import type {
@@ -130,10 +131,12 @@ export function AnalyticsScreen() {
     useState<HabitCorrelationResponse | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const dateParams = useMemo(() => rangeToParams(range), [range]);
+
   const loadAll = useCallback(async () => {
     if (!isPro) return;
     setLoading(true);
-    const params = rangeToParams(range);
+    const params = dateParams;
     try {
       const [sum, score, time, corr] = await Promise.allSettled([
         dashboardApi.getAnalyticsSummary(),
@@ -158,7 +161,7 @@ export function AnalyticsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [isPro, range, groupBy]);
+  }, [isPro, dateParams, groupBy]);
 
   useEffect(() => {
     loadAll();
@@ -480,6 +483,14 @@ export function AnalyticsScreen() {
           )}
         </section>
       )}
+
+      {/* Project burndown — computed client-side (see ProjectProgressPanel). */}
+      <div className="mb-6">
+        <ProjectProgressPanel
+          startIso={dateParams.start_date}
+          endIso={dateParams.end_date}
+        />
+      </div>
 
       {correlations && correlations.correlations.length > 0 && (
         <section className="mb-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-card)] p-4">

@@ -16,6 +16,19 @@ without any backend or Android-side changes. See
 and `docs/WEB_PARITY_PHASE_G_PROMPT_TEMPLATE.md` for the remaining
 Phase G roadmap.
 
+- **Analytics project-progress via client-side compute (slice 16)** —
+  unblocks the last analytics endpoint without the backend change.
+  New `utils/projectBurndown.ts` mirrors
+  `backend/app/services/analytics.py::compute_project_burndown`
+  exactly but computes from Firestore `created_at` / `completed_at` /
+  `status` fields. `ProjectProgressPanel` on `AnalyticsScreen` renders
+  the result as a stacked Recharts chart (remaining line,
+  completed-cumulative line, added-per-day bar) with a project picker
+  dropdown, velocity + ETA readout, and an "on track / at risk"
+  callout. Respects the dashboard's 7/30/90-day range selector. 5 new
+  unit tests cover the compute (totals, per-day entries, on-track /
+  at-risk branches, all-done case).
+
 - **TAG_CHANGE batch mutation + tag persistence (slice 15)** — closes
   the remaining batch-parse deferral on web. `Task` type gains a
   `tag_ids: string[]` field; `firestore/tasks.ts` reads/writes a

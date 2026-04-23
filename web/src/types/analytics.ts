@@ -66,6 +66,32 @@ export interface TimeTrackingResponse {
   most_accurate_estimates: string | null;
 }
 
+// ── Project progress / burndown ──────────────────────────────────
+//
+// The web client computes this locally from Firestore tasks
+// (see `utils/projectBurndown.ts`). The shape mirrors
+// `backend/app/schemas/analytics.py` so swapping to a backend-backed
+// variant later is a one-file change.
+
+export interface BurndownEntry {
+  /** ISO `YYYY-MM-DD`. */
+  date: string;
+  remaining: number;
+  completed_cumulative: number;
+  added: number;
+}
+
+export interface ProjectProgressResponse {
+  project_name: string;
+  total_tasks: number;
+  completed_tasks: number;
+  burndown: BurndownEntry[];
+  velocity: number;
+  /** ISO `YYYY-MM-DD`; null when there's no velocity to project. */
+  projected_completion: string | null;
+  is_on_track: boolean;
+}
+
 // ── Habit correlations ────────────────────────────────────────────
 
 export type CorrelationDirection = 'positive' | 'negative' | 'neutral';
