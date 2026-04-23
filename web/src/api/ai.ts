@@ -14,6 +14,10 @@ import type {
   PomodoroCoachingRequest,
   PomodoroCoachingResponse,
 } from '@/types/pomodoroCoaching';
+import type {
+  EisenhowerClassifyTextRequest,
+  EisenhowerClassifyTextResponse,
+} from '@/types/eisenhowerClassifyText';
 
 export interface PomodoroRequest {
   available_minutes: number;
@@ -190,6 +194,14 @@ export const aiApi = {
   ): Promise<PomodoroCoachingResponse> {
     return apiClient
       .post('/ai/pomodoro-coaching', data)
+      .then((r) => r.data);
+  },
+
+  eisenhowerClassifyText(
+    data: EisenhowerClassifyTextRequest,
+  ): Promise<EisenhowerClassifyTextResponse> {
+    return apiClient
+      .post('/ai/eisenhower/classify_text', data)
       .then((r) => r.data);
   },
 };

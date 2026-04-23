@@ -26,6 +26,7 @@ import { useTaskStore } from '@/stores/taskStore';
 import { useProjectStore } from '@/stores/projectStore';
 import { useAuthStore } from '@/stores/authStore';
 import { aiApi } from '@/api/ai';
+import { ClassifyTextModal } from '@/features/eisenhower/ClassifyTextModal';
 import * as firestoreTasks from '@/api/firestore/tasks';
 import { getFirebaseUid } from '@/stores/firebaseUid';
 import { Checkbox } from '@/components/ui/Checkbox';
@@ -331,6 +332,7 @@ export function EisenhowerScreen() {
   const [loading, setLoading] = useState(true);
   const [categorizing, setCategorizing] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [classifyOpen, setClassifyOpen] = useState(false);
   const [createQuadrant, setCreateQuadrant] = useState<Quadrant | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -590,6 +592,14 @@ export function EisenhowerScreen() {
           )}
 
           <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setClassifyOpen(true)}
+          >
+            <Sparkles className="h-4 w-4" />
+            Classify Text
+          </Button>
+          <Button
             variant={isPro ? 'primary' : 'secondary'}
             size="sm"
             onClick={handleAutoCategorize}
@@ -605,6 +615,11 @@ export function EisenhowerScreen() {
           </Button>
         </div>
       </div>
+
+      <ClassifyTextModal
+        isOpen={classifyOpen}
+        onClose={() => setClassifyOpen(false)}
+      />
 
       {/* Empty-state banner (primary signal for empty responses). */}
       {emptyBanner && (
