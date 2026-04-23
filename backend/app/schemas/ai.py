@@ -159,14 +159,59 @@ class WeeklyPlanResponse(BaseModel):
 # --- Time Block ---
 
 
+class ExistingBlock(BaseModel):
+    """A pre-existing block the AI planner must treat as a hard constraint.
+
+    Used for both PrismTask-scheduled tasks (``source="task"``) and
+    Pomodoro sessions (``source="pomodoro"``) already on the user's calendar
+    in the horizon window. Google Calendar events are NOT sent here — they
+    still flow through the legacy ``calendar_events`` path.
+    """
+
+    date: str  # ISO date (YYYY-MM-DD) of the block's local day
+    start: str  # HH:MM local
+    end: str  # HH:MM local
+    title: str
+    source: str = Field(pattern="^(task|pomodoro)$")
+    task_id: Optional[str] = None
+
+
+class TimeBlockTaskSignal(BaseModel):
+    """Optional rich per-task signals the client can attach to a time-block request.
+
+    All fields are optional — when absent the planner falls back to the
+    shape it used before v1.4.40. The client matches entries by ``task_id``
+    to the tasks it has already surfaced via Firestore.
+    """
+
+    task_id: str
+    eisenhower_quadrant: Optional[str] = Field(default=None, pattern="^(Q1|Q2|Q3|Q4)$")
+    estimated_pomodoro_sessions: Optional[int] = Field(default=None, ge=0, le=32)
+    estimated_duration_minutes: Optional[int] = Field(default=None, ge=0, le=1440)
+    pomodoro_source: Optional[str] = Field(
+        default=None,
+        pattern="^(recorded|estimated_from_duration)$",
+    )
+
+
 class TimeBlockRequest(BaseModel):
-    date: Optional[str] = None  # defaults to today
+    date: Optional[str] = None  # defaults to today (horizon anchor)
     day_start: str = Field(default="09:00")
     day_end: str = Field(default="18:00")
     block_size_minutes: int = Field(default=30, ge=15, le=120)
     include_breaks: bool = True
     break_frequency_minutes: int = Field(default=90, ge=30, le=180)
     break_duration_minutes: int = Field(default=15, ge=5, le=30)
+    # v1.4.40: horizon selector. 1 = just today (legacy), 2 = today+tomorrow,
+    # 7 = rolling week. Defaults to 1 so pre-v1.4.40 clients keep their
+    # single-day behavior without touching the request body.
+    horizon_days: int = Field(default=1, ge=1, le=7)
+    # v1.4.40: per-task signals the AI should use to rank and size blocks.
+    # Keyed by task_id on the client — backend merges into the prompt.
+    task_signals: list[TimeBlockTaskSignal] = Field(default_factory=list)
+    # v1.4.40: pre-existing PrismTask blocks + Pomodoro sessions in the
+    # horizon. Hard constraints — the planner must not schedule over them.
+    existing_blocks: list[ExistingBlock] = Field(default_factory=list)
 
 
 class ScheduleBlock(BaseModel):
@@ -176,6 +221,10 @@ class ScheduleBlock(BaseModel):
     task_id: Optional[str] = None
     title: str
     reason: str
+    # v1.4.40: for multi-day horizons, every block carries the ISO date it
+    # belongs to. Absent/null on legacy single-day responses — clients
+    # should default to the request's ``date`` field.
+    date: Optional[str] = None
 
 
 class TimeBlockStats(BaseModel):
@@ -190,6 +239,10 @@ class TimeBlockResponse(BaseModel):
     schedule: list[ScheduleBlock]
     unscheduled_tasks: list[UnscheduledTask] = []
     stats: TimeBlockStats
+    # v1.4.40: explicit "proposed, not committed" flag. The client MUST NOT
+    # write this schedule without user approval.
+    proposed: bool = True
+    horizon_days: int = 1
 
 
 # --- Weekly Review (v2 hybrid schema) ---

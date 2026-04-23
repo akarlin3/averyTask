@@ -267,6 +267,29 @@ def filter_for_time_block(tasks: list[TaskDTO], target: date) -> list[TaskDTO]:
     ]
 
 
+def filter_for_time_block_range(
+    tasks: list[TaskDTO], start: date, end: date
+) -> list[TaskDTO]:
+    """Return tasks eligible for AI time-blocking across a horizon window.
+
+    A task is eligible if any of:
+      * due_date falls within [start, end]
+      * planned_date falls within [start, end]
+      * overdue before ``start`` — gets a chance to land anywhere in the horizon
+
+    ``start`` and ``end`` are inclusive. For single-day horizons, call with
+    start == end (equivalent to ``filter_for_time_block`` but returns the
+    same set — kept separate so callers can signal intent explicitly).
+    """
+    return [
+        t
+        for t in tasks
+        if (t.due_date_obj is not None and start <= t.due_date_obj <= end)
+        or (t.planned_date_obj is not None and start <= t.planned_date_obj <= end)
+        or (t.due_date_obj is not None and t.due_date_obj < start)
+    ]
+
+
 def filter_recurring(tasks: list[TaskDTO]) -> list[TaskDTO]:
     return [t for t in tasks if t.is_recurring]
 
@@ -280,5 +303,6 @@ __all__ = [
     "filter_overdue_before",
     "filter_planned_on",
     "filter_for_time_block",
+    "filter_for_time_block_range",
     "filter_recurring",
 ]

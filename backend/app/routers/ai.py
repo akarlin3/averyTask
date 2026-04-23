@@ -38,6 +38,7 @@ from app.services.firestore_tasks import (
     fetch_tasks_by_ids,
     filter_due_on,
     filter_for_time_block,
+    filter_for_time_block_range,
     filter_overdue_before,
     filter_planned_on,
     filter_recurring,
@@ -59,7 +60,10 @@ eisenhower_classify_text_rate_limiter = RateLimiter(max_requests=20, window_seco
 # Rate limiters for new AI endpoints
 briefing_rate_limiter = RateLimiter(max_requests=1, window_seconds=3600)  # 1 per hour
 weekly_plan_rate_limiter = RateLimiter(max_requests=1, window_seconds=1800)  # 1 per 30 min
-time_block_rate_limiter = RateLimiter(max_requests=1, window_seconds=900)  # 1 per 15 min
+# v1.4.40: expanded horizon support (today / +1 / +6 days). Bumped from
+# 1-per-15min to 10/hour because horizon=7 requests are higher-value and a
+# single parse failure shouldn't lock a Pro user out for 15 minutes.
+time_block_rate_limiter = RateLimiter(max_requests=10, window_seconds=3600)
 # v1.4.0 V6: weekly review — 1 per hour is plenty, the client caches history.
 weekly_review_rate_limiter = RateLimiter(max_requests=1, window_seconds=3600)
 # v1.4.0 V9: paste-to-extract — 10 per minute to cover rapid iteration
@@ -439,8 +443,17 @@ async def time_block(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format; expected YYYY-MM-DD")
 
+    horizon_days = max(1, min(data.horizon_days, 7))
+    horizon_end = target_date + timedelta(days=horizon_days - 1)
+
     incomplete = await _get_incomplete_tasks(current_user)
-    tasks = [t.to_briefing_dict() for t in filter_for_time_block(incomplete, target_date)]
+    if horizon_days <= 1:
+        tasks = [t.to_briefing_dict() for t in filter_for_time_block(incomplete, target_date)]
+    else:
+        tasks = [
+            t.to_briefing_dict()
+            for t in filter_for_time_block_range(incomplete, target_date, horizon_end)
+        ]
 
     if not tasks:
         _log_empty_short_circuit(current_user, "time-block")
@@ -456,6 +469,8 @@ async def time_block(
                 tasks_scheduled=0,
                 tasks_deferred=0,
             ),
+            proposed=True,
+            horizon_days=horizon_days,
         )
 
     # Fetch real Google Calendar events for the target date so the AI
@@ -488,8 +503,8 @@ async def time_block(
                 current_user.id,
                 calendar_ids,
                 time_min=day_start_dt,
-                time_max=day_start_dt + timedelta(days=1),
-                limit=50,
+                time_max=day_start_dt + timedelta(days=horizon_days),
+                limit=50 * horizon_days,
             )
             calendar_events = [
                 {
@@ -502,6 +517,12 @@ async def time_block(
             ]
     except Exception:  # noqa: BLE001
         calendar_events = []
+
+    # Passthrough: client-supplied per-task signals and pre-existing blocks.
+    # Validated at the pydantic boundary, so we can forward the dict shape
+    # directly to the AI prompt without re-validation.
+    task_signals_payload = [s.model_dump() for s in data.task_signals]
+    existing_blocks_payload = [b.model_dump() for b in data.existing_blocks]
 
     try:
         from app.services.ai_productivity import generate_time_blocks as ai_time_block
@@ -517,11 +538,21 @@ async def time_block(
             tasks=tasks,
             calendar_events=calendar_events,
             tier=tier,
+            horizon_days=horizon_days,
+            horizon_end=horizon_end,
+            task_signals=task_signals_payload,
+            existing_blocks=existing_blocks_payload,
         )
     except RuntimeError:
         raise HTTPException(status_code=503, detail="AI service temporarily unavailable")
     except ValueError:
         raise HTTPException(status_code=500, detail="AI returned an invalid response")
+
+    # Force the "proposed" contract: the Android client must treat this as a
+    # preview and never auto-commit. The service layer doesn't set this —
+    # the router does, so tests that stub the service still get the flag.
+    result.setdefault("proposed", True)
+    result["horizon_days"] = horizon_days
 
     return TimeBlockResponse(**result)
 

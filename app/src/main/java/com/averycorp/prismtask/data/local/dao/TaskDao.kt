@@ -63,6 +63,39 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE due_date >= :startOfDay AND due_date < :endOfDay")
     fun getTasksDueOnDate(startOfDay: Long, endOfDay: Long): Flow<List<TaskEntity>>
 
+    /**
+     * Incomplete root tasks eligible for AI time-blocking across a horizon window.
+     *
+     * A task qualifies if its due_date or planned_date lands in
+     * ``[startMillis, endMillis)``, OR it is overdue (due_date < startMillis).
+     * The overdue clause mirrors the backend's `filter_for_time_block_range`
+     * — overdue items get a chance to land anywhere in the horizon.
+     *
+     * One-shot query (not a Flow) because the AI request is user-initiated
+     * and the caller snapshots the state once per invocation.
+     */
+    @Query(
+        "SELECT * FROM tasks WHERE is_completed = 0 AND archived_at IS NULL " +
+            "AND parent_task_id IS NULL AND (" +
+            "(due_date IS NOT NULL AND due_date >= :startMillis AND due_date < :endMillis) OR " +
+            "(planned_date IS NOT NULL AND planned_date >= :startMillis AND planned_date < :endMillis) OR " +
+            "(due_date IS NOT NULL AND due_date < :startMillis))"
+    )
+    suspend fun getTasksInHorizonOnce(startMillis: Long, endMillis: Long): List<TaskEntity>
+
+    /**
+     * Scheduled tasks already on the timeline within a horizon window.
+     *
+     * Used as "existing_blocks" on the AI time-block request so the planner
+     * does not schedule over tasks the user has already placed.
+     */
+    @Query(
+        "SELECT * FROM tasks WHERE is_completed = 0 AND archived_at IS NULL " +
+            "AND parent_task_id IS NULL AND scheduled_start_time IS NOT NULL " +
+            "AND scheduled_start_time >= :startMillis AND scheduled_start_time < :endMillis"
+    )
+    suspend fun getScheduledTasksInHorizonOnce(startMillis: Long, endMillis: Long): List<TaskEntity>
+
     @Query("SELECT * FROM tasks WHERE due_date < :now AND is_completed = 0")
     fun getOverdueTasks(now: Long): Flow<List<TaskEntity>>
 

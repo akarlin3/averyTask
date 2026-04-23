@@ -36,7 +36,10 @@ class TimeBlockTest {
 
         val schedule = AiSchedule(
             blocks = response.schedule.map { block ->
-                AiScheduleBlock(block.start, block.end, block.type, block.taskId, block.title, block.reason)
+                AiScheduleBlock(
+                    block.start, block.end, block.type, block.taskId,
+                    block.title, block.reason, date = block.date ?: "2026-04-22"
+                )
             },
             unscheduledTasks = response.unscheduledTasks.map { it.taskId to it.title },
             stats = AiTimeBlockStats(
@@ -62,9 +65,9 @@ class TimeBlockTest {
     @Test
     fun calendarEvents_arePreservedInSchedule() {
         val blocks = listOf(
-            AiScheduleBlock("09:00", "09:30", "task", 1L, "Task A", "Morning"),
-            AiScheduleBlock("10:00", "11:00", "event", null, "Team meeting", "Fixed"),
-            AiScheduleBlock("11:00", "11:30", "task", 2L, "Task B", "After meeting")
+            AiScheduleBlock("09:00", "09:30", "task", 1L, "Task A", "Morning", "2026-04-22"),
+            AiScheduleBlock("10:00", "11:00", "event", null, "Team meeting", "Fixed", "2026-04-22"),
+            AiScheduleBlock("11:00", "11:30", "task", 2L, "Task B", "After meeting", "2026-04-22")
         )
 
         val eventBlocks = blocks.filter { it.type == "event" }

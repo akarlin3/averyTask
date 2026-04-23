@@ -493,6 +493,282 @@ class TestTimeBlockService:
             assert event_blocks[0]["title"] == "Team meeting"
             assert result["stats"]["tasks_scheduled"] == 2
 
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test-key"})
+    def test_generate_time_blocks_single_day_backfills_date(self):
+        """v1.4.40: for horizon_days=1, every returned block must carry a
+        ``date`` field. If Haiku omits it (legacy prompt shape), the service
+        backfills ``target_date`` so the client can rely on the contract.
+        """
+        from app.services.ai_productivity import generate_time_blocks
+
+        with patch("app.services.ai_productivity.anthropic") as mock_anthropic:
+            mock_client = MagicMock()
+            mock_anthropic.Anthropic.return_value = mock_client
+            # Deliberately omit "date" on the block — Haiku sometimes does
+            # this when the single-day prompt has the date in the header.
+            mock_client.messages.create.return_value = _make_mock_response({
+                "schedule": [
+                    {"start": "09:00", "end": "09:30", "type": "task",
+                     "task_id": 1, "title": "Write report",
+                     "reason": "Deep work"},
+                ],
+                "unscheduled_tasks": [],
+                "stats": {
+                    "total_work_minutes": 30, "total_break_minutes": 0,
+                    "total_free_minutes": 510, "tasks_scheduled": 1,
+                    "tasks_deferred": 0,
+                },
+            })
+
+            result = generate_time_blocks(
+                target_date=date(2026, 4, 22),
+                day_start="09:00",
+                day_end="18:00",
+                block_size_minutes=30,
+                include_breaks=False,
+                break_frequency_minutes=90,
+                break_duration_minutes=15,
+                tasks=[{"task_id": 1, "title": "Write report"}],
+                calendar_events=[],
+                horizon_days=1,
+            )
+
+            assert result["schedule"][0]["date"] == "2026-04-22"
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test-key"})
+    def test_generate_time_blocks_horizon_7_prompts_for_week(self):
+        """v1.4.40: horizon_days > 1 emits a horizon header, forbids piling
+        all work on day 1, and forwards per-task signals / existing blocks
+        to the Haiku prompt verbatim.
+        """
+        from app.services.ai_productivity import generate_time_blocks
+
+        with patch("app.services.ai_productivity.anthropic") as mock_anthropic:
+            mock_client = MagicMock()
+            mock_anthropic.Anthropic.return_value = mock_client
+            mock_client.messages.create.return_value = _make_mock_response({
+                "schedule": [
+                    {"start": "09:00", "end": "10:00", "type": "task",
+                     "task_id": 1, "title": "Design review",
+                     "reason": "Q2 deep work Monday", "date": "2026-04-22"},
+                    {"start": "14:00", "end": "15:00", "type": "task",
+                     "task_id": 2, "title": "Code review",
+                     "reason": "Later in week", "date": "2026-04-24"},
+                ],
+                "unscheduled_tasks": [],
+                "stats": {
+                    "total_work_minutes": 120, "total_break_minutes": 0,
+                    "total_free_minutes": 600, "tasks_scheduled": 2,
+                    "tasks_deferred": 0,
+                },
+            })
+
+            result = generate_time_blocks(
+                target_date=date(2026, 4, 22),
+                day_start="09:00",
+                day_end="18:00",
+                block_size_minutes=30,
+                include_breaks=False,
+                break_frequency_minutes=90,
+                break_duration_minutes=15,
+                tasks=[
+                    {"task_id": 1, "title": "Design review"},
+                    {"task_id": 2, "title": "Code review"},
+                ],
+                calendar_events=[],
+                horizon_days=7,
+                task_signals=[
+                    {"task_id": "1", "eisenhower_quadrant": "Q2",
+                     "estimated_pomodoro_sessions": 2},
+                    {"task_id": "2", "eisenhower_quadrant": "Q3",
+                     "estimated_duration_minutes": 45},
+                ],
+                existing_blocks=[
+                    {"date": "2026-04-23", "start": "10:00", "end": "11:00",
+                     "title": "Dentist", "source": "task", "task_id": "99"},
+                ],
+            )
+
+            # Every block carries a date covering the horizon.
+            assert len(result["schedule"]) == 2
+            assert {b["date"] for b in result["schedule"]} == {
+                "2026-04-22", "2026-04-24",
+            }
+
+            prompt = mock_client.messages.create.call_args.kwargs["messages"][0]["content"]
+            # Horizon header present and spans 7 days.
+            assert "Horizon window: 2026-04-22" in prompt
+            assert "through 2026-04-28" in prompt
+            assert "7 days total" in prompt
+            # Per-task signals forwarded.
+            assert "\"eisenhower_quadrant\": \"Q2\"" in prompt
+            assert "\"estimated_pomodoro_sessions\": 2" in prompt
+            # Existing blocks forwarded as hard constraints.
+            assert "HARD CONSTRAINTS" in prompt
+            assert "Dentist" in prompt
+            # Haiku is told NOT to pile everything on day 1.
+            assert "do not pile everything on day 1" in prompt
+
+    @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test-key"})
+    def test_generate_time_blocks_all_tasks_conflict(self):
+        """When every candidate task collides with an existing block, Haiku
+        is expected to return them in unscheduled_tasks rather than
+        overwriting the block — verify the service just forwards that
+        shape untouched.
+        """
+        from app.services.ai_productivity import generate_time_blocks
+
+        with patch("app.services.ai_productivity.anthropic") as mock_anthropic:
+            mock_client = MagicMock()
+            mock_anthropic.Anthropic.return_value = mock_client
+            mock_client.messages.create.return_value = _make_mock_response({
+                "schedule": [],
+                "unscheduled_tasks": [
+                    {"task_id": "1", "title": "Blocked task A",
+                     "reason": "Existing block occupies this slot"},
+                    {"task_id": "2", "title": "Blocked task B",
+                     "reason": "Existing block occupies this slot"},
+                ],
+                "stats": {
+                    "total_work_minutes": 0, "total_break_minutes": 0,
+                    "total_free_minutes": 0, "tasks_scheduled": 0,
+                    "tasks_deferred": 2,
+                },
+            })
+
+            result = generate_time_blocks(
+                target_date=date(2026, 4, 22),
+                day_start="09:00",
+                day_end="10:00",  # Deliberately tiny window.
+                block_size_minutes=30,
+                include_breaks=False,
+                break_frequency_minutes=90,
+                break_duration_minutes=15,
+                tasks=[
+                    {"task_id": 1, "title": "Blocked task A"},
+                    {"task_id": 2, "title": "Blocked task B"},
+                ],
+                calendar_events=[],
+                horizon_days=1,
+                existing_blocks=[
+                    {"date": "2026-04-22", "start": "09:00", "end": "10:00",
+                     "title": "Standing meeting", "source": "task",
+                     "task_id": "77"},
+                ],
+            )
+            assert result["schedule"] == []
+            assert len(result["unscheduled_tasks"]) == 2
+            assert result["stats"]["tasks_deferred"] == 2
+
+
+class TestTimeBlockRequestSchema:
+    """Malformed time-block requests are rejected at the Pydantic boundary."""
+
+    @pytest.mark.asyncio
+    async def test_malformed_horizon_days_rejected(
+        self, client: AsyncClient, pro_auth_headers: dict
+    ):
+        from app.routers.ai import time_block_rate_limiter
+        time_block_rate_limiter._requests.clear()
+
+        # horizon_days=0 is below the ge=1 bound.
+        resp = await client.post(
+            "/api/v1/ai/time-block",
+            json={"horizon_days": 0},
+            headers=pro_auth_headers,
+        )
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_malformed_existing_block_source_rejected(
+        self, client: AsyncClient, pro_auth_headers: dict
+    ):
+        from app.routers.ai import time_block_rate_limiter
+        time_block_rate_limiter._requests.clear()
+
+        resp = await client.post(
+            "/api/v1/ai/time-block",
+            json={
+                "existing_blocks": [
+                    {"date": "2026-04-22", "start": "09:00", "end": "10:00",
+                     "title": "??", "source": "gcal"},  # invalid source
+                ],
+            },
+            headers=pro_auth_headers,
+        )
+        assert resp.status_code == 422
+
+
+class TestTimeBlockRouterHorizon:
+    """End-to-end: horizon_days param flows through the router to the response."""
+
+    @pytest.mark.asyncio
+    async def test_router_returns_proposed_and_horizon_days(
+        self, client: AsyncClient, pro_auth_headers: dict
+    ):
+        from app.routers.ai import time_block_rate_limiter
+        time_block_rate_limiter._requests.clear()
+
+        task_dto = _fake_task_dto(
+            task_id="t1", title="Plan project",
+            due_date="2026-04-23",
+            due_date_obj=date(2026, 4, 23),
+            priority=3,
+            eisenhower_quadrant="Q2",
+        )
+
+        ai_response = {
+            "schedule": [
+                {"start": "09:00", "end": "10:00", "type": "task",
+                 "task_id": "t1", "title": "Plan project",
+                 "reason": "Q2 morning slot", "date": "2026-04-22"},
+            ],
+            "unscheduled_tasks": [],
+            "stats": {
+                "total_work_minutes": 60, "total_break_minutes": 0,
+                "total_free_minutes": 480, "tasks_scheduled": 1,
+                "tasks_deferred": 0,
+            },
+        }
+
+        with patch(
+            "app.routers.ai.fetch_incomplete_tasks",
+            new=AsyncMock(return_value=[task_dto]),
+        ), patch(
+            "app.services.ai_productivity.generate_time_blocks",
+            return_value=ai_response,
+        ) as mock_svc:
+            resp = await client.post(
+                "/api/v1/ai/time-block",
+                json={
+                    "date": "2026-04-22",
+                    "horizon_days": 2,
+                    "task_signals": [
+                        {"task_id": "t1", "eisenhower_quadrant": "Q2",
+                         "estimated_pomodoro_sessions": 2,
+                         "pomodoro_source": "estimated_from_duration"},
+                    ],
+                    "existing_blocks": [
+                        {"date": "2026-04-22", "start": "13:00",
+                         "end": "14:00", "title": "Lunch",
+                         "source": "pomodoro"},
+                    ],
+                },
+                headers=pro_auth_headers,
+            )
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["horizon_days"] == 2
+        assert body["proposed"] is True
+        assert body["schedule"][0]["date"] == "2026-04-22"
+
+        # Service was called with the horizon + signals plumbed through.
+        call_kwargs = mock_svc.call_args.kwargs
+        assert call_kwargs["horizon_days"] == 2
+        assert call_kwargs["task_signals"][0]["task_id"] == "t1"
+        assert call_kwargs["existing_blocks"][0]["source"] == "pomodoro"
+
 
 class TestNewAIEndpoints:
     @pytest.mark.asyncio
@@ -555,26 +831,26 @@ class TestNewAIEndpoints:
         auth_headers = pro_auth_headers
         from app.routers.ai import time_block_rate_limiter
         time_block_rate_limiter._requests.clear()
-
+        # v1.4.40: rate limit is now 10/hour (was 1 per 15 min). Verify the
+        # new config by sending 10 successful requests, then expecting 429.
         with patch(
             "app.routers.ai.fetch_incomplete_tasks",
             new=AsyncMock(return_value=[]),
         ):
-            # First call should succeed (empty schedule)
-            resp = await client.post(
-                "/api/v1/ai/time-block",
-                json={},
-                headers=auth_headers,
-            )
-            assert resp.status_code == 200, resp.text
+            for i in range(10):
+                resp = await client.post(
+                    "/api/v1/ai/time-block",
+                    json={},
+                    headers=auth_headers,
+                )
+                assert resp.status_code == 200, f"request #{i + 1}: {resp.text}"
 
-            # Second call within 15-min window should be rate limited
-            resp2 = await client.post(
+            resp11 = await client.post(
                 "/api/v1/ai/time-block",
                 json={},
                 headers=auth_headers,
             )
-            assert resp2.status_code == 429
+            assert resp11.status_code == 429
 
 
 class TestWeeklyReviewService:

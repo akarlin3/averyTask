@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from datetime import date
+from datetime import date, timedelta
 
 from app.config import settings
 
@@ -325,45 +325,128 @@ Respond ONLY with valid JSON:
     raise ValueError(f"Failed to parse AI response: {last_error}")
 
 
-def generate_time_blocks(target_date: date, day_start: str, day_end: str, block_size_minutes: int, include_breaks: bool, break_frequency_minutes: int, break_duration_minutes: int, tasks: list[dict], calendar_events: list[dict], tier: str = "FREE") -> dict:
-    """Call Claude to generate a time-blocked schedule for a day."""
+def generate_time_blocks(
+    target_date: date,
+    day_start: str,
+    day_end: str,
+    block_size_minutes: int,
+    include_breaks: bool,
+    break_frequency_minutes: int,
+    break_duration_minutes: int,
+    tasks: list[dict],
+    calendar_events: list[dict],
+    tier: str = "FREE",
+    horizon_days: int = 1,
+    task_signals: list[dict] | None = None,
+    existing_blocks: list[dict] | None = None,
+    horizon_end: date | None = None,
+) -> dict:
+    """Call Claude to generate a time-blocked schedule across a horizon.
+
+    v1.4.40: horizon-aware. When ``horizon_days > 1``, the prompt is extended
+    with the date range, per-task Eisenhower / Pomodoro signals, and the list
+    of pre-existing PrismTask blocks (tasks already scheduled, Pomodoro
+    sessions) that Haiku must treat as hard constraints. Each returned
+    schedule entry carries the ISO ``date`` it belongs to.
+
+    Backward-compatible: calling without the new kwargs reproduces the
+    pre-v1.4.40 single-day prompt.
+    """
     client = _get_client()
     day_of_week = target_date.strftime("%A")
     tasks_json = json.dumps(tasks, default=str, indent=2)
     events_json = json.dumps(calendar_events, default=str, indent=2)
-    break_instructions = f"- Insert breaks: every {break_frequency_minutes} min of work, take a {break_duration_minutes} min break" if include_breaks else "- No automatic breaks requested"
+    break_instructions = (
+        f"- Insert breaks: every {break_frequency_minutes} min of work, take a {break_duration_minutes} min break"
+        if include_breaks
+        else "- No automatic breaks requested"
+    )
+
+    signals_block = json.dumps(task_signals or [], default=str, indent=2)
+    existing_block = json.dumps(existing_blocks or [], default=str, indent=2)
+
+    # v1.4.40: emit a horizon header so Haiku knows whether it's writing one
+    # day's schedule or a week. Single-day horizon preserves the legacy
+    # prompt shape (date, day-of-week) to avoid perturbing model output for
+    # existing callers.
+    if horizon_days <= 1:
+        horizon_header = (
+            f"Date: {target_date.isoformat()} ({day_of_week})\n"
+            f"Horizon: 1 day"
+        )
+        date_instruction = (
+            f"- Every schedule entry must carry \"date\": \"{target_date.isoformat()}\"."
+        )
+    else:
+        end_date = horizon_end or (target_date + timedelta(days=horizon_days - 1))
+        horizon_header = (
+            f"Horizon window: {target_date.isoformat()} "
+            f"({target_date.strftime('%A')}) "
+            f"through {end_date.isoformat()} "
+            f"({end_date.strftime('%A')}) — {horizon_days} days total"
+        )
+        date_instruction = (
+            "- Every schedule entry MUST carry a \"date\" field with the ISO "
+            "date of the day that block belongs to (YYYY-MM-DD). Distribute "
+            "work across the horizon — do not pile everything on day 1."
+        )
+
     prompt = f"""You are a time management coach creating a time-blocked schedule.
 
-Date: {target_date.isoformat()} ({day_of_week})
-Available: {day_start} to {day_end}
+{horizon_header}
+Available each day: {day_start} to {day_end}
 Block size: {block_size_minutes} min minimum
 
 Tasks to schedule:
 {tasks_json}
 
-Fixed calendar events (cannot be moved):
+Per-task signals (Eisenhower quadrant, estimated Pomodoro sessions, etc.):
+{signals_block}
+
+Pre-existing PrismTask blocks and Pomodoro sessions (HARD CONSTRAINTS — do not schedule over these):
+{existing_block}
+
+Fixed calendar events (also cannot be moved):
 {events_json}
 
-Rules:
-- Calendar events are fixed; schedule tasks around them
-- High-energy tasks in morning, low-energy in afternoon
-- Respect estimated durations; default {block_size_minutes} min
+Ranking and placement rules:
+- Eisenhower Q1 (Urgent + Important) and Q2 (Not Urgent + Important) belong in the highest-energy slots early in the day / early in the week.
+- Q3 (Urgent + Not Important) is scheduled but later in the day. Q4 (Not Urgent + Not Important) is the first to be deferred to "unscheduled_tasks" when capacity is tight.
+- When a task carries ``estimated_pomodoro_sessions``, size its block(s) so the duration covers roughly session_count * 25 min. If no session data is provided, fall back to ``estimated_duration_minutes`` or the default {block_size_minutes} min.
+- The pre-existing blocks above are immovable — route work around them, never over them.
+- Calendar events are also fixed.
+- High-energy tasks in morning, low-energy in afternoon.
+- Respect estimated durations; default {block_size_minutes} min when nothing else is known.
 {break_instructions}
-- Leave 15 min buffer between context-switching blocks
-- Leave at least 30 min unscheduled for unexpected work
+- Leave 15 min buffer between context-switching blocks.
+- Leave at least 30 min unscheduled per day for unexpected work.
+{date_instruction}
 
-Respond ONLY with valid JSON:
-{{"schedule": [{{"start": "09:00", "end": "09:30", "type": "task", "task_id": 1, "title": "Write report", "reason": "Deep work while fresh"}}], "unscheduled_tasks": [{{"task_id": 7, "title": "...", "reason": "Not enough time today"}}], "stats": {{"total_work_minutes": 300, "total_break_minutes": 60, "total_free_minutes": 60, "tasks_scheduled": 8, "tasks_deferred": 2}}}}"""
+Respond ONLY with valid JSON (no markdown, no code fences, no prose):
+{{"schedule": [{{"start": "09:00", "end": "09:30", "type": "task", "task_id": 1, "title": "Write report", "reason": "Deep work while fresh", "date": "{target_date.isoformat()}"}}], "unscheduled_tasks": [{{"task_id": 7, "title": "...", "reason": "Not enough time today"}}], "stats": {{"total_work_minutes": 300, "total_break_minutes": 60, "total_free_minutes": 60, "tasks_scheduled": 8, "tasks_deferred": 2}}}}"""
 
     model = get_model("time_blocking")
+    # Wider budget for 7-day horizons; single day keeps the legacy 8192 cap.
+    max_tokens = 12288 if horizon_days > 2 else 8192
     last_error = None
     for attempt in range(2):
         try:
-            message = client.messages.create(model=model, max_tokens=8192, messages=[{"role": "user", "content": prompt}])
+            message = client.messages.create(
+                model=model,
+                max_tokens=max_tokens,
+                messages=[{"role": "user", "content": prompt}],
+            )
             content = message.content[0].text
             result = _parse_ai_json(content)
             if not isinstance(result, dict):
                 raise ValueError("Expected a JSON object")
+            # For horizon=1, backfill date on each block so the client can
+            # rely on it unconditionally.
+            if horizon_days <= 1:
+                iso = target_date.isoformat()
+                for block in result.get("schedule", []) or []:
+                    if isinstance(block, dict) and not block.get("date"):
+                        block["date"] = iso
             return result
         except (json.JSONDecodeError, KeyError, TypeError, IndexError, ValueError) as e:
             last_error = e

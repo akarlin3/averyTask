@@ -313,6 +313,26 @@ data class WeeklyReviewResponse(
 
 // region AI Time Block
 
+data class TimeBlockTaskSignal(
+    @SerializedName("task_id") val taskId: String,
+    @SerializedName("eisenhower_quadrant") val eisenhowerQuadrant: String? = null,
+    @SerializedName("estimated_pomodoro_sessions") val estimatedPomodoroSessions: Int? = null,
+    @SerializedName("estimated_duration_minutes") val estimatedDurationMinutes: Int? = null,
+    // "recorded" when sessions come from a persisted Pomodoro log;
+    // "estimated_from_duration" when derived from estimatedDuration.
+    @SerializedName("pomodoro_source") val pomodoroSource: String? = null
+)
+
+data class TimeBlockExistingBlock(
+    val date: String,
+    val start: String,
+    val end: String,
+    val title: String,
+    // "task" for a PrismTask block, "pomodoro" for a Pomodoro session.
+    val source: String,
+    @SerializedName("task_id") val taskId: String? = null
+)
+
 data class TimeBlockRequest(
     val date: String? = null,
     @SerializedName("day_start") val dayStart: String = "09:00",
@@ -320,7 +340,11 @@ data class TimeBlockRequest(
     @SerializedName("block_size_minutes") val blockSizeMinutes: Int = 30,
     @SerializedName("include_breaks") val includeBreaks: Boolean = true,
     @SerializedName("break_frequency_minutes") val breakFrequencyMinutes: Int = 90,
-    @SerializedName("break_duration_minutes") val breakDurationMinutes: Int = 15
+    @SerializedName("break_duration_minutes") val breakDurationMinutes: Int = 15,
+    // v1.4.40: horizon selector. 1 = today, 2 = today+tomorrow, 7 = 7-day window.
+    @SerializedName("horizon_days") val horizonDays: Int = 1,
+    @SerializedName("task_signals") val taskSignals: List<TimeBlockTaskSignal> = emptyList(),
+    @SerializedName("existing_blocks") val existingBlocks: List<TimeBlockExistingBlock> = emptyList()
 )
 
 data class ScheduleBlockResponse(
@@ -330,7 +354,10 @@ data class ScheduleBlockResponse(
     // TODO(weekly-followup): flip to String when time-block response is audited.
     @SerializedName("task_id") val taskId: Long?,
     val title: String,
-    val reason: String
+    val reason: String,
+    // v1.4.40: ISO date of the day this block belongs to. Null on legacy
+    // single-day responses; callers should default to the request's ``date``.
+    val date: String? = null
 )
 
 data class TimeBlockStatsResponse(
@@ -344,7 +371,11 @@ data class TimeBlockStatsResponse(
 data class TimeBlockResponse(
     val schedule: List<ScheduleBlockResponse>,
     @SerializedName("unscheduled_tasks") val unscheduledTasks: List<UnscheduledTaskResponse> = emptyList(),
-    val stats: TimeBlockStatsResponse
+    val stats: TimeBlockStatsResponse,
+    // v1.4.40: the Android client must treat every time-block response as
+    // a preview and surface an explicit Approve/Cancel before writing.
+    val proposed: Boolean = true,
+    @SerializedName("horizon_days") val horizonDays: Int = 1
 )
 
 // endregion
