@@ -16,6 +16,21 @@ without any backend or Android-side changes. See
 and `docs/WEB_PARITY_PHASE_G_PROMPT_TEMPLATE.md` for the remaining
 Phase G roadmap.
 
+- **Focus Release + good-enough timer (slice 22)** — wellness
+  cluster wrap-up. New `api/firestore/focusReleaseLogs.ts` persists
+  per-session logs at `users/{uid}/focus_release_logs` (task id +
+  title snapshot, planned + actual minutes, release state, note,
+  started/ended). `utils/goodEnoughTimer.ts` is a pure helper: at
+  80% of planned elapsed the "good enough" and "ship it" buttons
+  unlock. New `/focus` route with a task picker, planned minutes
+  input, a progress ring, Pause/Resume, and four release buttons
+  (Ship it / Good enough / Save partial / Abandon) each logging a
+  different `release_state`. A celebration banner shows the correct
+  tone per release state (ship > good enough > partial > abandon,
+  zero guilt). Recent sessions list with per-row state badge.
+  Sidebar gains a Focus entry. 7 new unit tests for the timer
+  helpers.
+
 - **Boundaries + burnout scorer (slice 21)** — wellness cluster,
   continued. New `api/firestore/boundaryRules.ts` persists
   user-declared limits at `users/{uid}/boundary_rules` in three
