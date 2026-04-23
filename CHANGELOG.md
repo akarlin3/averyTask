@@ -14,19 +14,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `medication_medication_slots` (junction), and `medication_tier_states`
   (per-day achieved tier per `(medication, slot)` pair). Three new Room
   entities + one junction cross-ref entity added to PrismTaskDatabase
-  (now at version 59). FKs CASCADE on both sides; unique indexes on
-  `cloud_id` and on the override/tier-state identity tuples.
+  (now at version 60, rebased from a planned 57→58/58→59 chain after
+  the NLP batch ops PR landed at 57→58 first). FKs CASCADE on both
+  sides; unique indexes on `cloud_id` and on the override/tier-state
+  identity tuples.
 - **New enums**: `MedicationTier` (ESSENTIAL/PRESCRIPTION/COMPLETE),
   `AchievedTier` (SKIPPED + the three medication tiers — skipped only
   valid on achieved states), `TierSource` (COMPUTED/USER_SET). All
   stored as lowercase tokens to match the legacy `medications.tier`
   column data (no data migration required).
-- **Migration 57→58**: creates the three slot-system tables, seeds one
+- **Migration 58→59**: creates the three slot-system tables, seeds one
   `Default` slot (ideal_time 09:00, ±180 min drift), and links every
   existing `medications` row to it via `INSERT OR IGNORE` (idempotent).
   No `user_id` column on `medication_slots` — Firestore document-path
   tenancy handles per-user isolation.
-- **Migration 58→59**: creates `medication_tier_states` and backfills
+- **Migration 59→60**: creates `medication_tier_states` and backfills
   from the legacy `self_care_logs.tiers_by_time` JSON column into the
   DEFAULT slot. Highest tier present in each log's JSON wins
   (complete > prescription > essential > skipped). Legacy
@@ -53,9 +55,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tests**: unit tests for the three new enums, `MedicationTierComputer`
   (10 cases covering every ladder edge), sync-mapper round-trips for
   the three new families + `medicationToMap` slot-id embedding, two
-  direct-SQL migration tests (57→58 schema + DEFAULT seed + re-run
-  idempotency; 58→59 backfill + legacy-column preservation), plus three
+  direct-SQL migration tests (58→59 schema + DEFAULT seed + re-run
+  idempotency; 59→60 backfill + legacy-column preservation), plus three
   new `CloudIdOrphanHealerTest` cases for medication / slot families.
+
+### NLP batch schedule operations — schema + backend (A2 pulled-from-H PR1)
+
+- **Room migration v57 → v58** adds `batch_undo_log`, a device-local
+  append-only table that records the pre-mutation state of every entity
+  touched by an Approve action so the user can reverse the batch within a
+  24-hour window. Indexes on `batch_id`, `created_at`, and
+  `(expires_at, undone_at)` mirror the read paths (history list, undo
+  lookup, sweep worker).
+- **Device-local by design** — no `cloud_id` column, not registered
+  with `SyncMapper` or `CloudIdOrphanHealer`. Cross-device undo would
+  race two devices undoing the same batch, and the per-entity sync path
+  already propagates the mutated entities themselves.
+- **New backend endpoint** `POST /api/v1/ai/batch-parse`. Accepts a
+  natural-language command (`"Cancel everything Friday"`) plus the
+  client's user_context (today's date, timezone, active tasks/habits/
+  projects/medications) and returns a structured list of proposed
+  mutations across all four entity types, a confidence score, and any
+  ambiguous-entity hints. Stateless — no Firestore reads, mirroring the
+  WeeklyReviewRequest pattern.
+- **Claude Haiku prompt** with hard guardrails: never invent entity IDs,
+  return only mutations the user plausibly intended, surface ambiguity
+  rather than guess, full date-range parsing rules ("Friday" / "next
+  week" / "the weekend"), per-mutation `proposed_new_values` schemas.
+  Two-attempt JSON parse retry, same shape as the Eisenhower service.
+- **Pro-gated** at the rate limiter (10/hour, mirrors time-block) and
+  via a new `AI_BATCH_OPS` ProFeatureGate (PR2 wires the client-side
+  gate; backend tier check is already in `daily_ai_rate_limiter`).
+- **Tests**: Migration57To58Test (table + indexes + nullable columns +
+  insert/query smoke), BatchUndoLogDaoTest (insert/list/sweep/undo
+  semantics), test_ai_batch_parse.py (service success + ambiguity +
+  retry + 503/500/429/422 router cases).
+- **No UI yet** — PR2 wires the QuickAddBar intent router, the
+  BatchPreviewScreen diff view, and the 30s Snackbar undo. PR3 ships
+  the Settings batch history + 24-hour sweep worker.
 
 ### Repo hygiene (v1.4.40)
 

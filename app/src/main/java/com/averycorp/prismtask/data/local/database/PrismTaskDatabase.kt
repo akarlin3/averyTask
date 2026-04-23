@@ -3,6 +3,7 @@ package com.averycorp.prismtask.data.local.database
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import com.averycorp.prismtask.data.local.dao.AttachmentDao
+import com.averycorp.prismtask.data.local.dao.BatchUndoLogDao
 import com.averycorp.prismtask.data.local.dao.BoundaryRuleDao
 import com.averycorp.prismtask.data.local.dao.CalendarSyncDao
 import com.averycorp.prismtask.data.local.dao.CheckInLogDao
@@ -38,6 +39,7 @@ import com.averycorp.prismtask.data.local.dao.UsageLogDao
 import com.averycorp.prismtask.data.local.dao.WeeklyReviewDao
 import com.averycorp.prismtask.data.local.entity.AssignmentEntity
 import com.averycorp.prismtask.data.local.entity.AttachmentEntity
+import com.averycorp.prismtask.data.local.entity.BatchUndoLogEntry
 import com.averycorp.prismtask.data.local.entity.BoundaryRuleEntity
 import com.averycorp.prismtask.data.local.entity.CalendarSyncEntity
 import com.averycorp.prismtask.data.local.entity.CheckInLogEntity
@@ -115,12 +117,13 @@ import com.averycorp.prismtask.data.local.entity.WeeklyReviewEntity
         MilestoneEntity::class,
         MedicationEntity::class,
         MedicationDoseEntity::class,
+        BatchUndoLogEntry::class,
         MedicationSlotEntity::class,
         MedicationSlotOverrideEntity::class,
         MedicationSlotCrossRef::class,
         MedicationTierStateEntity::class
     ],
-    version = 59,
+    version = 60,
     exportSchema = false
 )
 abstract class PrismTaskDatabase : RoomDatabase() {
@@ -185,6 +188,8 @@ abstract class PrismTaskDatabase : RoomDatabase() {
     abstract fun medicationDao(): MedicationDao
 
     abstract fun medicationDoseDao(): MedicationDoseDao
+
+    abstract fun batchUndoLogDao(): BatchUndoLogDao
 
     abstract fun medicationSlotDao(): MedicationSlotDao
 
