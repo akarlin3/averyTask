@@ -36,6 +36,7 @@ const ArchiveScreen = lazy(() => import('@/features/archive/ArchiveScreen').then
 const SettingsScreen = lazy(() => import('@/features/settings/SettingsScreen').then(m => ({ default: m.SettingsScreen })));
 const SchoolworkScreen = lazy(() => import('@/features/schoolwork/SchoolworkScreen').then(m => ({ default: m.SchoolworkScreen })));
 const AdminLogsScreen = lazy(() => import('@/features/admin/AdminLogsScreen').then(m => ({ default: m.AdminLogsScreen })));
+const BatchPreviewScreen = lazy(() => import('@/features/batch/BatchPreviewScreen').then(m => ({ default: m.BatchPreviewScreen })));
 
 function LazyRoute({ Component, fallback }: { Component: ComponentType; fallback?: React.ReactNode }) {
   return (
@@ -87,6 +88,7 @@ const routes: RouteObject[] = [
       { path: 'archive', element: <LazyRoute Component={ArchiveScreen} /> },
       { path: 'settings', element: <LazyRoute Component={SettingsScreen} fallback={<SettingsSkeleton />} /> },
       { path: 'admin/logs', element: <LazyRoute Component={AdminLogsScreen} /> },
+      { path: 'batch/preview', element: <LazyRoute Component={BatchPreviewScreen} /> },
     ],
   },
 

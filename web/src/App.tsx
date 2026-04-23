@@ -4,6 +4,7 @@ import { Toaster } from 'sonner';
 import { router } from '@/routes';
 import { useAuthStore } from '@/stores/authStore';
 import { useThemeStore } from '@/stores/themeStore';
+import { useBatchStore } from '@/stores/batchStore';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { OfflineBanner } from '@/components/shared/OfflineBanner';
 
@@ -13,6 +14,8 @@ export default function App() {
   const themeMode = useThemeStore((s) => s.mode);
 
   const initFirebaseAuthListener = useAuthStore((s) => s.initFirebaseAuthListener);
+  const firebaseUid = useAuthStore((s) => s.firebaseUser?.uid);
+  const hydrateBatch = useBatchStore((s) => s.hydrate);
 
   // Initialize Firebase Auth listener + hydrate JWT tokens on mount
   useEffect(() => {
@@ -20,6 +23,12 @@ export default function App() {
     hydrateFromStorage();
     return unsubscribe;
   }, [initFirebaseAuthListener, hydrateFromStorage]);
+
+  // Load per-uid batch history from localStorage once the user is known
+  // so SettingsScreen + Snackbar undo have access after a refresh.
+  useEffect(() => {
+    if (firebaseUid) hydrateBatch(firebaseUid);
+  }, [firebaseUid, hydrateBatch]);
 
   // Apply theme on mount and mode changes
   useEffect(() => {

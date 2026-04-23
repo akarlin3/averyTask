@@ -1,9 +1,14 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Sparkles, X, Loader2, FileText } from 'lucide-react';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 import { parseApi } from '@/api/parse';
 import { Button } from '@/components/ui/Button';
+import { ProUpgradeModal } from '@/components/shared/ProUpgradeModal';
 import { useTemplateStore } from '@/stores/templateStore';
+import { useBatchStore } from '@/stores/batchStore';
+import { useProFeature } from '@/hooks/useProFeature';
+import { detectBatchIntent } from '@/utils/batchIntentDetector';
 import type { NLPParseResult } from '@/types/api';
 import type { TaskTemplate } from '@/types/template';
 
@@ -25,6 +30,9 @@ export function NLPInput({ onTaskCreate, onTemplateUse, className = '' }: NLPInp
   const templateDropdownRef = useRef<HTMLDivElement>(null);
 
   const { templates, fetch: fetchTemplates, use: applyTemplate } = useTemplateStore();
+  const navigate = useNavigate();
+  const setPendingBatchCommand = useBatchStore((s) => s.setPendingCommand);
+  const { isPro, showUpgrade, setShowUpgrade } = useProFeature();
 
   // Fetch templates on mount for autocomplete
   useEffect(() => {
@@ -138,6 +146,23 @@ export function NLPInput({ onTaskCreate, onTemplateUse, className = '' }: NLPInp
       return;
     }
 
+    // Batch-intent intercept — must run before the single-task parser so
+    // commands like "reschedule all overdue tasks to tomorrow" route to
+    // the preview screen instead of getting flattened into one task.
+    const batchIntent = detectBatchIntent(text);
+    if (batchIntent.kind === 'batch') {
+      if (!isPro) {
+        setShowUpgrade(true);
+        return;
+      }
+      setPendingBatchCommand(batchIntent.command_text);
+      setValue('');
+      setParseResult(null);
+      setEditedResult({});
+      navigate('/batch/preview');
+      return;
+    }
+
     setLoading(true);
     try {
       const result = await parseApi.parse({ text });
@@ -164,7 +189,16 @@ export function NLPInput({ onTaskCreate, onTemplateUse, className = '' }: NLPInp
     } finally {
       setLoading(false);
     }
-  }, [value, templateSuggestions, selectedTemplateIdx, handleTemplateSelect]);
+  }, [
+    value,
+    templateSuggestions,
+    selectedTemplateIdx,
+    handleTemplateSelect,
+    isPro,
+    setShowUpgrade,
+    setPendingBatchCommand,
+    navigate,
+  ]);
 
   const handleConfirm = () => {
     onTaskCreate?.({
@@ -339,6 +373,13 @@ export function NLPInput({ onTaskCreate, onTemplateUse, className = '' }: NLPInp
           </div>
         </div>
       )}
+
+      <ProUpgradeModal
+        isOpen={showUpgrade}
+        onClose={() => setShowUpgrade(false)}
+        featureName="Batch Commands"
+        featureDescription="Let AI apply a single command across many tasks at once — rescheduling, tagging, completing, or moving in bulk."
+      />
     </div>
   );
 }
