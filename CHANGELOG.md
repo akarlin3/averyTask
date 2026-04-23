@@ -16,6 +16,21 @@ without any backend or Android-side changes. See
 and `docs/WEB_PARITY_PHASE_G_PROMPT_TEMPLATE.md` for the remaining
 Phase G roadmap.
 
+- **Custom habit + project template authoring (slice 18)** — closes
+  the slice-11 deferral Firestore-natively. New
+  `api/firestore/userTemplates.ts` provides full CRUD at
+  `users/{uid}/habit_templates` and `users/{uid}/project_templates`,
+  reusing the existing starter-library types so Use / apply flow is
+  identical for both starter and custom templates. New
+  `features/templates/UserTemplateEditors.tsx` ships two modals
+  (HabitTemplateEditor with name / description / icon / color /
+  frequency / target; ProjectTemplateEditor with name / description /
+  icon / color + inline task-list builder). Habit and Project tabs
+  on TemplateListScreen now show "Your templates" above the starter
+  library, a "New … template" button in each tab, and Edit / Delete
+  affordances on custom cards. Banner text updated to drop the
+  "tracked for Phase G follow-up" caveat.
+
 - **Medication tier picker + slot CRUD (slice 17)** — closes the
   medication deferrals from slice 10 without backend changes by
   going Firestore-native. New `api/firestore/medicationSlots.ts`
