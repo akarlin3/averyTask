@@ -73,6 +73,87 @@ samp {
   text-transform: var(--prism-display-upper, none);
 }
 
+/* Opt-in card utility carrying per-theme shape + glow. Existing cards
+   can gradually migrate to `.prism-card` without breaking anything —
+   everything the class sets is via CSS custom properties that fall
+   back to sensible defaults. */
+.prism-card {
+  position: relative;
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--prism-card-radius, 12px);
+  box-shadow: var(--prism-glow, none);
+  padding: var(--prism-card-padding, 1rem);
+}
+
+[data-density='tight'] .prism-card {
+  --prism-card-padding: 0.75rem;
+}
+[data-density='airy'] .prism-card {
+  --prism-card-padding: 1.25rem;
+}
+
+/* Chip utility — sharp vs pill. Consumed by badge components. */
+.prism-chip {
+  border-radius: var(--prism-chip-radius, 9999px);
+  padding: 0.125rem 0.5rem;
+}
+
+/* Cyberpunk brackets — corner ticks on `.prism-card` hero cards.
+   Uses pseudo-elements so existing cards pick them up without new
+   DOM. */
+[data-personality='brackets'] .prism-card::before,
+[data-personality='brackets'] .prism-card::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-color: var(--color-accent);
+  border-style: solid;
+  border-width: 0;
+  pointer-events: none;
+}
+[data-personality='brackets'] .prism-card::before {
+  top: -1px;
+  left: -1px;
+  border-top-width: 1px;
+  border-left-width: 1px;
+}
+[data-personality='brackets'] .prism-card::after {
+  bottom: -1px;
+  right: -1px;
+  border-bottom-width: 1px;
+  border-right-width: 1px;
+}
+
+/* Matrix terminal — adds a muted `>` prompt prefix before hero
+   headlines carrying `.prism-display`. */
+[data-personality='terminal'] .prism-display::before {
+  content: '> ';
+  color: var(--color-accent);
+  opacity: 0.6;
+}
+
+/* Editorial hairline — Void uses a 1px accent rule above hero
+   headlines to echo magazine ruling. */
+[data-personality='editorial'] .prism-display {
+  padding-top: 0.375rem;
+  border-top: 1px solid var(--color-border);
+}
+
+/* Synthwave sunset — a subtle radial gradient behind `.prism-card`
+   hero treatments. Tintable via the primary color. */
+[data-personality='sunset'] .prism-card {
+  background-image:
+    radial-gradient(
+      ellipse at top,
+      color-mix(in oklch, var(--color-accent) 14%, transparent),
+      transparent 60%
+    ),
+    var(--bg-card-gradient-fallback, none);
+  background-color: var(--color-bg-card);
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;

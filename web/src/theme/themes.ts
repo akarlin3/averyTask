@@ -79,6 +79,27 @@ export interface ThemeTokens {
   fontMono: string;
   displayUpper: boolean;
   displayTracking: string;
+
+  // Shape — border-radius values for buttons/inputs (radius) and cards
+  // (cardRadius), plus a chip shape.
+  radius: number;
+  cardRadius: number;
+  chipShape: 'sharp' | 'pill';
+
+  // Density — "tight" = compact padding + small gaps; "airy" = generous.
+  density: 'tight' | 'airy';
+
+  // Glow intensity on accents, consumed by .prism-card for a theme-tinted
+  // drop shadow.
+  glow: 'none' | 'soft' | 'strong' | 'heavy';
+
+  /**
+   * Exactly ONE personality per theme. `.prism-card` branches on a
+   * `data-personality` attribute to render the signature decorative
+   * treatment (corner brackets, terminal prompt prefix, editorial
+   * hairline, radial sunset).
+   */
+  personality: 'brackets' | 'terminal' | 'editorial' | 'sunset';
 }
 
 export const THEMES: Record<ThemeKey, ThemeTokens> = {
@@ -122,6 +143,12 @@ export const THEMES: Record<ThemeKey, ThemeTokens> = {
     fontMono: '"Chakra Petch", ui-monospace, monospace',
     displayUpper: true,
     displayTracking: '0.06em',
+    radius: 2,
+    cardRadius: 4,
+    chipShape: 'sharp',
+    density: 'tight',
+    glow: 'strong',
+    personality: 'brackets',
   },
   SYNTHWAVE: {
     id: 'SYNTHWAVE',
@@ -163,6 +190,12 @@ export const THEMES: Record<ThemeKey, ThemeTokens> = {
     fontMono: '"Rajdhani", ui-monospace, monospace',
     displayUpper: true,
     displayTracking: '0.08em',
+    radius: 18,
+    cardRadius: 22,
+    chipShape: 'pill',
+    density: 'airy',
+    glow: 'heavy',
+    personality: 'sunset',
   },
   MATRIX: {
     id: 'MATRIX',
@@ -204,6 +237,12 @@ export const THEMES: Record<ThemeKey, ThemeTokens> = {
     fontMono: '"Share Tech Mono", ui-monospace, monospace',
     displayUpper: false,
     displayTracking: '0.02em',
+    radius: 0,
+    cardRadius: 0,
+    chipShape: 'sharp',
+    density: 'tight',
+    glow: 'soft',
+    personality: 'terminal',
   },
   VOID: {
     id: 'VOID',
@@ -245,6 +284,12 @@ export const THEMES: Record<ThemeKey, ThemeTokens> = {
     fontMono: '"Space Grotesk", ui-monospace, monospace',
     displayUpper: false,
     displayTracking: '-0.02em',
+    radius: 10,
+    cardRadius: 14,
+    chipShape: 'pill',
+    density: 'airy',
+    glow: 'none',
+    personality: 'editorial',
   },
 };
 
@@ -313,6 +358,31 @@ export function applyThemeToDocument(themeKey: ThemeKey): void {
     tokens.displayUpper ? 'uppercase' : 'none',
   );
   root.style.setProperty('--prism-display-tracking', tokens.displayTracking);
+
+  // Shape — consumed by `.prism-card` / `.prism-chip` utilities in
+  // index.css.
+  root.style.setProperty('--prism-radius', `${tokens.radius}px`);
+  root.style.setProperty('--prism-card-radius', `${tokens.cardRadius}px`);
+  root.style.setProperty(
+    '--prism-chip-radius',
+    tokens.chipShape === 'pill' ? '9999px' : '2px',
+  );
+
+  // Glow — per-intensity drop-shadow applied to `.prism-card` when the
+  // theme's personality wants it. The tint is the theme's primary color.
+  const glowMap: Record<ThemeTokens['glow'], string> = {
+    none: 'none',
+    soft: `0 0 12px color-mix(in oklch, ${tokens.primary} 18%, transparent)`,
+    strong: `0 0 18px color-mix(in oklch, ${tokens.primary} 32%, transparent)`,
+    heavy: `0 0 28px color-mix(in oklch, ${tokens.primary} 45%, transparent)`,
+  };
+  root.style.setProperty('--prism-glow', glowMap[tokens.glow]);
+
+  // Data attributes — per-theme personality + density. `.prism-card`
+  // branches on these in index.css to render brackets / terminal
+  // prompts / editorial hairlines / sunset radials.
+  root.setAttribute('data-personality', tokens.personality);
+  root.setAttribute('data-density', tokens.density);
 }
 
 /**
