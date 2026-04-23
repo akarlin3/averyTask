@@ -39,6 +39,8 @@ const SchoolworkScreen = lazy(() => import('@/features/schoolwork/SchoolworkScre
 const AdminLogsScreen = lazy(() => import('@/features/admin/AdminLogsScreen').then(m => ({ default: m.AdminLogsScreen })));
 const BatchPreviewScreen = lazy(() => import('@/features/batch/BatchPreviewScreen').then(m => ({ default: m.BatchPreviewScreen })));
 const OnboardingScreen = lazy(() => import('@/features/onboarding/OnboardingScreen').then(m => ({ default: m.OnboardingScreen })));
+const DailyBriefingScreen = lazy(() => import('@/features/briefing/DailyBriefingScreen').then(m => ({ default: m.DailyBriefingScreen })));
+const WeeklyPlannerScreen = lazy(() => import('@/features/planner/WeeklyPlannerScreen').then(m => ({ default: m.WeeklyPlannerScreen })));
 
 function LazyRoute({ Component, fallback }: { Component: ComponentType; fallback?: React.ReactNode }) {
   return (
@@ -105,6 +107,8 @@ const routes: RouteObject[] = [
       { path: 'settings', element: <LazyRoute Component={SettingsScreen} fallback={<SettingsSkeleton />} /> },
       { path: 'admin/logs', element: <LazyRoute Component={AdminLogsScreen} /> },
       { path: 'batch/preview', element: <LazyRoute Component={BatchPreviewScreen} /> },
+      { path: 'briefing', element: <LazyRoute Component={DailyBriefingScreen} /> },
+      { path: 'planner', element: <LazyRoute Component={WeeklyPlannerScreen} /> },
     ],
   },
 
