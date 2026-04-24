@@ -4,8 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -360,8 +360,9 @@ private enum class TagChipKind { NEUTRAL, ADDED, REMOVED }
 @Composable
 private fun TagChip(name: String, kind: TagChipKind) {
     val (bg, fg) = when (kind) {
-        TagChipKind.NEUTRAL -> MaterialTheme.colorScheme.surfaceVariant to
-            MaterialTheme.colorScheme.onSurfaceVariant
+        TagChipKind.NEUTRAL ->
+            MaterialTheme.colorScheme.surfaceVariant to
+                MaterialTheme.colorScheme.onSurfaceVariant
         TagChipKind.ADDED -> Color(0xFF2E7D32).copy(alpha = 0.15f) to Color(0xFF1B5E20)
         TagChipKind.REMOVED -> Color(0xFFC9302C).copy(alpha = 0.15f) to Color(0xFF8E1F1B)
     }
