@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Medication reminder mode — schema (PR1 of 4)
+
+- **DB v60 → v61.** Adds `reminder_mode` (TEXT, nullable) and
+  `reminder_interval_minutes` (INTEGER, nullable) to `medication_slots`
+  and `medications`, and `is_synthetic_skip` (INTEGER NOT NULL DEFAULT 0)
+  to `medication_doses`. NULL `reminder_mode` means "inherit the next
+  level down" — medication NULL → slot NULL → global default (CLOCK,
+  stored in `UserPreferencesDataStore`). The resolver lives in PR2.
+- **`UserPreferencesDataStore`** gains `medicationReminderModeFlow` +
+  `setMedicationReminderMode()` for the global default (mode + interval
+  minutes, clamped 60..1440). Stored in DataStore, not Room.
+- **DAOs.** `MedicationDoseDao` adds `getMostRecentDoseAnyOnce()` /
+  `observeMostRecentDoseAny()` (interval-mode anchor, includes synthetic
+  skips) and `getMostRecentRealDoseOnce()` (UI dose history, excludes
+  synthetics). `MedicationSlotDao.getIntervalModeSlotsOnce()` and
+  `MedicationDao.getIntervalModeMedicationsOnce()` enumerate explicit
+  INTERVAL-mode rows for the reactive rescheduler in PR2.
+- **Sync.** `MedicationSyncMapper` round-trips the new fields on slots,
+  medications, and doses so cross-device sync of reminder-mode settings
+  and synthetic-skip anchors works.
+- No UI surface yet — every existing user keeps the CLOCK default and
+  prior reminder behavior. Settings UI lands in PR3.
+
 ### Fixed
 
 - **BREAKING (data integrity): SyncService.pushUpdate no longer silently

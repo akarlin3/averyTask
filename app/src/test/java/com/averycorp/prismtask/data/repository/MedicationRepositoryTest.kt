@@ -277,6 +277,9 @@ private class FakeMedicationDaoForRepo : MedicationDao {
     override fun getActive() = error("flow not exercised")
     override fun getAll() = error("flow not exercised")
     override fun observeById(id: Long) = error("flow not exercised")
+
+    override suspend fun getIntervalModeMedicationsOnce(): List<MedicationEntity> =
+        rows.filter { !it.isArchived && it.reminderMode == "INTERVAL" }
 }
 
 private class FakeMedicationDoseDaoForRepo : MedicationDoseDao {
@@ -334,4 +337,12 @@ private class FakeMedicationDoseDaoForRepo : MedicationDoseDao {
     override fun getForDate(date: String) = error("flow not exercised")
     override fun getForMedOnDate(medicationId: Long, date: String) =
         error("flow not exercised")
+
+    override suspend fun getMostRecentDoseAnyOnce(): MedicationDoseEntity? =
+        rows.maxByOrNull { it.takenAt }
+
+    override fun observeMostRecentDoseAny() = error("flow not exercised")
+
+    override suspend fun getMostRecentRealDoseOnce(): MedicationDoseEntity? =
+        rows.filterNot { it.isSyntheticSkip }.maxByOrNull { it.takenAt }
 }
