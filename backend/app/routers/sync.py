@@ -110,30 +110,48 @@ WRITABLE_FIELDS: dict[str, frozenset[str]] = {
         "cloud_id", "slot_key", "ideal_time", "drift_minutes", "is_active",
     }),
     "medication_tier_state": frozenset({
-        "cloud_id", "medication_id", "slot_id", "log_date", "tier",
-        "tier_source", "intended_time", "logged_at",
+        # Cross-system FK references go by cloud_id — Android/web local
+        # integer ids don't agree with backend integer ids, so the only
+        # safe identifier across systems is the user-generated cloud_id.
+        # Real DB columns (`medication_id`, `slot_id`) are filled by
+        # `_resolve_cloud_fk_for_medication` below.
+        "cloud_id", "medication_cloud_id", "slot_cloud_id",
+        "log_date", "tier", "tier_source", "intended_time", "logged_at",
     }),
     "medication_mark": frozenset({
-        "cloud_id", "medication_id", "tier_state_id", "intended_time",
-        "logged_at", "marked_taken",
+        "cloud_id", "medication_cloud_id", "tier_state_cloud_id",
+        "intended_time", "logged_at", "marked_taken",
     }),
 }
 
 # Foreign keys that reference user-scoped entities. Before assigning one of
 # these keys, the server must confirm the referenced row belongs to the
 # authenticated user.
+#
+# Medication tier_state / mark are NOT listed here — they reference
+# their parents by `*_cloud_id` (cross-system safe) instead of local
+# integer FKs, and the cloud-id resolution + ownership check happen
+# inline in `_resolve_cloud_fk_for_medication`.
 USER_SCOPED_FKS: dict[str, dict[str, type]] = {
     "project": {"goal_id": Goal},
     "task": {"project_id": Project, "parent_id": Task},
     "habit_completion": {"habit_id": Habit},
     "template": {"template_project_id": Project},
+}
+
+# Per-entity mapping of `*_cloud_id` payload keys -> (model, target FK
+# column). The resolver pops the cloud_id key, looks up the integer id
+# on the named model (scoped to the user), and writes the integer to
+# the FK column. Used only for medication tier_state / mark today;
+# every other entity still uses local integer FKs.
+_MEDICATION_CLOUD_FK_MAP: dict[str, dict[str, tuple[type, str]]] = {
     "medication_tier_state": {
-        "medication_id": Medication,
-        "slot_id": MedicationSlot,
+        "medication_cloud_id": (Medication, "medication_id"),
+        "slot_cloud_id": (MedicationSlot, "slot_id"),
     },
     "medication_mark": {
-        "medication_id": Medication,
-        "tier_state_id": MedicationTierState,
+        "medication_cloud_id": (Medication, "medication_id"),
+        "tier_state_cloud_id": (MedicationTierState, "tier_state_id"),
     },
 }
 
@@ -180,6 +198,38 @@ async def _validate_foreign_keys(
         result = await db.execute(query)
         if result.scalar_one_or_none() is None:
             return f"Invalid {column} on {entity_type}: {value} not found"
+    return None
+
+
+async def _resolve_cloud_fk_for_medication(
+    entity_type: str, data: dict, user: User, db: AsyncSession
+) -> str | None:
+    """Resolve every `*_cloud_id` reference in `data` for medication
+    tier_state / mark into the corresponding integer FK column.
+    Mutates `data`: pops the cloud_id keys, adds the integer FK keys.
+
+    Returns an error string if any cloud_id is missing or doesn't
+    resolve to a row owned by the caller. None on success or when the
+    entity type doesn't use cloud-id FKs.
+    """
+    cloud_fks = _MEDICATION_CLOUD_FK_MAP.get(entity_type)
+    if not cloud_fks:
+        return None
+    for cloud_key, (model, fk_column) in cloud_fks.items():
+        cloud_id = data.pop(cloud_key, None)
+        if not cloud_id:
+            return f"{entity_type}.{cloud_key} is required"
+        query = select(model.id).where(model.cloud_id == cloud_id)
+        if hasattr(model, "user_id"):
+            query = query.where(model.user_id == user.id)
+        result = await db.execute(query)
+        resolved = result.scalar_one_or_none()
+        if resolved is None:
+            return (
+                f"{entity_type}.{cloud_key}={cloud_id} did not resolve "
+                "to a row owned by this user"
+            )
+        data[fk_column] = resolved
     return None
 
 
@@ -270,6 +320,11 @@ async def _process_operation(
         fk_error = await _validate_foreign_keys(op.entity_type, data, user, db)
         if fk_error:
             return fk_error
+        cloud_fk_error = await _resolve_cloud_fk_for_medication(
+            op.entity_type, data, user, db
+        )
+        if cloud_fk_error:
+            return cloud_fk_error
         # Force user_id server-side — never trust the client for ownership.
         if hasattr(model, "user_id"):
             data["user_id"] = user.id
@@ -306,6 +361,11 @@ async def _process_operation(
         fk_error = await _validate_foreign_keys(op.entity_type, data, user, db)
         if fk_error:
             return fk_error
+        cloud_fk_error = await _resolve_cloud_fk_for_medication(
+            op.entity_type, data, user, db
+        )
+        if cloud_fk_error:
+            return cloud_fk_error
         for key, value in data.items():
             if key == "status" and op.entity_type in STATUS_ENUM_MAP:
                 value = STATUS_ENUM_MAP[op.entity_type](value).value

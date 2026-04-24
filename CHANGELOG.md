@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Backend
 
+- **Medication tier_state / mark cross-system FK resolution** — On
+  `/sync/push`, `medication_tier_state` and `medication_mark`
+  references are now sent by `*_cloud_id` (`medication_cloud_id`,
+  `slot_cloud_id`, `tier_state_cloud_id`) rather than backend-local
+  integer FKs. The new resolver `_resolve_cloud_fk_for_medication`
+  pops each cloud_id from the payload, looks up the matching local
+  row scoped to the authenticated user, and writes the integer FK
+  into the data dict. Required for Android push to work — local
+  Android ids never agree with backend ids. Errors out explicitly
+  when a required cloud_id is missing or doesn't resolve to a row
+  the user owns.
+
 - **Medication entities + audit log (PR1 of 4 — medication time logging)** —
   Adds first-class backend sync support for `medications`,
   `medication_slots`, `medication_tier_states`, and `medication_marks`
