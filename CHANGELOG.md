@@ -2384,3 +2384,4 @@ Skips the v1.2.0 tag and ships everything developed since v1.1.0 together.
 [0.2.0]: https://github.com/akarlin3/prismTask/releases/tag/v0.2.0
 [0.1.0]: https://github.com/akarlin3/prismTask/releases/tag/v0.1.0-mvp
 
+
