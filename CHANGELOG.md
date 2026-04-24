@@ -27,21 +27,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in any account are normalized on read with a console warning during
   the dev cleanup window.
 
-### CI
+### Medication reminder mode — schema (PR1 of 4)
 
-- **Autofix workflow no longer skips required check re-runs.** The
-  `style: auto-format` commit produced by `android-ci.yml`'s autofix job
-  no longer carries `[skip ci]`. The token was preventing every workflow
-  — including the four required checks in branch protection
-  (`lint-and-test`, `connected-tests`, backend `test`,
-  `web-lint-and-test`) — from running on the autofix commit, so PR head
-  SHAs were left with pending required statuses forever and had to be
-  admin-merged (three sync-test PRs: #749, #751, #753). Auto-merge's
-  `sender.type != 'Bot'` filter already skips synchronize events from
-  the bot's push, so removing `[skip ci]` does not introduce auto-merge
-  loops. Cost: one extra android-ci cycle per autofix push, where the
-  autofix job finds nothing to commit and only the fast ktlint/detekt
-  steps run.
+- **DB v60 → v61.** Adds `reminder_mode` (TEXT, nullable) and
+  `reminder_interval_minutes` (INTEGER, nullable) to `medication_slots`
+  and `medications`, and `is_synthetic_skip` (INTEGER NOT NULL DEFAULT 0)
+  to `medication_doses`. NULL `reminder_mode` means "inherit the next
+  level down" — medication NULL → slot NULL → global default (CLOCK,
+  stored in `UserPreferencesDataStore`). The resolver lives in PR2.
+- **`UserPreferencesDataStore`** gains `medicationReminderModeFlow` +
+  `setMedicationReminderMode()` for the global default (mode + interval
+  minutes, clamped 60..1440). Stored in DataStore, not Room.
+- **DAOs.** `MedicationDoseDao` adds `getMostRecentDoseAnyOnce()` /
+  `observeMostRecentDoseAny()` (interval-mode anchor, includes synthetic
+  skips) and `getMostRecentRealDoseOnce()` (UI dose history, excludes
+  synthetics). `MedicationSlotDao.getIntervalModeSlotsOnce()` and
+  `MedicationDao.getIntervalModeMedicationsOnce()` enumerate explicit
+  INTERVAL-mode rows for the reactive rescheduler in PR2.
+- **Sync.** `MedicationSyncMapper` round-trips the new fields on slots,
+  medications, and doses so cross-device sync of reminder-mode settings
+  and synthetic-skip anchors works.
+- No UI surface yet — every existing user keeps the CLOCK default and
+  prior reminder behavior. Settings UI lands in PR3.
 
 ### Fixed
 
