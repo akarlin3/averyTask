@@ -79,17 +79,17 @@ class Test7OfflineEditReconnectTest : SyncScenarioTestBase() {
                 "Offline writes must not have reached Firestore yet " +
                     "(project still visible: baseline push landed; delete not propagated)",
                 1,
-                usersColl.collection("projects").get().await().size(),
+                usersColl.collection("projects").get().await().size()
             )
             assertEquals(
                 "Offline task must not have reached Firestore yet",
                 0,
-                usersColl.collection("tasks").get().await().size(),
+                usersColl.collection("tasks").get().await().size()
             )
             assertEquals(
                 "Offline habit must not have reached Firestore yet",
                 0,
-                usersColl.collection("habits").get().await().size(),
+                usersColl.collection("habits").get().await().size()
             )
 
             // Reconnect and push.
