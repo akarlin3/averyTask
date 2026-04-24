@@ -27,21 +27,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in any account are normalized on read with a console warning during
   the dev cleanup window.
 
-### CI
+### Medication reminder mode — Android UI (PR3 of 4)
 
-- **Autofix workflow no longer skips required check re-runs.** The
-  `style: auto-format` commit produced by `android-ci.yml`'s autofix job
-  no longer carries `[skip ci]`. The token was preventing every workflow
-  — including the four required checks in branch protection
-  (`lint-and-test`, `connected-tests`, backend `test`,
-  `web-lint-and-test`) — from running on the autofix commit, so PR head
-  SHAs were left with pending required statuses forever and had to be
-  admin-merged (three sync-test PRs: #749, #751, #753). Auto-merge's
-  `sender.type != 'Bot'` filter already skips synchronize events from
-  the bot's push, so removing `[skip ci]` does not introduce auto-merge
-  loops. Cost: one extra android-ci cycle per autofix push, where the
-  autofix job finds nothing to commit and only the fast ktlint/detekt
-  steps run.
+- **Settings → Notifications** gains a "Medication Reminders" subsection
+  with a Clock / Interval radio for the global default. When INTERVAL is
+  picked the section reveals a presets row (2h / 4h / 6h / 8h) plus a
+  custom-minutes field clamped to 60..1440. Saving rewires alarms via
+  `MedicationIntervalRescheduler.rescheduleAll()` immediately.
+- **Settings → Medication Slots → Slot editor** gains a per-slot
+  "Reminder Mode: Default / Clock / Interval" picker plus the same
+  interval picker (visible only when Interval is selected). Saving
+  passes the resolved `reminder_mode` and `reminder_interval_minutes`
+  through to `MedicationSlotsViewModel.create / update`.
+- Resolved-mode hint text on every editor explains the cascade ("Uses
+  the app default (Clock)", "Reminder fires at 09:00",
+  "Reminder fires every 4h after the most recent dose").
+- Per-medication overrides deferred to a follow-up — touches multiple
+  pickers and dialogs and is independent of the slot+global UI.
+
+### Medication reminder mode — reactive scheduler (PR2 of 4)
+
+- **`MedicationReminderModeResolver`** — pure precedence function for the
+  three-level chain (medication → slot → global). Unknown enum strings
+  are treated as "inherit." Interval minutes always clamped to
+  `[60, 1440]`; an INTERVAL resolution missing a value at every level
+  falls back to the global default.
+- **Synthetic-skip doses.** `MedicationViewModel.setSkippedForSlot` now
+  inserts a `medication_doses` row per affected medication with
+  `is_synthetic_skip=true` so the interval rescheduler re-anchors when
+  the user explicitly skips a slot. `MedicationLogViewModel` filters
+  synthetic rows out of the log UI — they exist only as scheduling
+  anchors.
+- **`MedicationRepository.logSyntheticSkipDose`** — repository surface
+  used by SKIPPED. Sync-tracked like a normal dose so the anchor flows
+  to other devices.
+- **`MedicationIntervalRescheduler`** — owns AlarmManager registrations
+  for INTERVAL-mode slots and per-medication INTERVAL overrides. Uses
+  request-code namespace `+500_000` (slots) / `+600_000` (med
+  overrides), distinct from the existing `+400_000` per-medication
+  scheduler (which still owns CLOCK-mode alarms unchanged). Walks all
+  active slots + active medications, resolves mode, computes next
+  trigger as `anchor.takenAt + intervalMinutes` (clamped to `now + 1s`),
+  cancels prior alarms, enqueues fresh exact alarms via
+  `ExactAlarmHelper`. Bootstrap: with no doses yet, fires one interval
+  from now.
+- **Reactive Flow observer.** `MedicationIntervalRescheduler.start()`
+  observes `MedicationDoseDao.observeMostRecentDoseAny()` and runs
+  `rescheduleAll()` on every emission. Wired from
+  `PrismTaskApplication.onCreate()`. `BootReceiver` also calls
+  `rescheduleAll()` on `BOOT_COMPLETED`.
+
+### Medication reminder mode — schema (PR1 of 4)
+
+- **DB v60 → v61.** Adds `reminder_mode` (TEXT, nullable) and
+  `reminder_interval_minutes` (INTEGER, nullable) to `medication_slots`
+  and `medications`, and `is_synthetic_skip` (INTEGER NOT NULL DEFAULT 0)
+  to `medication_doses`. NULL `reminder_mode` means "inherit the next
+  level down" — medication NULL → slot NULL → global default (CLOCK,
+  stored in `UserPreferencesDataStore`). The resolver lives in PR2.
+- **`UserPreferencesDataStore`** gains `medicationReminderModeFlow` +
+  `setMedicationReminderMode()` for the global default (mode + interval
+  minutes, clamped 60..1440). Stored in DataStore, not Room.
+- **DAOs.** `MedicationDoseDao` adds `getMostRecentDoseAnyOnce()` /
+  `observeMostRecentDoseAny()` (interval-mode anchor, includes synthetic
+  skips) and `getMostRecentRealDoseOnce()` (UI dose history, excludes
+  synthetics). `MedicationSlotDao.getIntervalModeSlotsOnce()` and
+  `MedicationDao.getIntervalModeMedicationsOnce()` enumerate explicit
+  INTERVAL-mode rows for the reactive rescheduler in PR2.
+- **Sync.** `MedicationSyncMapper` round-trips the new fields on slots,
+  medications, and doses so cross-device sync of reminder-mode settings
+  and synthetic-skip anchors works.
+- No UI surface yet — every existing user keeps the CLOCK default and
+  prior reminder behavior. Settings UI lands in PR3.
 
 ### Fixed
 
