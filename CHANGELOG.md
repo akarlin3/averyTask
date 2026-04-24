@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Repo hygiene
+
+- Enabled branch protection on `main` via `scripts/setup-branch-protection.sh`
+  (from PR #706). Required status checks: `lint-and-test` (Android CI),
+  `connected-tests` (Android Integration CI), `test` (Backend CI), and
+  `web-lint-and-test` (Web CI). `strict: true` enforces PRs up-to-date with
+  `main` before merging; `required_linear_history: true` preserves the
+  squash-merge history. Web CI's job was renamed from `lint-and-test` to
+  `web-lint-and-test` so its status-check context does not collide with
+  Android CI's (branch protection dedups shared context names into a single
+  requirement).
+
 ### Web
 
 High-leverage parity slices landed ahead of Phase G, targeting the
