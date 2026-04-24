@@ -102,7 +102,7 @@ async def test_create_medication_via_sync_push(client: AsyncClient, auth_headers
 
 @pytest.mark.asyncio
 async def test_audit_row_written_on_tier_state_create(client: AsyncClient, auth_headers: dict):
-    med_id, slot_id = await _seed_medication_and_slot(client, auth_headers)
+    await _seed_medication_and_slot(client, auth_headers)
 
     resp = await client.post(
         "/api/v1/sync/push",
@@ -113,8 +113,8 @@ async def test_audit_row_written_on_tier_state_create(client: AsyncClient, auth_
                     "operation": "create",
                     "data": {
                         "cloud_id": "tier-state-cloud-1",
-                        "medication_id": med_id,
-                        "slot_id": slot_id,
+                        "medication_cloud_id": "med-cloud-1",
+                        "slot_cloud_id": "slot-cloud-1",
                         "log_date": "2026-04-23",
                         "tier": "complete",
                         "tier_source": "user_set",
@@ -147,7 +147,7 @@ async def test_audit_row_written_on_tier_state_create(client: AsyncClient, auth_
 
 @pytest.mark.asyncio
 async def test_audit_row_written_on_mark_create(client: AsyncClient, auth_headers: dict):
-    med_id, slot_id = await _seed_medication_and_slot(client, auth_headers)
+    await _seed_medication_and_slot(client, auth_headers)
 
     # Tier state first (FK dependency).
     resp = await client.post(
@@ -159,8 +159,8 @@ async def test_audit_row_written_on_mark_create(client: AsyncClient, auth_header
                     "operation": "create",
                     "data": {
                         "cloud_id": "ts-cloud-2",
-                        "medication_id": med_id,
-                        "slot_id": slot_id,
+                        "medication_cloud_id": "med-cloud-1",
+                        "slot_cloud_id": "slot-cloud-1",
                         "log_date": "2026-04-23",
                         "tier": "essential",
                         "logged_at": "2026-04-23T08:00:00+00:00",
@@ -172,11 +172,8 @@ async def test_audit_row_written_on_mark_create(client: AsyncClient, auth_header
         headers=auth_headers,
     )
     assert resp.status_code == 200
-    # Look up tier_state id for the FK.
-    from app.models import MedicationTierState
-    async with TestSessionLocal() as session:
-        ts = (await session.execute(select(MedicationTierState).where(MedicationTierState.cloud_id == "ts-cloud-2"))).scalar_one()
-        ts_id = ts.id
+    # Mark references the tier-state by cloud_id ("ts-cloud-2"), not
+    # local id — no lookup needed.
 
     resp = await client.post(
         "/api/v1/sync/push",
@@ -187,8 +184,8 @@ async def test_audit_row_written_on_mark_create(client: AsyncClient, auth_header
                     "operation": "create",
                     "data": {
                         "cloud_id": "mark-cloud-1",
-                        "medication_id": med_id,
-                        "tier_state_id": ts_id,
+                        "medication_cloud_id": "med-cloud-1",
+                        "tier_state_cloud_id": "ts-cloud-2",
                         "intended_time": "2026-04-23T08:00:00+00:00",
                         "logged_at": "2026-04-23T08:15:00+00:00",
                         "marked_taken": True,
@@ -268,9 +265,9 @@ async def test_disallowed_user_id_stripped_on_create(client: AsyncClient, auth_h
 async def test_fk_validation_rejects_other_users_medication(
     client: AsyncClient, auth_headers: dict
 ):
-    """A user cannot reference another user's medication_id on a tier_state."""
-    # Seed a medication owned by user A.
-    med_id, slot_id = await _seed_medication_and_slot(client, auth_headers)
+    """User B cannot reference user A's medication via cloud_id."""
+    # Seed a medication owned by user A (cloud_id "med-cloud-1").
+    await _seed_medication_and_slot(client, auth_headers)
 
     # Register a second user.
     reg = await client.post(
@@ -293,8 +290,9 @@ async def test_fk_validation_rejects_other_users_medication(
                     "operation": "create",
                     "data": {
                         "cloud_id": "ts-evil",
-                        "medication_id": med_id,  # belongs to user A
-                        "slot_id": slot_id,
+                        # Cloud_id belongs to user A — resolver scopes by user_id.
+                        "medication_cloud_id": "med-cloud-1",
+                        "slot_cloud_id": "slot-cloud-1",
                         "log_date": "2026-04-23",
                         "tier": "complete",
                         "logged_at": "2026-04-23T10:00:00+00:00",
@@ -309,14 +307,15 @@ async def test_fk_validation_rejects_other_users_medication(
     body = resp.json()
     assert body["processed"] == 0
     assert len(body["errors"]) == 1
-    assert "medication_id" in body["errors"][0]
+    assert "medication_cloud_id" in body["errors"][0]
+    assert "did not resolve" in body["errors"][0]
 
 
 @pytest.mark.asyncio
 async def test_get_log_events_returns_only_callers_events(
     client: AsyncClient, auth_headers: dict
 ):
-    med_id, slot_id = await _seed_medication_and_slot(client, auth_headers)
+    await _seed_medication_and_slot(client, auth_headers)
 
     # Push a tier state (creates one audit row).
     await client.post(
@@ -328,8 +327,8 @@ async def test_get_log_events_returns_only_callers_events(
                     "operation": "create",
                     "data": {
                         "cloud_id": "ts-for-get",
-                        "medication_id": med_id,
-                        "slot_id": slot_id,
+                        "medication_cloud_id": "med-cloud-1",
+                        "slot_cloud_id": "slot-cloud-1",
                         "log_date": "2026-04-23",
                         "tier": "complete",
                         "logged_at": "2026-04-23T10:00:00+00:00",
@@ -373,8 +372,73 @@ async def test_get_log_events_requires_auth(client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_tier_state_create_rejects_missing_cloud_id_fk(
+    client: AsyncClient, auth_headers: dict
+):
+    """A tier_state push without `medication_cloud_id` is rejected with
+    an explicit error — defensive against client bugs that accidentally
+    drop the FK reference."""
+    await _seed_medication_and_slot(client, auth_headers)
+    resp = await client.post(
+        "/api/v1/sync/push",
+        json={
+            "operations": [
+                {
+                    "entity_type": "medication_tier_state",
+                    "operation": "create",
+                    "data": {
+                        "cloud_id": "ts-no-fk",
+                        "slot_cloud_id": "slot-cloud-1",
+                        # medication_cloud_id intentionally omitted
+                        "log_date": "2026-04-23",
+                        "tier": "complete",
+                        "logged_at": "2026-04-23T10:00:00+00:00",
+                    },
+                    "client_timestamp": "2026-04-23T10:00:00Z",
+                }
+            ]
+        },
+        headers=auth_headers,
+    )
+    body = resp.json()
+    assert body["processed"] == 0
+    assert "medication_cloud_id is required" in body["errors"][0]
+
+
+@pytest.mark.asyncio
+async def test_tier_state_create_rejects_unknown_cloud_id(
+    client: AsyncClient, auth_headers: dict
+):
+    await _seed_medication_and_slot(client, auth_headers)
+    resp = await client.post(
+        "/api/v1/sync/push",
+        json={
+            "operations": [
+                {
+                    "entity_type": "medication_tier_state",
+                    "operation": "create",
+                    "data": {
+                        "cloud_id": "ts-bad-fk",
+                        "medication_cloud_id": "doesnt-exist",
+                        "slot_cloud_id": "slot-cloud-1",
+                        "log_date": "2026-04-23",
+                        "tier": "complete",
+                        "logged_at": "2026-04-23T10:00:00+00:00",
+                    },
+                    "client_timestamp": "2026-04-23T10:00:00Z",
+                }
+            ]
+        },
+        headers=auth_headers,
+    )
+    body = resp.json()
+    assert body["processed"] == 0
+    assert "did not resolve" in body["errors"][0]
+
+
+@pytest.mark.asyncio
 async def test_get_log_events_since_filter(client: AsyncClient, auth_headers: dict):
-    med_id, slot_id = await _seed_medication_and_slot(client, auth_headers)
+    await _seed_medication_and_slot(client, auth_headers)
 
     # Push two tier-state ops with different logged_at values.
     await client.post(
@@ -386,8 +450,8 @@ async def test_get_log_events_since_filter(client: AsyncClient, auth_headers: di
                     "operation": "create",
                     "data": {
                         "cloud_id": "ts-old",
-                        "medication_id": med_id,
-                        "slot_id": slot_id,
+                        "medication_cloud_id": "med-cloud-1",
+                        "slot_cloud_id": "slot-cloud-1",
                         "log_date": "2026-04-22",
                         "tier": "complete",
                         "logged_at": "2026-04-22T08:00:00+00:00",
@@ -399,8 +463,8 @@ async def test_get_log_events_since_filter(client: AsyncClient, auth_headers: di
                     "operation": "create",
                     "data": {
                         "cloud_id": "ts-new",
-                        "medication_id": med_id,
-                        "slot_id": slot_id,
+                        "medication_cloud_id": "med-cloud-1",
+                        "slot_cloud_id": "slot-cloud-1",
                         "log_date": "2026-04-23",
                         "tier": "complete",
                         "logged_at": "2026-04-23T08:00:00+00:00",
