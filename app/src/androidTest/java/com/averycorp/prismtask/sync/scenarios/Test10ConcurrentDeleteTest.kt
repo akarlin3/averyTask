@@ -41,7 +41,7 @@ class Test10ConcurrentDeleteTest : SyncScenarioTestBase() {
             // 1. Create a task, push it → has a stable cloud_id.
             val taskId = taskRepository.addTask(
                 title = "doomed-task",
-                description = "original",
+                description = "original"
             )
             syncService.pushLocalChanges()
             val cloudId = database.syncMetadataDao().getCloudId(taskId, "task")
@@ -49,7 +49,7 @@ class Test10ConcurrentDeleteTest : SyncScenarioTestBase() {
             assertEquals(
                 "Firestore should have the baseline task",
                 1,
-                harness.firestoreCount("tasks"),
+                harness.firestoreCount("tasks")
             )
 
             // 2. Device A goes offline, queues a local update.
@@ -60,7 +60,7 @@ class Test10ConcurrentDeleteTest : SyncScenarioTestBase() {
             taskRepository.updateTask(
                 original.copy(
                     description = "A's offline edit",
-                    updatedAt = System.currentTimeMillis(),
+                    updatedAt = System.currentTimeMillis()
                 )
             )
 
@@ -76,25 +76,25 @@ class Test10ConcurrentDeleteTest : SyncScenarioTestBase() {
             // 5. Assertions — delete wins.
             harness.waitFor(
                 timeout = 15.seconds,
-                message = "local task row removed on A after remote-deleted push",
+                message = "local task row removed on A after remote-deleted push"
             ) {
                 database.taskDao().getTaskByIdOnce(taskId) == null
             }
             assertFalse(
                 "Local Room must not retain the deleted task",
-                database.taskDao().getAllTasksOnce().any { it.id == taskId },
+                database.taskDao().getAllTasksOnce().any { it.id == taskId }
             )
             assertEquals(
                 "Firestore must stay at 0 tasks — A's push did NOT resurrect",
                 0,
-                harness.firestoreCount("tasks"),
+                harness.firestoreCount("tasks")
             )
             // sync_metadata for this task is cleared so the next push
             // iteration doesn't re-process the stale row.
             assertEquals(
                 "sync_metadata cleaned up for the deleted task",
                 null,
-                database.syncMetadataDao().getCloudId(taskId, "task"),
+                database.syncMetadataDao().getCloudId(taskId, "task")
             )
         }
     }
