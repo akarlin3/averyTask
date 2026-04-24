@@ -22,6 +22,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   coverage becomes: automated in CI for Tests 7, 11, 14 (live) and
   8, 9, 10, 15 (stubbed pending follow-up); manual runbook for 12, 13.
 
+- **Sync tests CI — scenarios 7, 11, 14 automated (PR2 of 3).** New
+  `SyncScenarioTestBase` wraps the harness in a `@HiltAndroidTest` with
+  injected `PrismTaskDatabase`, `SyncService`, `AuthManager`, and the
+  task/habit/project repositories so scenarios can drive the real
+  production sync pipeline end-to-end against the Firebase Emulator
+  Suite. Three live scenarios land this PR: **Test 7** (offline edit
+  then reconnect — three mutations converge on push), **Test 11**
+  (offline during remote write — local pulls device B's task on
+  reconnect), and **Test 14** (rapid create/delete leaves no Firestore
+  orphan, with a round-trip variant for create-push-delete-push). Tests
+  8/9/10 (streak dedup, last-write-wins, delete-vs-edit conflict) land
+  as `@Ignore`d stubs with implementation notes pending
+  SyncMapper/SyncService deep-dive — per PR2's scope guardrail
+  ("do not modify production sync code to make tests pass"), surfacing
+  what those tests need rather than coding them blind.
+
 - **Sync tests CI — two-process harness + smoke tests (PR1 of 3).** New
   `SyncTestHarness` in `app/src/androidTest/.../sync/` spins up a named
   `"deviceB"` `FirebaseApp` alongside the default (device A) so two
