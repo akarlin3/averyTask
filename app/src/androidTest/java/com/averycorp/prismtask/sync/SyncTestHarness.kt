@@ -1,7 +1,17 @@
 package com.averycorp.prismtask.sync
 
+import android.content.Context
 import com.google.firebase.FirebaseApp
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreSettings
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.tasks.await
+import org.junit.Assert.fail
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Harness for two-device sync scenarios running against a real Firebase
@@ -87,9 +97,9 @@ class SyncTestHarness private constructor(
 
     /**
      * Disable network on device A's Firestore client. Writes and reads
-     * continue to serve from cache; with [FirebaseFirestoreSettings.isPersistenceEnabled]
-     * false (see [init]) the cache is in-memory only, so offline writes
-     * queue until [setDeviceAOnline].
+     * continue to serve from cache; with `FirebaseFirestoreSettings.isPersistenceEnabled`
+     * set to false (see `createAndInit`) the cache is in-memory only, so
+     * offline writes queue until [setDeviceAOnline].
      *
      * Device B is unaffected — that's the whole point of the named-app split.
      */
