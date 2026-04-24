@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Backend
+
+- **Medication entities + audit log (PR1 of 4 — medication time logging)** —
+  Adds first-class backend sync support for `medications`,
+  `medication_slots`, `medication_tier_states`, and `medication_marks`
+  via `/sync/push` (Alembic rev 019, all five tables timezone-aware).
+  Tier-state and mark schemas carry the new `intended_time` (nullable —
+  user-claimed wall-clock) and `logged_at` (server-received) columns
+  the time-logging feature is built around. Every push that touches a
+  `medication_tier_state` or `medication_mark` now writes an
+  append-only row to `medication_log_events` (audit) inside a savepoint
+  — audit failures don't block sync. New
+  `GET /api/v1/medications/log-events?since=&limit=` returns the
+  caller's events, newest-first, auth-scoped to `user_id`. Sets up
+  PR2 (Android schema) and PR4 (web parity) — Path 2 chosen at
+  Checkpoint 1: medication entities sync through the backend in
+  parallel to Firestore so the audit log captures every write.
+
 ### Repo hygiene
 
 - Enabled branch protection on `main` via `scripts/setup-branch-protection.sh`

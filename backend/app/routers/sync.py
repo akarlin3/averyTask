@@ -1,5 +1,6 @@
 import logging
-from datetime import datetime, timezone
+from datetime import date as date_cls, datetime, timezone
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
@@ -14,6 +15,11 @@ from app.models import (
     Habit,
     HabitCompletion,
     HabitFrequency,
+    Medication,
+    MedicationLogEvent,
+    MedicationMark,
+    MedicationSlot,
+    MedicationTierState,
     Project,
     ProjectStatus,
     Tag,
@@ -43,6 +49,10 @@ ENTITY_MAP = {
     "habit_completion": HabitCompletion,
     "template": TaskTemplate,
     "daily_essential_slot_completion": DailyEssentialSlotCompletion,
+    "medication": Medication,
+    "medication_slot": MedicationSlot,
+    "medication_tier_state": MedicationTierState,
+    "medication_mark": MedicationMark,
 }
 
 STATUS_ENUM_MAP = {
@@ -60,6 +70,10 @@ STATUS_ENUM_MAP = {
 # Relationship FKs that reference other user-owned entities (e.g.
 # `project_id` on a task) are additionally validated for ownership in
 # ``_validate_foreign_keys`` below.
+#
+# `cloud_id` is allowed for medication entities because cross-device
+# Firestore-driven sync identifies rows by client-generated cloud IDs;
+# without this, two devices creating the "same" row produce duplicates.
 WRITABLE_FIELDS: dict[str, frozenset[str]] = {
     "goal": frozenset({
         "title", "description", "status", "target_date", "color", "sort_order",
@@ -89,6 +103,20 @@ WRITABLE_FIELDS: dict[str, frozenset[str]] = {
         "template_project_id", "template_tags_json",
         "template_recurrence_json", "template_duration", "template_subtasks_json",
     }),
+    "medication": frozenset({
+        "cloud_id", "name", "dosage", "notes", "is_active",
+    }),
+    "medication_slot": frozenset({
+        "cloud_id", "slot_key", "ideal_time", "drift_minutes", "is_active",
+    }),
+    "medication_tier_state": frozenset({
+        "cloud_id", "medication_id", "slot_id", "log_date", "tier",
+        "tier_source", "intended_time", "logged_at",
+    }),
+    "medication_mark": frozenset({
+        "cloud_id", "medication_id", "tier_state_id", "intended_time",
+        "logged_at", "marked_taken",
+    }),
 }
 
 # Foreign keys that reference user-scoped entities. Before assigning one of
@@ -99,6 +127,22 @@ USER_SCOPED_FKS: dict[str, dict[str, type]] = {
     "task": {"project_id": Project, "parent_id": Task},
     "habit_completion": {"habit_id": Habit},
     "template": {"template_project_id": Project},
+    "medication_tier_state": {
+        "medication_id": Medication,
+        "slot_id": MedicationSlot,
+    },
+    "medication_mark": {
+        "medication_id": Medication,
+        "tier_state_id": MedicationTierState,
+    },
+}
+
+# Medication entity types that emit audit rows on every /sync/push write.
+# Maps the sync entity_type to the short label stored in
+# ``medication_log_events.entity_type``.
+AUDIT_ENTITY_TYPES: dict[str, str] = {
+    "medication_tier_state": "tier_state",
+    "medication_mark": "mark",
 }
 
 
@@ -139,6 +183,79 @@ async def _validate_foreign_keys(
     return None
 
 
+def _parse_dt(value: Any) -> datetime | None:
+    """Tolerant ISO-8601 parser — accepts strings, datetimes, or None."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        try:
+            # Python's fromisoformat handles "+00:00" but not "Z" until 3.11
+            return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    return None
+
+
+def _parse_date(value: Any) -> date_cls | None:
+    """Tolerant ISO-date parser. SQLite's Date type only accepts Python
+    ``date`` objects, so any "YYYY-MM-DD" string from a sync payload must
+    be coerced before the ORM sees it."""
+    if value is None:
+        return None
+    if isinstance(value, date_cls) and not isinstance(value, datetime):
+        return value
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, str):
+        try:
+            return date_cls.fromisoformat(value)
+        except ValueError:
+            return None
+    return None
+
+
+def _build_audit_record(
+    op: SyncOperation, user: User
+) -> dict[str, Any] | None:
+    """If the op targets an audited entity, return a kwargs dict for
+    ``MedicationLogEvent(**...)``. Otherwise return None.
+    """
+    label = AUDIT_ENTITY_TYPES.get(op.entity_type)
+    if label is None:
+        return None
+    data = op.data or {}
+    intended = _parse_dt(data.get("intended_time"))
+    logged = _parse_dt(data.get("logged_at")) or datetime.now(timezone.utc)
+    return {
+        "user_id": user.id,
+        "entity_type": label,
+        "entity_cloud_id": data.get("cloud_id"),
+        "intended_time": intended,
+        "logged_at": logged,
+        "operation": op.operation,
+    }
+
+
+async def _emit_audit_events(db: AsyncSession, records: list[dict[str, Any]]) -> None:
+    """Per-record best-effort audit writer.
+
+    Each insert runs inside a SAVEPOINT (``begin_nested``) so that an
+    audit-only failure rolls back just that one record rather than the
+    whole sync transaction. Sync is authoritative; audit is best-effort.
+    """
+    for r in records:
+        try:
+            async with db.begin_nested():
+                db.add(MedicationLogEvent(**r))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "medication audit emit failed for %s: %s",
+                r.get("entity_cloud_id"), exc,
+            )
+
+
 async def _process_operation(
     op: SyncOperation, user: User, db: AsyncSession
 ) -> str | None:
@@ -164,6 +281,14 @@ async def _process_operation(
             data["status"] = STATUS_ENUM_MAP[op.entity_type](data["status"]).value
         if "frequency" in data and op.entity_type == "habit":
             data["frequency"] = HabitFrequency(data["frequency"]).value
+        # Tolerant ISO parsing for datetime + date fields on medication
+        # entities. SQLAlchemy's TIMESTAMPTZ wants datetimes; SQLite's
+        # Date type insists on Python ``date`` objects.
+        for key in ("intended_time", "logged_at"):
+            if key in data:
+                data[key] = _parse_dt(data[key])
+        if "log_date" in data:
+            data["log_date"] = _parse_date(data["log_date"])
         entity = model(**data)
         db.add(entity)
 
@@ -186,6 +311,10 @@ async def _process_operation(
                 value = STATUS_ENUM_MAP[op.entity_type](value).value
             if key == "frequency" and op.entity_type == "habit":
                 value = HabitFrequency(value).value
+            if key in ("intended_time", "logged_at"):
+                value = _parse_dt(value)
+            if key == "log_date":
+                value = _parse_date(value)
             setattr(entity, key, value)
 
     elif op.operation == "delete":
@@ -214,14 +343,19 @@ async def sync_push(
 ):
     errors = []
     processed = 0
+    audit_records: list[dict[str, Any]] = []
 
     for op in data.operations:
         error = await _process_operation(op, current_user, db)
         if error:
             errors.append(error)
-        else:
-            processed += 1
+            continue
+        processed += 1
+        record = _build_audit_record(op, current_user)
+        if record is not None:
+            audit_records.append(record)
 
+    await _emit_audit_events(db, audit_records)
     await db.flush()
 
     return SyncPushResponse(
