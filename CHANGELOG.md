@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Android
 
+- **Medication entities now sync through `/sync/push`** — Wires
+  `BackendSyncService.pushChanges()` to push `medication`,
+  `medication_slot`, `medication_tier_state`, and `medication_mark`
+  rows whose `updatedAt > since`. Tier-state and mark mappers send
+  `*_cloud_id` references (resolved server-side); rows whose parents
+  haven't yet been assigned a cloud_id are skipped and retried on the
+  next sync. Closes the loop on PR1's audit table — every backdated
+  intended_time will now produce a `medication_log_events` row in
+  the backend Postgres for Data Safety / debugging visibility.
+
 - **Medication time logging — long-press time editor + backlogged
   indicator (PR3 of 4)** — Long-press on a slot's tier chip in the
   Medication screen now opens `MedicationTimeEditSheet`, a Material 3
