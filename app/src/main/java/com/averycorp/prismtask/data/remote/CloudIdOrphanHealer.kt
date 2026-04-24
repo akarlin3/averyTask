@@ -151,6 +151,8 @@ constructor(
     private val medicationSlotDao: MedicationSlotDao,
     private val medicationSlotOverrideDao: MedicationSlotOverrideDao,
     private val medicationTierStateDao: MedicationTierStateDao,
+    // v1.5.4 medication time-logging (PR2 of 4) — per-medication marks
+    private val medicationMarkDao: com.averycorp.prismtask.data.local.dao.MedicationMarkDao,
     private val logger: PrismSyncLogger
 ) {
     /**
@@ -380,6 +382,11 @@ constructor(
         }
         healFamily("medication_tier_states", "medication_tier_state", fetcher) {
             medicationTierStateDao.getAllOnce().mapNotNull { entity ->
+                entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
+            }
+        }
+        healFamily("medication_marks", "medication_mark", fetcher) {
+            medicationMarkDao.getAllOnce().mapNotNull { entity ->
                 entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
             }
         }

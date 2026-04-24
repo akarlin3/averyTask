@@ -1685,6 +1685,74 @@ val MIGRATION_59_60 = object : Migration(59, 60) {
 }
 
 /**
+ * v60 → v61 (medication time logging): adds [intended_time, logged_at]
+ * columns to `medication_tier_states` and creates the new
+ * `medication_marks` table.
+ *
+ * - `intended_time`: nullable INTEGER (epoch millis) — what wall-clock
+ *   the user claims they took the dose. NULL = "logged_at IS the
+ *   intended time" (default for non-backdated entries).
+ * - `logged_at`: NOT NULL INTEGER (epoch millis) — when the row landed
+ *   in the DB. Backfilled from `updated_at` for legacy rows so the
+ *   column stays meaningful and queryable.
+ * - `medication_marks`: per-medication mark within a slot, mirroring
+ *   the same intended_time/logged_at split so individual medications
+ *   can be backdated independently of the slot's aggregate.
+ */
+val MIGRATION_60_61 = object : Migration(60, 61) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Tier-state column additions (additive — preserves existing rows).
+        db.execSQL("ALTER TABLE `medication_tier_states` ADD COLUMN `intended_time` INTEGER")
+        db.execSQL(
+            "ALTER TABLE `medication_tier_states` " +
+                "ADD COLUMN `logged_at` INTEGER NOT NULL DEFAULT 0"
+        )
+        // Backfill: legacy rows have no real `logged_at`. Use `updated_at`
+        // as the closest honest approximation — every persisted row was
+        // touched at that time, even if intended_time is unknown.
+        db.execSQL(
+            "UPDATE `medication_tier_states` SET `logged_at` = `updated_at` " +
+                "WHERE `logged_at` = 0"
+        )
+
+        // medication_marks — new top-level entity for per-medication marks.
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `medication_marks` (
+              `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+              `cloud_id` TEXT,
+              `medication_id` INTEGER NOT NULL,
+              `medication_tier_state_id` INTEGER NOT NULL,
+              `intended_time` INTEGER,
+              `logged_at` INTEGER NOT NULL,
+              `marked_taken` INTEGER NOT NULL DEFAULT 1,
+              `updated_at` INTEGER NOT NULL,
+              FOREIGN KEY(`medication_id`) REFERENCES `medications`(`id`) ON DELETE CASCADE,
+              FOREIGN KEY(`medication_tier_state_id`) REFERENCES `medication_tier_states`(`id`) ON DELETE CASCADE
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_medication_marks_cloud_id` " +
+                "ON `medication_marks` (`cloud_id`)"
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS " +
+                "`index_medication_marks_medication_id_medication_tier_state_id` " +
+                "ON `medication_marks` (`medication_id`, `medication_tier_state_id`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_medication_marks_medication_tier_state_id` " +
+                "ON `medication_marks` (`medication_tier_state_id`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_medication_marks_medication_id` " +
+                "ON `medication_marks` (`medication_id`)"
+        )
+    }
+}
+
+/**
  * Single source of truth for the Room schema version. Referenced by both
  * `@Database(version = CURRENT_DB_VERSION)` on [PrismTaskDatabase] and by
  * `StartupCrashDiagnosticTest`. Bumping the schema means:
@@ -1696,7 +1764,7 @@ val MIGRATION_59_60 = object : Migration(59, 60) {
  * The diagnostic test will fail until all three are done, preventing the
  * "forgot to add migration" class of startup crash from reaching main.
  */
-const val CURRENT_DB_VERSION = 60
+const val CURRENT_DB_VERSION = 61
 
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
@@ -1757,5 +1825,6 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_56_57,
     MIGRATION_57_58,
     MIGRATION_58_59,
-    MIGRATION_59_60
+    MIGRATION_59_60,
+    MIGRATION_60_61
 )

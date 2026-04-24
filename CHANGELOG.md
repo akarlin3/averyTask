@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Android
+
+- **Medication time logging — Room schema + Firestore sync (PR2 of 4)** —
+  Bumps Room DB to **v61** via `MIGRATION_60_61`. Adds `intended_time`
+  (nullable) and `logged_at` (NOT NULL, backfilled from `updated_at`)
+  columns to `medication_tier_states`. Creates the new
+  `medication_marks` table for per-medication marks within a slot, with
+  cloud-id sync and CASCADE FKs to `medications` + `medication_tier_states`.
+  `MedicationSyncMapper` round-trips the new fields on tier-states and
+  the new mark entity. `CloudIdOrphanHealer` registers
+  `medication_marks` as a synced family. `intended_time` stays NULL on
+  legacy rows — the UI must display "we don't know" honestly until a
+  user-touch backfills. No UI changes (PR3).
+
 ### Repo hygiene
 
 - Enabled branch protection on `main` via `scripts/setup-branch-protection.sh`
