@@ -29,13 +29,17 @@ class MedicationReminderModeResolverTest {
         assertEquals(
             MedicationReminderMode.CLOCK,
             MedicationReminderModeResolver.resolveReminderMode(
-                medInheriting, slotInheriting, globalClock
+                medInheriting,
+                slotInheriting,
+                globalClock
             )
         )
         assertEquals(
             MedicationReminderMode.INTERVAL,
             MedicationReminderModeResolver.resolveReminderMode(
-                medInheriting, slotInheriting, globalInterval
+                medInheriting,
+                slotInheriting,
+                globalInterval
             )
         )
     }
@@ -46,7 +50,9 @@ class MedicationReminderModeResolverTest {
         assertEquals(
             MedicationReminderMode.INTERVAL,
             MedicationReminderModeResolver.resolveReminderMode(
-                medInheriting, slot, globalClock
+                medInheriting,
+                slot,
+                globalClock
             )
         )
     }
@@ -58,7 +64,9 @@ class MedicationReminderModeResolverTest {
         assertEquals(
             MedicationReminderMode.CLOCK,
             MedicationReminderModeResolver.resolveReminderMode(
-                med, slot, globalInterval
+                med,
+                slot,
+                globalInterval
             )
         )
     }
@@ -100,7 +108,9 @@ class MedicationReminderModeResolverTest {
         assertEquals(
             240,
             MedicationReminderModeResolver.resolveIntervalMinutes(
-                medInheriting, slotInheriting, globalClock
+                medInheriting,
+                slotInheriting,
+                globalClock
             )
         )
     }
@@ -111,7 +121,9 @@ class MedicationReminderModeResolverTest {
         assertEquals(
             120,
             MedicationReminderModeResolver.resolveIntervalMinutes(
-                medInheriting, slot, globalClock
+                medInheriting,
+                slot,
+                globalClock
             )
         )
     }
@@ -132,14 +144,18 @@ class MedicationReminderModeResolverTest {
         assertEquals(
             60,
             MedicationReminderModeResolver.resolveIntervalMinutes(
-                medInheriting, slotTooSmall, globalClock
+                medInheriting,
+                slotTooSmall,
+                globalClock
             )
         )
         val slotTooLarge = slotInheriting.copy(reminderIntervalMinutes = 9999)
         assertEquals(
             1440,
             MedicationReminderModeResolver.resolveIntervalMinutes(
-                medInheriting, slotTooLarge, globalClock
+                medInheriting,
+                slotTooLarge,
+                globalClock
             )
         )
     }
@@ -151,7 +167,9 @@ class MedicationReminderModeResolverTest {
         assertEquals(
             360,
             MedicationReminderModeResolver.resolveIntervalMinutes(
-                medInheriting, slot, globalInterval
+                medInheriting,
+                slot,
+                globalInterval
             )
         )
     }

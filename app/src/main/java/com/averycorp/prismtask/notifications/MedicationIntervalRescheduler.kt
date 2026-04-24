@@ -124,7 +124,8 @@ constructor(
                 registerAlarmForMedication(med.id, triggerMillis)
             }
             // Avoid the unused-variable warning when the override doesn't apply.
-            @Suppress("UNUSED_EXPRESSION") slot
+            @Suppress("UNUSED_EXPRESSION")
+            slot
         }
     }
 
