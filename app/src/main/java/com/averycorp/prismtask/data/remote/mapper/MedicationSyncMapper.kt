@@ -229,5 +229,4 @@ object MedicationSyncMapper {
             updatedAt = updatedAt
         )
     }
-
 }

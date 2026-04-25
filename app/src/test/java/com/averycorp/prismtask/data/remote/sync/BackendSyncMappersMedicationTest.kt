@@ -163,5 +163,4 @@ class BackendSyncMappersMedicationTest {
         )!!
         assertNull(op.data?.get("intended_time"))
     }
-
 }
