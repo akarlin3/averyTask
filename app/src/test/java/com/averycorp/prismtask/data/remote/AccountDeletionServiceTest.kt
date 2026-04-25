@@ -39,17 +39,17 @@ class AccountDeletionServiceTest {
         val cleanIdx = source.indexOf("cleanLocalState()")
         assertTrue(
             "markFirestorePending call site not found",
-            markIdx > 0,
+            markIdx > 0
         )
         assertTrue(
             "cleanLocalState call site not found",
-            cleanIdx > 0,
+            cleanIdx > 0
         )
         assertTrue(
             "cleanLocalState() must be called AFTER markFirestorePending — " +
                 "otherwise local state changes happen even on Firestore failure, " +
                 "leaving the user with no soft-delete record but a wiped device.",
-            cleanIdx > markIdx,
+            cleanIdx > markIdx
         )
 
         // The catch around markFirestorePending must call return Result.failure.
@@ -58,7 +58,7 @@ class AccountDeletionServiceTest {
         assertTrue(
             "markFirestorePending failure path must return Result.failure(e) so the " +
                 "user sees an error rather than a silent half-deletion",
-            firestoreCatch.contains("return Result.failure(e)"),
+            firestoreCatch.contains("return Result.failure(e)")
         )
     }
 
@@ -79,7 +79,7 @@ class AccountDeletionServiceTest {
         // so read each .kt file and regex over the whole content with DOTALL.
         val pattern = Regex(
             """preferencesDataStore\([^)]*?name\s*=\s*"([^"]+)"""",
-            RegexOption.DOT_MATCHES_ALL,
+            RegexOption.DOT_MATCHES_ALL
         )
 
         val foundNames = sortedSetOf<String>()
@@ -102,7 +102,7 @@ class AccountDeletionServiceTest {
                 "or add them to the intentionallyExcluded set in this test (with a " +
                 "documented reason). Otherwise a deleted user's data leaks across to " +
                 "the next person who signs in on this device.",
-            missing.isEmpty(),
+            missing.isEmpty()
         )
 
         val unknownInList = ALL_PREFERENCE_DATASTORE_NAMES.toSet() - foundNames
@@ -110,7 +110,7 @@ class AccountDeletionServiceTest {
             "ALL_PREFERENCE_DATASTORE_NAMES contains entries that don't match any " +
                 "preferencesDataStore declaration in source: $unknownInList. " +
                 "These are typos or stale entries — remove them.",
-            unknownInList.isEmpty(),
+            unknownInList.isEmpty()
         )
     }
 
@@ -126,7 +126,7 @@ class AccountDeletionServiceTest {
                 "The new flow uses AccountDeletionService.requestAccountDeletion() (signs out, " +
                 "marks Firestore deletion-pending) and the BACKEND deletes the Firebase Auth " +
                 "record at /me/purge time via Firebase Admin SDK after the grace window expires.",
-            content.contains("fun deleteAccount"),
+            content.contains("fun deleteAccount")
         )
 
         // currentUser.delete() should not appear anywhere in AuthManager — the
@@ -134,7 +134,7 @@ class AccountDeletionServiceTest {
         assertFalse(
             "AuthManager must not call currentUser.delete() — that's the backend's " +
                 "responsibility (via firebase_admin.auth.delete_user) at permanent-cleanup time.",
-            content.contains("currentUser?.delete()") || content.contains("currentUser.delete()"),
+            content.contains("currentUser?.delete()") || content.contains("currentUser.delete()")
         )
     }
 
@@ -144,19 +144,21 @@ class AccountDeletionServiceTest {
         val cleanLocalStateBody = source.substringAfter("private suspend fun cleanLocalState() {")
             .substringBefore("    /**")
 
+        // "cancelAll" matches both NotificationWorkerScheduler.cancelAllForAccountDeletion()
+        // and NotificationManager.cancelAll() — the latter is the one we're guarding here.
         val expectedStepKeywords = listOf(
             "stopRealtimeListeners",
             "signOut",
             "clearAllTables",
             "wipeAllPreferenceFiles",
             "cancelAllForAccountDeletion",
-            "cancelAll", // notification manager
-            "clearCredentialState",
+            "cancelAll",
+            "clearCredentialState"
         )
         expectedStepKeywords.forEach { keyword ->
             assertTrue(
                 "cleanLocalState should call $keyword. Missing — see AccountDeletionService.cleanLocalState.",
-                cleanLocalStateBody.contains(keyword),
+                cleanLocalStateBody.contains(keyword)
             )
         }
 
@@ -171,7 +173,7 @@ class AccountDeletionServiceTest {
                 "so one failing step doesn't abort the others. Expected one runCatching " +
                 "per step (see expectedStepKeywords).",
             expectedStepKeywords.size,
-            runCatchingCount,
+            runCatchingCount
         )
     }
 
@@ -196,7 +198,7 @@ class AccountDeletionServiceTest {
         assertTrue(
             "onGoogleSignIn must call handlePostAuthDeletionGuard() — otherwise sign-in " +
                 "skips the deletion-pending check and bypasses the soft-delete grace window.",
-            onSignInBody.contains("handlePostAuthDeletionGuard()"),
+            onSignInBody.contains("handlePostAuthDeletionGuard()")
         )
         // It must NOT call runPostSignInSync directly — sync is gated on the
         // guard's outcome. The guard itself calls runPostSignInSync from the
@@ -204,7 +206,7 @@ class AccountDeletionServiceTest {
         assertFalse(
             "onGoogleSignIn must NOT call runPostSignInSync() directly. The guard " +
                 "decides whether sync runs (NotPending) or is suppressed (RestorePending / Expired).",
-            onSignInBody.contains("runPostSignInSync()"),
+            onSignInBody.contains("runPostSignInSync()")
         )
 
         // The guard must call accountDeletionService.checkDeletionStatus()
@@ -214,17 +216,17 @@ class AccountDeletionServiceTest {
             .substringBefore("/**")
         assertTrue(
             "Guard must call accountDeletionService.checkDeletionStatus()",
-            guardBody.contains("accountDeletionService.checkDeletionStatus()"),
+            guardBody.contains("accountDeletionService.checkDeletionStatus()")
         )
         listOf("NotPending", "Pending", "Expired").forEach { branch ->
             assertTrue(
                 "Guard must route on the $branch sub-state",
-                guardBody.contains(branch),
+                guardBody.contains(branch)
             )
         }
         assertTrue(
             "Guard must call executePermanentPurge() when grace window has expired",
-            guardBody.contains("executePermanentPurge()"),
+            guardBody.contains("executePermanentPurge()")
         )
     }
 
@@ -243,12 +245,12 @@ class AccountDeletionServiceTest {
     private fun sourceFile(relativeFromJava: String): File {
         val candidates = listOf(
             File("src/main/java/$relativeFromJava"),
-            File("app/src/main/java/$relativeFromJava"),
+            File("app/src/main/java/$relativeFromJava")
         )
         return candidates.firstOrNull { it.exists() }
             ?: error(
                 "Couldn't find source file $relativeFromJava under any candidate root. " +
-                    "Tried: ${candidates.map { it.absolutePath }}",
+                    "Tried: ${candidates.map { it.absolutePath }}"
             )
     }
 }

@@ -110,5 +110,4 @@ constructor(
             Log.w("AuthManager", "Failed to clear credential state", e)
         }
     }
-
 }

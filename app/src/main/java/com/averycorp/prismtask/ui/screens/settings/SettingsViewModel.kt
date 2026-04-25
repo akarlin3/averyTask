@@ -1280,7 +1280,7 @@ constructor(
                     _accountDeletionCompleted.emit(Unit)
                 } else {
                     _messages.emit(
-                        "Couldn't delete account — check your connection and try again",
+                        "Couldn't delete account — check your connection and try again"
                     )
                 }
             } finally {
