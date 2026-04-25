@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-### Web
+### Added
 
 - **Medication time logging — parity with Android (PR4 of 4)** —
   Adds `intended_time` (nullable) + `logged_at` columns to the
@@ -23,6 +23,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `logged_at` by more than 60 s, with a tooltip showing the claimed
   HH:mm. Closes the medication time-logging series (PRs #742, #743,
   #744 + this).
+
+- **Batch preview now shows a before/after tag diff for TAG_CHANGE
+  mutations, plus regression tests for the existing apply/undo path.**
+  When the AI parses a command like "tag all Friday tasks as #personal"
+  or "untag #work from overdue items", the BatchPreviewScreen row now
+  renders the affected task's current tag list ("From: ...") next to
+  the post-mutation list ("To: ..."), with green `+ #name` chips for
+  additions and red `− #name` chips for removals. The repository's
+  `TAG_CHANGE` apply path (auto-create-missing tags, case-insensitive
+  match, untouched tags preserved) and undo path (restore exact prior
+  tag list, do not delete auto-created tags) were already implemented
+  in PR #697 alongside the rest of the batch ops; this PR closes the
+  gaps the audit flagged: a UI diff for the preview row and an
+  instrumentation regression net (`BatchOperationsRepositoryTagChangeTest`)
+  plus four backend tests covering Haiku-prompt round-trip for add /
+  remove / combined add+remove commands, and a system-prompt regression
+  asserting `TAG_CHANGE` + `tags_added` / `tags_removed` stay
+  documented in `_BATCH_PARSE_SYSTEM_PROMPT`.
+
+- **Medication reminder mode — per-medication overrides (Android).**
+  Medication editor (Add / Edit) gains the same Default / Clock / Interval
+  picker that ships in the slot editor. Per-medication `reminder_mode` +
+  `reminder_interval_minutes` now flow through `addMedication` /
+  `updateMedication` to the `medications` table — the resolver and
+  reactive scheduler already honored these columns, so opting in
+  per-medication immediately wins over the slot's mode + the global
+  default.
+
+- **Medication reminder mode — per-slot picker (Web).** Settings →
+  Medication Slots editor now exposes a per-slot Default / Clock /
+  Interval picker with the same presets row Android uses (2h / 4h /
+  6h / 8h + custom 60–1440 minutes). Saving immediately writes
+  `reminderMode` + `reminderIntervalMinutes` to the slot's Firestore
+  doc; Android picks them up on the next sync. Optimistic update with
+  rollback on failure.
+
+### Backend
+
+- **Medication tier_state / mark cross-system FK resolution** — On
+  `/sync/push`, `medication_tier_state` and `medication_mark`
+  references are now sent by `*_cloud_id` (`medication_cloud_id`,
+  `slot_cloud_id`, `tier_state_cloud_id`) rather than backend-local
+  integer FKs. The new resolver `_resolve_cloud_fk_for_medication`
+  pops each cloud_id from the payload, looks up the matching local
+  row scoped to the authenticated user, and writes the integer FK
+  into the data dict. Required for Android push to work — local
+  Android ids never agree with backend ids. Errors out explicitly
+  when a required cloud_id is missing or doesn't resolve to a row
+  the user owns.
+
+- **Medication entities + audit log (PR1 of 4 — medication time logging)** —
+  Adds first-class backend sync support for `medications`,
+  `medication_slots`, `medication_tier_states`, and `medication_marks`
+  via `/sync/push` (Alembic rev 019, all five tables timezone-aware).
+  Tier-state and mark schemas carry the new `intended_time` (nullable —
+  user-claimed wall-clock) and `logged_at` (server-received) columns
+  the time-logging feature is built around. Every push that touches a
+  `medication_tier_state` or `medication_mark` now writes an
+  append-only row to `medication_log_events` (audit) inside a savepoint
+  — audit failures don't block sync. New
+  `GET /api/v1/medications/log-events?since=&limit=` returns the
+  caller's events, newest-first, auth-scoped to `user_id`. Sets up
+  PR2 (Android schema) and PR4 (web parity) — Path 2 chosen at
+  Checkpoint 1: medication entities sync through the backend in
+  parallel to Firestore so the audit log captures every write.
 
 ### Changed
 
@@ -45,6 +110,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the dev cleanup window.
 
 ## [1.6.0] — 2026-04-24
+
+> The 1.6.0 entry captures work that landed across several tagged builds
+> (`v1.5.0`, `v1.5.2`, `v1.5.3`, and the four 1.6.0 medication-reminder-mode
+> PRs) but was never split into per-tag CHANGELOG sections at release time.
+> Anchor entries for the intermediate tags point back up to the matching
+> subsections below.
 
 ### Medication reminder mode — Web settings UI (PR4 of 4)
 
@@ -810,7 +881,58 @@ Phase G roadmap.
 - Promoted the Unreleased section's v1.4.35/v1.4.36/v1.4.37/v1.4.38/v1.4.40 sub-headers to top-level version headers; un-tagged entries between v1.4.0 and v1.4.34 grouped under a new "v1.4.1–v1.4.34 — Interim releases" section for later attribution
 - Added androidTest migration coverage for migrations 48→49, 49→50, 50→51, and 52→53 (all other migrations from v47→v57 now have at least one direct-SQL migration test)
 
-## v1.4.40 — AI Time Blocking: horizon selector + mandatory preview (April 2026)
+## [1.5.3] — 2026-04-23
+
+Release-pipeline-only patch tag. Content is captured in the `[1.6.0]` section
+above; the relevant subsections are:
+
+- ci(release): unblock publish on backend-upload failure
+- ci(release): make `Create GitHub Release` idempotent
+
+No app or backend code changes — versionCode bumped solely so the release
+pipeline could re-run a failed publish step against a non-conflicting tag.
+
+## [1.5.2] — 2026-04-23
+
+Tag captured the Web parity push (slices 1–22) plus the migration-tests
+follow-ups. Content is in the `[1.6.0]` section above; relevant subsections:
+
+- `### Web` — slices 1–22 (NLP batch ops on web, named themes & onboarding,
+  AI daily briefing + weekly planner, analytics dashboard, conversation
+  extraction, Pomodoro+ AI coaching, Eisenhower text classifier, task editor
+  schedule-tab parity, Today polish + Start-of-Day, dedicated medication
+  screen, templates parity, settings sections bundle, theme typography,
+  theme shape + decorative flags, TAG_CHANGE batch + tag persistence,
+  client-side analytics project-progress, medication tier picker + slot
+  CRUD, custom habit + project template authoring, mood & energy tracking,
+  morning check-in + forgiveness streak, boundaries + burnout scorer,
+  focus release + good-enough timer)
+- `### Repo hygiene` — branch protection on `main`; Web CI job-name
+  disambiguation
+- Migration tests added for migrations 48→49 / 49→50 / 50→51 / 52→53
+
+## [1.5.0] — 2026-04-23
+
+Tag captured the medication slot system landing end-to-end (A2 #6 + A2 #7).
+Content is in the `[1.6.0]` section above; relevant subsections:
+
+- `### Medication slot system — schema + backfill (A2 #6 PR1)` —
+  three new entities (`medication_slots`, `medication_slot_overrides`,
+  `medication_tier_states`) + junction; migrations 58→59 / 59→60;
+  `MedicationTierComputer` auto-compute logic; `CloudIdOrphanHealer`
+  expanded to 35 families
+- `### Medication slot system — slot editor + tier picker + override
+  toggle (A2 #6 PR2)` — `Settings → Medication Slots`,
+  `MedicationSlotsViewModel`, reusable `MedicationTierRadio` /
+  `MedicationSlotPicker` composables
+- `### Medication slot system — MedicationScreen rewire (A2 #6 + #7 PR3)`
+  — full screen rewrite reading from `MedicationEntity` + slot junction
+
+Also captured under v1.5.0: `BatchUndoLogDao` test-module wiring,
+`StartupCrashDiagnosticTest` updates for DB v58, and three
+`MedicationSlotDao` test-module wirings (PR #702).
+
+## [1.4.40] — 2026-04-22 — AI Time Blocking: horizon selector + mandatory preview
 
 ### AI Time Blocking — horizon selector + mandatory preview (A2 #5)
 - **New "Auto-Block My Day" button** on the Timeline top bar replaces the
@@ -845,7 +967,7 @@ Phase G roadmap.
   `TimelineViewModelTest.kt`. **New DAO queries**:
   `getTasksInHorizonOnce`, `getScheduledTasksInHorizonOnce`.
 
-## v1.4.38 — Room content entities cross-device sync (April 2026)
+## [1.4.38] — 2026-04-22 — Room content entities cross-device sync
 
 ### Sync — Room content entities cross-device
 - **Migration 55 → 56** adds `cloud_id TEXT` (UNIQUE-indexed) to all nine
@@ -891,7 +1013,7 @@ Phase G roadmap.
   falls back to the thumbnail until a future content-upload
   extension. Link attachments round-trip cleanly.
 
-## v1.4.37 — Room config entities cross-device sync (April 2026)
+## [1.4.37] — 2026-04-22 — Room config entities cross-device sync
 
 ### Sync — Room config entities cross-device
 - **Migration 54 → 55** adds `cloud_id TEXT` (UNIQUE indexed) and
@@ -931,7 +1053,7 @@ Phase G roadmap.
   `setCloudId`, `deleteById` (or `getByIdOnce`) where missing, matching
   the contract the generic sync helpers expect.
 
-## v1.4.36 — Preferences backup coverage follow-up (April 2026)
+## [1.4.36] — 2026-04-22 — Preferences backup coverage follow-up
 
 ### Preferences — Backup coverage follow-up
 - **Closes three backup gaps** identified in the post-v1.4.35 preference
@@ -962,7 +1084,7 @@ Phase G roadmap.
   graphs. Existing unit tests updated to pass `mockk(relaxed = true)`
   for the three new constructor parameters.
 
-## v1.4.35 — Universal cross-device preference sync (April 2026)
+## [1.4.35] — 2026-04-22 — Universal cross-device preference sync
 
 ### Preferences — Universal cross-device sync
 - **New `GenericPreferenceSyncService`** syncs any registered DataStore
@@ -1000,7 +1122,7 @@ Phase G roadmap.
   never leak into the payload, and asserts fingerprint stability
   across insertion order and set iteration order.
 
-## v1.4.1–v1.4.34 — Interim releases (April 2026)
+## [1.4.1]–[1.4.34] — April 2026 — Interim releases
 
 The entries below landed between v1.4.0 and v1.4.34 but were committed to the CHANGELOG without explicit per-version headers. They're grouped here for attribution; individual version boundaries can be reconstructed from git history if needed.
 
@@ -1382,7 +1504,7 @@ The entries below landed between v1.4.0 and v1.4.34 but were committed to the CH
   built-ins are identified by the existing `isBuiltIn` flag (templates) and
   the hardcoded `stepId` set in `SelfCareRoutines` (steps).
 
-## v1.4.0 — Wellness-Aware Productivity Layer (April 2026)
+## [1.4.0] — 2026-04-20 — Wellness-Aware Productivity Layer
 
 ### Fixed — Sync Reliability (Apr 18–19, PRs #536–557)
 - **Habit uncheck cross-device sync**: `processRemoteDeletions()` in `SyncService` was a
@@ -1874,7 +1996,7 @@ Note: self-care nudge rotation and the daily overload notification
   completion, empty history, pre-history truncation, non-daily fallback,
   zero allowance).
 
-## v1.3.0 — Voice, Widgets, Accessibility, Analytics, Integrations & Three-Tier Pricing (April 2026)
+## [1.3.0] — 2026-04-11 — Voice, Widgets, Accessibility, Analytics, Integrations & Three-Tier Pricing
 
 Skips the v1.2.0 tag and ships everything developed since v1.1.0 together.
 
@@ -1983,7 +2105,7 @@ Skips the v1.2.0 tag and ships everything developed since v1.1.0 together.
 - GitHub Actions release workflow for AAB builds
 - kotlinx-coroutines-test, Turbine, and MockK test dependencies
 
-## v1.1.0 — PrismTask Rebrand, AI Productivity, Freemium & Play Store (April 2026)
+## [1.1.0] — 2026-04-10 — PrismTask Rebrand, AI Productivity, Freemium & Play Store
 
 ### Changed — Rebrand
 - App renamed from AveryTask to PrismTask
@@ -2020,11 +2142,11 @@ Skips the v1.2.0 tag and ships everything developed since v1.1.0 together.
 - Release build with R8 optimization and resource shrinking
 - GitHub Actions release workflow for AAB builds
 
-## v1.0.0 — Stable Release (April 2026)
+## [1.0.0] — 2026-04-10 — Stable Release
 
 - Bump version to 1.0.0 stable release
 
-## v0.9.0 — UX Overhaul, QoL Features & Task Templates (April 2026)
+## [0.9.0] — 2026-04-09 — UX Overhaul, QoL Features & Task Templates
 
 ### Added — UX Overhaul
 - Today screen: compact progress header bar replacing large circular ring
@@ -2084,7 +2206,7 @@ Skips the v1.2.0 tag and ships everything developed since v1.1.0 together.
 - New screens: TemplateListScreen, AddEditTemplateScreen
 - New components: QuickReschedulePopup, collapsible section headers, horizontal habit chips
 
-## v0.8.0 — Backend Integration (April 2026)
+## [0.8.0] — 2026-04-09 — Backend Integration
 
 ### Added
 
@@ -2276,3 +2398,8 @@ Skips the v1.2.0 tag and ships everything developed since v1.1.0 together.
 [0.3.0]: https://github.com/akarlin3/prismTask/releases/tag/v0.3.0
 [0.2.0]: https://github.com/akarlin3/prismTask/releases/tag/v0.2.0
 [0.1.0]: https://github.com/akarlin3/prismTask/releases/tag/v0.1.0-mvp
+
+
+
+
+

@@ -48,7 +48,7 @@ describe('setTierState', () => {
       data: () => ({
         slotKey: 'morning',
         dateIso: '2026-04-23',
-        tier: 'COMPLETE',
+        tier: 'complete',
         source: 'user_set',
         loggedAt: Date.now(),
         intendedTime: 1_700_000_000_000,
@@ -60,7 +60,7 @@ describe('setTierState', () => {
       'uid-1',
       '2026-04-23',
       'morning',
-      'COMPLETE',
+      'complete',
       'user_set',
     );
 
@@ -68,7 +68,7 @@ describe('setTierState', () => {
     const setDocCall = setDocMock.mock.calls[0];
     expect(setDocCall[1]).not.toHaveProperty('intendedTime');
     expect(setDocCall[1].loggedAt).toBe(Date.now());
-    expect(setDocCall[1].tier).toBe('COMPLETE');
+    expect(setDocCall[1].tier).toBe('complete');
     expect(setDocCall[2]).toEqual({ merge: true });
 
     // Returned shape preserves the pre-existing intended_time.
@@ -98,7 +98,7 @@ describe('setTierStateIntendedTime', () => {
       data: () => ({
         slotKey: 'morning',
         dateIso: '2026-04-23',
-        tier: 'COMPLETE',
+        tier: 'complete',
         source: 'user_set',
         loggedAt: now,
         intendedTime: now,
@@ -126,7 +126,7 @@ describe('setTierStateIntendedTime', () => {
       data: () => ({
         slotKey: 'morning',
         dateIso: '2026-04-23',
-        tier: 'COMPLETE',
+        tier: 'complete',
         source: 'user_set',
         loggedAt: now,
         intendedTime: earlier,
