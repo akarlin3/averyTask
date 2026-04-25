@@ -361,6 +361,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Test infrastructure
 
+- **`BatchUndoLogDao.sweep` boundary regression tests.** Three new
+  androidTest cases pin the strict-`<` semantics of both arms of the
+  sweep predicate (`expires_at < :now` and `undone_at < :undoneCutoff`).
+  `sweep_atExactExpiryBoundary_keepsRow` proves a row with
+  `expiresAt == now` survives; `sweep_oneMillisPastExpiry_dropsRow`
+  pins the regression that PR #707 fixed (an off-anchor mistake where
+  the test's "expired" row was actually 86M ms in the future);
+  `sweep_undoneAtExactCutoff_keepsRow` pins the same boundary on the
+  undone-cutoff arm. Follow-up to #707 per
+  `docs/audits/PHASE_D_BUNDLE_AUDIT.md` Item 2.
+
 - **Sync test follow-ups cluster.** Three small follow-ups to the sync-test
   matrix shipped in PRs #741, #749, #750, #751, #753:
   - **Test 8 (multi-device streak sync) — flipped from `@Ignore` to
