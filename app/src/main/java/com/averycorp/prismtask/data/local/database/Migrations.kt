@@ -1685,6 +1685,37 @@ val MIGRATION_59_60 = object : Migration(59, 60) {
 }
 
 /**
+ * Adds clock-vs-interval reminder mode columns to the medication subsystem
+ * and the synthetic-skip flag on doses.
+ *
+ *  - `medication_slots.reminder_mode` (TEXT, nullable): "CLOCK" | "INTERVAL"
+ *    | NULL (inherit global default).
+ *  - `medication_slots.reminder_interval_minutes` (INTEGER, nullable):
+ *    minutes between interval-mode reminders.
+ *  - `medications.reminder_mode` (TEXT, nullable): same enum, but inherits
+ *    the slot's value when NULL (and finally the global default).
+ *  - `medications.reminder_interval_minutes` (INTEGER, nullable).
+ *  - `medication_doses.is_synthetic_skip` (INTEGER NOT NULL DEFAULT 0):
+ *    rows written by the SKIPPED tier-state path purely to re-anchor
+ *    interval-mode reminders. Filtered out of UI dose history.
+ *
+ * No backfill — every existing row inherits the global default reminder
+ * mode (CLOCK), which preserves prior behavior. The global default lives
+ * in `UserPreferencesDataStore`, not Room.
+ */
+val MIGRATION_60_61 = object : Migration(60, 61) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE medication_slots ADD COLUMN reminder_mode TEXT")
+        db.execSQL("ALTER TABLE medication_slots ADD COLUMN reminder_interval_minutes INTEGER")
+        db.execSQL("ALTER TABLE medications ADD COLUMN reminder_mode TEXT")
+        db.execSQL("ALTER TABLE medications ADD COLUMN reminder_interval_minutes INTEGER")
+        db.execSQL(
+            "ALTER TABLE medication_doses ADD COLUMN is_synthetic_skip INTEGER NOT NULL DEFAULT 0"
+        )
+    }
+}
+
+/**
  * Single source of truth for the Room schema version. Referenced by both
  * `@Database(version = CURRENT_DB_VERSION)` on [PrismTaskDatabase] and by
  * `StartupCrashDiagnosticTest`. Bumping the schema means:
@@ -1696,7 +1727,7 @@ val MIGRATION_59_60 = object : Migration(59, 60) {
  * The diagnostic test will fail until all three are done, preventing the
  * "forgot to add migration" class of startup crash from reaching main.
  */
-const val CURRENT_DB_VERSION = 60
+const val CURRENT_DB_VERSION = 61
 
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
@@ -1757,5 +1788,6 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_56_57,
     MIGRATION_57_58,
     MIGRATION_58_59,
-    MIGRATION_59_60
+    MIGRATION_59_60,
+    MIGRATION_60_61
 )
