@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Backend
+
+- **Medication tier_state / mark cross-system FK resolution** — On
+  `/sync/push`, `medication_tier_state` and `medication_mark`
+  references are now sent by `*_cloud_id` (`medication_cloud_id`,
+  `slot_cloud_id`, `tier_state_cloud_id`) rather than backend-local
+  integer FKs. The new resolver `_resolve_cloud_fk_for_medication`
+  pops each cloud_id from the payload, looks up the matching local
+  row scoped to the authenticated user, and writes the integer FK
+  into the data dict. Required for Android push to work — local
+  Android ids never agree with backend ids. Errors out explicitly
+  when a required cloud_id is missing or doesn't resolve to a row
+  the user owns.
+
+- **Medication entities + audit log (PR1 of 4 — medication time logging)** —
+  Adds first-class backend sync support for `medications`,
+  `medication_slots`, `medication_tier_states`, and `medication_marks`
+  via `/sync/push` (Alembic rev 019, all five tables timezone-aware).
+  Tier-state and mark schemas carry the new `intended_time` (nullable —
+  user-claimed wall-clock) and `logged_at` (server-received) columns
+  the time-logging feature is built around. Every push that touches a
+  `medication_tier_state` or `medication_mark` now writes an
+  append-only row to `medication_log_events` (audit) inside a savepoint
+  — audit failures don't block sync. New
+  `GET /api/v1/medications/log-events?since=&limit=` returns the
+  caller's events, newest-first, auth-scoped to `user_id`. Sets up
+  PR2 (Android schema) and PR4 (web parity) — Path 2 chosen at
+  Checkpoint 1: medication entities sync through the backend in
+  parallel to Firestore so the audit log captures every write.
+
 ### Changed
 
 - **BREAKING (web): Medication tier enum aligned with Android canonical
@@ -26,6 +56,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in v1.6.0+ once no legacy docs remain. Pre-existing web tier values
   in any account are normalized on read with a console warning during
   the dev cleanup window.
+
+## [1.6.0] — 2026-04-24
+
+### Medication reminder mode — Web settings UI (PR4 of 4)
+
+- **Settings → Medication Reminders** (web) gains a Clock / Interval
+  picker + interval presets + custom-minutes field, mirroring Android.
+- **Persistent banner**: "Reminder delivery is currently Android-only.
+  Settings sync to Firestore so your phone picks them up. Web reminder
+  delivery will arrive with Web Push in a future release."
+- New Firestore client `web/src/api/firestore/medicationPreferences.ts`
+  reads/writes `users/{uid}/medication_preferences/global` with the
+  same camelCase keys Android consumes (`reminderModeDefault`,
+  `reminderIntervalDefaultMinutes`).
+- `MedicationSlotDef` extended with `reminder_mode` +
+  `reminder_interval_minutes` so per-slot overrides round-trip through
+  Firestore. Web slot editor will gain the per-slot picker UI in a
+  follow-up — for now the override is settable from Android only and
+  the web slot editor leaves existing values untouched.
+- Vitest coverage: 6 cases for the medication preferences read/write
+  path, including unknown-mode fallback and interval clamping.
 
 ### Medication reminder mode — Android UI (PR3 of 4)
 
