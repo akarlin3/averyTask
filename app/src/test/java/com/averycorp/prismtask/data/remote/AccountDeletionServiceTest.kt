@@ -117,7 +117,7 @@ class AccountDeletionServiceTest {
     @Test
     fun `AuthManager_deleteAccount is removed (broken hard-delete primitive)`() {
         val authManager = sourceFile("com/averycorp/prismtask/data/remote/AuthManager.kt")
-        val content = authManager.readText()
+        val content = authManager.readText().replace("\r\n", "\n")
 
         assertFalse(
             "AuthManager.deleteAccount() called Firebase Auth currentUser.delete() at delete-time, " +
@@ -180,8 +180,60 @@ class AccountDeletionServiceTest {
         assertEquals(30, AccountDeletionService.GRACE_DAYS)
     }
 
+    @Test
+    fun `AuthViewModel sign-in handler routes through deletion guard before runPostSignInSync`() {
+        val viewModel = sourceFile("com/averycorp/prismtask/ui/screens/auth/AuthViewModel.kt").readText()
+
+        // The guard must be called from onGoogleSignIn AFTER auth succeeds —
+        // otherwise sync starts pulling data into a Room DB that may be
+        // about to be wiped (RestorePending) or that belongs to an account
+        // we're about to permanently purge (Expired). Normalize CRLF -> LF
+        // so the body-bound regex works on both Windows and Unix checkouts.
+        val normalized = viewModel.replace("\r\n", "\n")
+        val onSignInBody = normalized
+            .substringAfter("fun onGoogleSignIn(idToken: String) {")
+            .substringBefore("\n    }\n")
+        assertTrue(
+            "onGoogleSignIn must call handlePostAuthDeletionGuard() — otherwise sign-in " +
+                "skips the deletion-pending check and bypasses the soft-delete grace window.",
+            onSignInBody.contains("handlePostAuthDeletionGuard()"),
+        )
+        // It must NOT call runPostSignInSync directly — sync is gated on the
+        // guard's outcome. The guard itself calls runPostSignInSync from the
+        // NotPending branch, but onGoogleSignIn must not bypass the guard.
+        assertFalse(
+            "onGoogleSignIn must NOT call runPostSignInSync() directly. The guard " +
+                "decides whether sync runs (NotPending) or is suppressed (RestorePending / Expired).",
+            onSignInBody.contains("runPostSignInSync()"),
+        )
+
+        // The guard must call accountDeletionService.checkDeletionStatus()
+        // and route on each of the three sealed sub-states.
+        val guardBody = normalized
+            .substringAfter("private suspend fun handlePostAuthDeletionGuard()")
+            .substringBefore("/**")
+        assertTrue(
+            "Guard must call accountDeletionService.checkDeletionStatus()",
+            guardBody.contains("accountDeletionService.checkDeletionStatus()"),
+        )
+        listOf("NotPending", "Pending", "Expired").forEach { branch ->
+            assertTrue(
+                "Guard must route on the $branch sub-state",
+                guardBody.contains(branch),
+            )
+        }
+        assertTrue(
+            "Guard must call executePermanentPurge() when grace window has expired",
+            guardBody.contains("executePermanentPurge()"),
+        )
+    }
+
+    /** Read source with CRLF normalized to LF so substring patterns work
+     *  on both Windows and Unix checkouts. */
     private fun readService(): String =
-        sourceFile("com/averycorp/prismtask/data/remote/AccountDeletionService.kt").readText()
+        sourceFile("com/averycorp/prismtask/data/remote/AccountDeletionService.kt")
+            .readText()
+            .replace("\r\n", "\n")
 
     /** Resolves a source file across both project-root and module-root cwd cases.
      *

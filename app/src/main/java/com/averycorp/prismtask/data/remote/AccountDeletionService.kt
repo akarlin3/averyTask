@@ -8,6 +8,7 @@ import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import com.averycorp.prismtask.data.remote.api.DeletionRequest
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.notifications.NotificationWorkerScheduler
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -106,6 +107,101 @@ constructor(
         return Result.success(Unit)
     }
 
+    /**
+     * Read the current account's deletion-pending status from Firestore.
+     *
+     * Called from the sign-in handler immediately after Firebase Auth succeeds
+     * but before any sync runs. The result drives whether the user lands on
+     * Today (NotPending), the restore screen (Pending), or the
+     * post-permanent-deletion screen (after [executePermanentPurge] returns).
+     *
+     * Failures are surfaced as [Result.failure] rather than fail-open — if we
+     * can't read the doc, signing the user in could let them keep using an
+     * account they explicitly deleted. Caller decides whether to retry or
+     * surface an error.
+     */
+    suspend fun checkDeletionStatus(): Result<DeletionStatus> {
+        val uid = authManager.userId ?: return Result.success(DeletionStatus.NotPending)
+        return try {
+            val doc = firestore.collection("users").document(uid).get().await()
+            val pendingAt = doc.getTimestamp("deletion_pending_at")
+            val scheduledFor = doc.getTimestamp("deletion_scheduled_for")
+            if (pendingAt == null || scheduledFor == null) {
+                Result.success(DeletionStatus.NotPending)
+            } else if (Date().before(scheduledFor.toDate())) {
+                Result.success(DeletionStatus.Pending(scheduledFor.toDate()))
+            } else {
+                Result.success(DeletionStatus.Expired)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to read deletion status from Firestore", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Cancel a pending deletion (the user tapped "Restore" within the
+     * grace window). Clears Firestore deletion fields + best-effort
+     * backend cancel. After this returns successfully the caller may
+     * proceed with normal sign-in.
+     */
+    suspend fun restoreAccount(): Result<Unit> {
+        val uid = authManager.userId
+            ?: return Result.failure(IllegalStateException("Not signed in"))
+
+        try {
+            firestore.collection("users").document(uid)
+                .update(
+                    mapOf(
+                        "deletion_pending_at" to FieldValue.delete(),
+                        "deletion_scheduled_for" to FieldValue.delete(),
+                        "deletion_initiated_from" to FieldValue.delete()
+                    )
+                )
+                .await()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to clear Firestore deletion fields", e)
+            return Result.failure(e)
+        }
+
+        try {
+            api.cancelDeletion()
+        } catch (e: Exception) {
+            Log.w(TAG, "Backend deletion cancel failed (non-fatal — Firestore cleared)", e)
+        }
+        return Result.success(Unit)
+    }
+
+    /**
+     * Execute the post-grace permanent deletion. Called when [checkDeletionStatus]
+     * returns [DeletionStatus.Expired]. The backend ``/me/purge`` endpoint deletes
+     * the Postgres user row (CASCADE handles dependents) and the Firebase Auth
+     * record (via Firebase Admin SDK). Local state is then wiped and the user
+     * is signed out — by the time this returns the device is in a fresh-install
+     * state for this account.
+     *
+     * Firestore user-collection data is intentionally left orphaned (the Android
+     * client lacks recursive-delete; backend would need additional plumbing).
+     * After Firebase Auth deletion, no one can re-authenticate as this user, so
+     * the orphan data is unreachable. A manual admin sweep covers the long tail.
+     */
+    suspend fun executePermanentPurge(): Result<Unit> {
+        // Backend handles Postgres CASCADE + Firebase Auth deletion. Failure
+        // here is non-fatal because the local cleanup still needs to happen
+        // (the user must be signed out and their local data wiped regardless).
+        try {
+            val response = api.purgeAccount()
+            if (!response.isSuccessful) {
+                Log.w(TAG, "Backend purge returned ${response.code()} — proceeding with local cleanup")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Backend purge call failed (non-fatal — local cleanup proceeds)", e)
+        }
+
+        cleanLocalState()
+        return Result.success(Unit)
+    }
+
     private suspend fun markFirestorePending(uid: String, initiatedFrom: String) {
         val now = Date()
         val scheduledFor = Date(now.time + GRACE_DAYS_MILLIS)
@@ -168,6 +264,21 @@ constructor(
                 Log.w(TAG, "Couldn't delete DataStore file $name", e)
             }
         }
+    }
+
+    /** Outcome of [checkDeletionStatus]. */
+    sealed class DeletionStatus {
+        /** Account is active — sign-in should proceed normally. */
+        data object NotPending : DeletionStatus()
+
+        /** Account is pending deletion within the grace window. UI must
+         *  offer restore vs. confirm-and-sign-out before any sync runs. */
+        data class Pending(val scheduledFor: Date) : DeletionStatus()
+
+        /** Grace window has passed — sign-in handler should call
+         *  [executePermanentPurge] and then route to a "your account has
+         *  been permanently deleted" screen. */
+        data object Expired : DeletionStatus()
     }
 
     companion object {
