@@ -37,21 +37,119 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Checkpoint 1: medication entities sync through the backend in
   parallel to Firestore so the audit log captures every write.
 
-### CI
+### Changed
 
-- **Autofix workflow no longer skips required check re-runs.** The
-  `style: auto-format` commit produced by `android-ci.yml`'s autofix job
-  no longer carries `[skip ci]`. The token was preventing every workflow
-  — including the four required checks in branch protection
-  (`lint-and-test`, `connected-tests`, backend `test`,
-  `web-lint-and-test`) — from running on the autofix commit, so PR head
-  SHAs were left with pending required statuses forever and had to be
-  admin-merged (three sync-test PRs: #749, #751, #753). Auto-merge's
-  `sender.type != 'Bot'` filter already skips synchronize events from
-  the bot's push, so removing `[skip ci]` does not introduce auto-merge
-  loops. Cost: one extra android-ci cycle per autofix push, where the
-  autofix job finds nothing to commit and only the fast ktlint/detekt
-  steps run.
+- **BREAKING (web): Medication tier enum aligned with Android canonical
+  model.** Web's medication tier values are now `skipped` / `essential` /
+  `prescription` / `complete` (lowercase, 4 values), replacing the
+  pre-v1.5.3 `SKIPPED` / `PARTIAL` / `COMPLETE` (uppercase, 3 values).
+  This adds the essential vs prescription distinction (must-have meds
+  vs prescribed-only meds) so cross-device sync now roundtrips without
+  fidelity loss — Android's `AchievedTier` ladder is the authoritative
+  spec. The `MedicationTierPicker` UI renders 4 buttons in canonical
+  order (skipped → essential → prescription → complete). Firestore
+  reads include a one-time normalization helper (in
+  `web/src/api/firestore/medicationSlots.ts`) that folds legacy
+  uppercase docs into the new enum (`SKIPPED` → `skipped`, `PARTIAL` →
+  `essential` conservatively, `COMPLETE` → `complete`) and emits a
+  `console.warn` so dev cleanup can be tracked; the helper is removable
+  in v1.6.0+ once no legacy docs remain. Pre-existing web tier values
+  in any account are normalized on read with a console warning during
+  the dev cleanup window.
+
+## [1.6.0] — 2026-04-24
+
+### Medication reminder mode — Web settings UI (PR4 of 4)
+
+- **Settings → Medication Reminders** (web) gains a Clock / Interval
+  picker + interval presets + custom-minutes field, mirroring Android.
+- **Persistent banner**: "Reminder delivery is currently Android-only.
+  Settings sync to Firestore so your phone picks them up. Web reminder
+  delivery will arrive with Web Push in a future release."
+- New Firestore client `web/src/api/firestore/medicationPreferences.ts`
+  reads/writes `users/{uid}/medication_preferences/global` with the
+  same camelCase keys Android consumes (`reminderModeDefault`,
+  `reminderIntervalDefaultMinutes`).
+- `MedicationSlotDef` extended with `reminder_mode` +
+  `reminder_interval_minutes` so per-slot overrides round-trip through
+  Firestore. Web slot editor will gain the per-slot picker UI in a
+  follow-up — for now the override is settable from Android only and
+  the web slot editor leaves existing values untouched.
+- Vitest coverage: 6 cases for the medication preferences read/write
+  path, including unknown-mode fallback and interval clamping.
+
+### Medication reminder mode — Android UI (PR3 of 4)
+
+- **Settings → Notifications** gains a "Medication Reminders" subsection
+  with a Clock / Interval radio for the global default. When INTERVAL is
+  picked the section reveals a presets row (2h / 4h / 6h / 8h) plus a
+  custom-minutes field clamped to 60..1440. Saving rewires alarms via
+  `MedicationIntervalRescheduler.rescheduleAll()` immediately.
+- **Settings → Medication Slots → Slot editor** gains a per-slot
+  "Reminder Mode: Default / Clock / Interval" picker plus the same
+  interval picker (visible only when Interval is selected). Saving
+  passes the resolved `reminder_mode` and `reminder_interval_minutes`
+  through to `MedicationSlotsViewModel.create / update`.
+- Resolved-mode hint text on every editor explains the cascade ("Uses
+  the app default (Clock)", "Reminder fires at 09:00",
+  "Reminder fires every 4h after the most recent dose").
+- Per-medication overrides deferred to a follow-up — touches multiple
+  pickers and dialogs and is independent of the slot+global UI.
+
+### Medication reminder mode — reactive scheduler (PR2 of 4)
+
+- **`MedicationReminderModeResolver`** — pure precedence function for the
+  three-level chain (medication → slot → global). Unknown enum strings
+  are treated as "inherit." Interval minutes always clamped to
+  `[60, 1440]`; an INTERVAL resolution missing a value at every level
+  falls back to the global default.
+- **Synthetic-skip doses.** `MedicationViewModel.setSkippedForSlot` now
+  inserts a `medication_doses` row per affected medication with
+  `is_synthetic_skip=true` so the interval rescheduler re-anchors when
+  the user explicitly skips a slot. `MedicationLogViewModel` filters
+  synthetic rows out of the log UI — they exist only as scheduling
+  anchors.
+- **`MedicationRepository.logSyntheticSkipDose`** — repository surface
+  used by SKIPPED. Sync-tracked like a normal dose so the anchor flows
+  to other devices.
+- **`MedicationIntervalRescheduler`** — owns AlarmManager registrations
+  for INTERVAL-mode slots and per-medication INTERVAL overrides. Uses
+  request-code namespace `+500_000` (slots) / `+600_000` (med
+  overrides), distinct from the existing `+400_000` per-medication
+  scheduler (which still owns CLOCK-mode alarms unchanged). Walks all
+  active slots + active medications, resolves mode, computes next
+  trigger as `anchor.takenAt + intervalMinutes` (clamped to `now + 1s`),
+  cancels prior alarms, enqueues fresh exact alarms via
+  `ExactAlarmHelper`. Bootstrap: with no doses yet, fires one interval
+  from now.
+- **Reactive Flow observer.** `MedicationIntervalRescheduler.start()`
+  observes `MedicationDoseDao.observeMostRecentDoseAny()` and runs
+  `rescheduleAll()` on every emission. Wired from
+  `PrismTaskApplication.onCreate()`. `BootReceiver` also calls
+  `rescheduleAll()` on `BOOT_COMPLETED`.
+
+### Medication reminder mode — schema (PR1 of 4)
+
+- **DB v60 → v61.** Adds `reminder_mode` (TEXT, nullable) and
+  `reminder_interval_minutes` (INTEGER, nullable) to `medication_slots`
+  and `medications`, and `is_synthetic_skip` (INTEGER NOT NULL DEFAULT 0)
+  to `medication_doses`. NULL `reminder_mode` means "inherit the next
+  level down" — medication NULL → slot NULL → global default (CLOCK,
+  stored in `UserPreferencesDataStore`). The resolver lives in PR2.
+- **`UserPreferencesDataStore`** gains `medicationReminderModeFlow` +
+  `setMedicationReminderMode()` for the global default (mode + interval
+  minutes, clamped 60..1440). Stored in DataStore, not Room.
+- **DAOs.** `MedicationDoseDao` adds `getMostRecentDoseAnyOnce()` /
+  `observeMostRecentDoseAny()` (interval-mode anchor, includes synthetic
+  skips) and `getMostRecentRealDoseOnce()` (UI dose history, excludes
+  synthetics). `MedicationSlotDao.getIntervalModeSlotsOnce()` and
+  `MedicationDao.getIntervalModeMedicationsOnce()` enumerate explicit
+  INTERVAL-mode rows for the reactive rescheduler in PR2.
+- **Sync.** `MedicationSyncMapper` round-trips the new fields on slots,
+  medications, and doses so cross-device sync of reminder-mode settings
+  and synthetic-skip anchors works.
+- No UI surface yet — every existing user keeps the CLOCK default and
+  prior reminder behavior. Settings UI lands in PR3.
 
 ### Fixed
 
@@ -75,6 +173,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   snapshot" is a separate feature if ever needed.
 
 ### Test infrastructure
+
+- **Sync test follow-ups cluster.** Three small follow-ups to the sync-test
+  matrix shipped in PRs #741, #749, #750, #751, #753:
+  - **Test 8 (multi-device streak sync) — flipped from `@Ignore` to
+    `@Test`; sync scenarios automated count moves from 5/9 to 6/9.**
+    Earlier "First CI attempt" failure mode (pull does not surface
+    device B's `habit_completion` within 15 s) was a wrong test
+    assertion, not a production bug. Audit confirmed: SyncMapper push
+    and pull use identical field names (`localId`, `habitCloudId`,
+    `completedDate`, `completedDateLocal`, `completedAt`, `notes`), and
+    `SyncService.pullCollection` does a full
+    `userCollection(name).get()` snapshot fetch with no cursor —
+    Hypothesis A (field-shape mismatch) and Hypothesis B (cursor-skip
+    on equal timestamps) are both ruled out. Real cause: the pull-path
+    natural-key dedup at `SyncService.kt:1681-1693` collapses A's pull
+    of B's same-day completion into a `sync_metadata` upsert (no second
+    Room row inserted), so the test's `waitFor { completions.size == 2 }`
+    could never converge. Test rewritten to assert the actual production
+    contract: post-pull Room holds exactly one row, both cloud_ids map
+    to that row, and streak reads 1.
+  - **StreakCalculator clock-change unit tests added (5 cases).**
+    Forward jump mid-day, forward jump across midnight, rollback to
+    past, completion at exact day boundary (00:00:00), rapid clock
+    toggle. Pure JVM tests — vary the `today: LocalDate` argument and
+    the per-completion `completedDate` epoch ms to exercise each clock-
+    drift scenario. Covers the unit-test slice that PR #751 carved out
+    of Test 15's scope (Test 15 was punted at the sync layer because
+    `DayBoundary.startOfCurrentDay(now)` already accepts an injectable
+    `now: Long`; the remaining behavior to pin down is StreakCalculator
+    determinism w.r.t. its `today` parameter, which doesn't need the
+    Firebase emulator harness).
+  - **CloudIdOrphanHealerTwoDeviceTest deleted as redundant to
+    Test10ConcurrentDeleteTest.** The test's `simulatePushForPending`
+    stub modeled the pre-fix `docRef.set()` "silently re-create" path
+    that PR #753 removed; three of its four scenarios assert "5 docs
+    re-created at the same cloud_ids", which is the OPPOSITE of post-
+    fix `docRef.update()` semantics (NOT_FOUND → routes through
+    `processRemoteDeletions` to hard-delete the orphan locally). The
+    fourth scenario (`partialFirestoreWipe_healerOnlyTargetsMissingIds`)
+    duplicates `CloudIdOrphanHealerScenarioTest.partialWipe_healsOnlyMissingRows`.
+    Test 10 covers the post-fix push-update conflict semantics
+    end-to-end against the live Firebase Emulator. Dangling KDoc
+    references in `CloudIdOrphanHealerEmulatorTest` and
+    `BuiltInTaskTemplateBackfillerTwoDeviceTest` retargeted /
+    inlined.
 
 - **Sync tests CI — Tests 12 & 13 manual runbook (PR3 of 3, closes
   sync-test matrix).** Docs-only addition
