@@ -115,7 +115,8 @@ class AiFeatureGateInterceptorTest {
 
         assertEquals(
             "Disabled AI request must return synthetic 451",
-            451, result.code
+            451,
+            result.code
         )
         verify(exactly = 0) {
             chain.proceed(any())
@@ -178,7 +179,8 @@ class AiFeatureGateInterceptorTest {
 
             assertEquals(
                 "Prefix $prefix should trigger the gate, got code=${result.code}",
-                451, result.code
+                451,
+                result.code
             )
         }
     }
