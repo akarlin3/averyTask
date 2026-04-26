@@ -74,7 +74,8 @@ class DailyEssentialsDayBoundaryFlowTest {
         val firstFireCount = flatMapInvocations
         assertEquals(
             "Initial SoD-anchored start of Apr 25",
-            Instant.parse("2026-04-25T04:00:00Z").toEpochMilli(), before
+            Instant.parse("2026-04-25T04:00:00Z").toEpochMilli(),
+            before
         )
         assertEquals("flatMapLatest fired once on subscription", 1, firstFireCount)
 
@@ -84,15 +85,18 @@ class DailyEssentialsDayBoundaryFlowTest {
         val after = composed.value
         assertNotEquals(
             "todayStart MUST advance — if this fails, snapshot pattern was reverted",
-            before, after
+            before,
+            after
         )
         assertEquals(
             "Post-boundary, SoD-anchored start = Apr 26 04:00 UTC",
-            Instant.parse("2026-04-26T04:00:00Z").toEpochMilli(), after
+            Instant.parse("2026-04-26T04:00:00Z").toEpochMilli(),
+            after
         )
         assertNotEquals(
             "flatMapLatest re-fired on the boundary crossing — locals refreshed",
-            firstFireCount, flatMapInvocations
+            firstFireCount,
+            flatMapInvocations
         )
     }
 }

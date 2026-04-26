@@ -1,5 +1,6 @@
 package com.averycorp.prismtask.domain.usecase
 
+import com.averycorp.prismtask.core.time.LocalDateFlow
 import com.averycorp.prismtask.data.local.dao.DailyEssentialSlotCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
@@ -15,10 +16,8 @@ import com.averycorp.prismtask.data.preferences.LeisurePreferences
 import com.averycorp.prismtask.data.preferences.LeisureSlotConfig
 import com.averycorp.prismtask.data.preferences.LeisureSlotId
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
-import com.averycorp.prismtask.core.time.LocalDateFlow
 import com.averycorp.prismtask.data.repository.LeisureRepository
 import com.averycorp.prismtask.domain.model.SelfCareRoutines
-import com.averycorp.prismtask.util.DayBoundary
 import com.google.gson.JsonArray
 import com.google.gson.JsonParser
 import kotlinx.coroutines.ExperimentalCoroutinesApi
