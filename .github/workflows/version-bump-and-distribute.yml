@@ -24,12 +24,19 @@ name: Version Bump & Firebase Distribute
 # workflow_run trigger to fire. The PR that adds it can NOT use the
 # new path for itself — its own version bump runs the inline job from
 # the old auto-merge.yml. First post-merge cycle is unaffected.
+#
+# IMPORTANT: do NOT add a `branches:` filter here. For workflow_run, the
+# `branches:` filter matches the SOURCE workflow's HEAD branch. Auto-
+# merge & Release runs on `pull_request` events, so its HEAD branch is
+# always the PR's feature branch (`feat/*`, `fix/*`, etc.) — never
+# `main`. PR #771 originally shipped with `branches: [main]` here and
+# the workflow never fired once until PR #794 removed the filter,
+# silently breaking Firebase distribution for every merge in between.
 
 on:
   workflow_run:
     workflows: ["Auto-merge & Release"]
     types: [completed]
-    branches: [main]
 
 # Serialize all post-merge distribution work against main so concurrent
 # PRs produce sequential versionCode bumps without racing each other.
