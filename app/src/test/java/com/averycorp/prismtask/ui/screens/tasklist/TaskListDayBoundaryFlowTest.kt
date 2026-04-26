@@ -1,81 +1,88 @@
 package com.averycorp.prismtask.ui.screens.tasklist
 
-import com.averycorp.prismtask.util.DayBoundary
+import com.averycorp.prismtask.core.time.LocalDateFlow
+import com.averycorp.prismtask.core.time.TimeProvider
+import com.averycorp.prismtask.data.preferences.StartOfDay
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Test
+import java.time.Instant
+import java.time.ZoneId
 
 /**
- * RED-gate regression test for `TaskListViewModel`'s SoD-boundary bug
+ * Regression gate for `TaskListViewModel`'s SoD-boundary fix
  * (`docs/audits/UTIL_DAYBOUNDARY_SWEEP_AUDIT.md` § 3).
  *
- * **Phase-1 form** — assertion encodes the bug-exists state. Reconstructs
- * the exact `dayStartFlow` shape from `TaskListViewModel.kt:291-294`:
+ * **Phase-5 (GREEN) form** — assertion encodes the bug-fixed state.
+ * Reconstructs the post-migration shape from
+ * `TaskListViewModel.dayStartFlow`:
  *
- *   `getDayStartHour().map { startOfCurrentDay(it) }.stateIn(...)`
+ *   `combine(localDateFlow.observe(getStartOfDay()), getStartOfDay())
+ *       { date, sod -> date.atTime(sod.hour, sod.minute)...epochMillis }
+ *       .stateIn(...)`
  *
- * and asserts it locks the value at construction time. This passes today
- * — that's the bug.
+ * Asserts the StateFlow's value advances when the wall-clock crosses
+ * the user's SoD — exactly what the legacy snapshot pattern could not.
  *
- * After migration to `LocalDateFlow` this file will be inverted to the
- * Phase-5 form (passing = bug fixed). The inverted assertions are the
- * regression gate against re-introduction of the snapshot pattern.
- *
- * Same shape as `TodayDayBoundaryFlowTest`'s Phase-1 form.
+ * Inverted from Phase-1 form (commit `d5051d9d`). Re-introducing the
+ * snapshot pattern flips this assertion back to red.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class TaskListDayBoundaryFlowTest {
 
-    @Test
-    fun dayStartFlow_snapshotPattern_locksValueAtConstructionTime() = runTest {
-        // 11pm Apr 25 with SoD = 4am → SoD-anchored start = today (Apr 25) 4am.
-        // 6h later (5am Apr 26) the SoD-anchored start would be Apr 26 4am — IF
-        // the flow ticked. The bug shape doesn't tick.
-        val now11pm = millisAt(2026, 4, 25, 23, 0)
-        val sodStartAt11pm = DayBoundary.startOfCurrentDay(4, now11pm)
-        val now5amNextDay = millisAt(2026, 4, 26, 5, 0)
-        val sodStartAt5am = DayBoundary.startOfCurrentDay(4, now5amNextDay)
-        // Sanity: the helper itself returns different values for the two `now`s.
-        assertEquals(
-            "Sanity: 11pm Apr 25 with SoD=4 yields Apr 25 04:00 as SoD-anchored start",
-            millisAt(2026, 4, 25, 4, 0), sodStartAt11pm
-        )
-        assertEquals(
-            "Sanity: 5am Apr 26 with SoD=4 yields Apr 26 04:00 as SoD-anchored start",
-            millisAt(2026, 4, 26, 4, 0), sodStartAt5am
-        )
+    private val zone = ZoneId.of("UTC")
 
-        val sodHour = MutableStateFlow(4)
-        val dayStartFlow: StateFlow<Long> = sodHour
-            .map { hour -> DayBoundary.startOfCurrentDay(hour, now11pm) }
-            .stateIn(backgroundScope, SharingStarted.Eagerly, sodStartAt11pm)
+    private fun virtualClock(scope: TestScope, base: Instant) =
+        object : TimeProvider {
+            override fun now(): Instant = base.plusMillis(scope.testScheduler.currentTime)
+            override fun zone(): ZoneId = zone
+        }
+
+    @Test
+    fun dayStartFlow_localDateFlowDriven_advancesAtSoDBoundary() = runTest {
+        // 11pm Apr 25 UTC, SoD = 4am.
+        // Logical day = Apr 25; SoD-anchored start = Apr 25 04:00 UTC.
+        // 6h later (5am Apr 26) the SoD boundary has flipped — start = Apr 26 04:00 UTC.
+        val base = Instant.parse("2026-04-25T23:00:00Z")
+        val sod = MutableStateFlow(StartOfDay(hour = 4, minute = 0, hasBeenSet = true))
+        val helper = LocalDateFlow(virtualClock(this, base))
+
+        val dayStartFlow: StateFlow<Long> = combine(
+            helper.observe(sod),
+            sod
+        ) { date, s ->
+            date.atTime(s.hour, s.minute).atZone(zone).toInstant().toEpochMilli()
+        }.stateIn(backgroundScope, SharingStarted.Eagerly, -1L)
 
         runCurrent()
         val before = dayStartFlow.value
-        assertEquals(sodStartAt11pm, before)
+        assertEquals(
+            "Initial value: SoD-anchored start of Apr 25 (the logical day at 11pm UTC pre-boundary)",
+            Instant.parse("2026-04-25T04:00:00Z").toEpochMilli(), before
+        )
 
-        // 6h wall-clock advance with no upstream re-emission. The bug shape
-        // locks the value — no clock-tick refresh.
-        advanceTimeBy(6 * 60 * 60 * 1000L)
+        advanceTimeBy(6 * 60 * 60 * 1000L) // 6h → past Apr 26 04:00 UTC
         runCurrent()
 
+        val after = dayStartFlow.value
+        assertNotEquals(
+            "dayStartFlow MUST advance reactively when wall-clock crosses SoD — " +
+                "if this fails, someone reverted to the snapshot pattern",
+            before, after
+        )
         assertEquals(
-            "BUG: dayStartFlow locked to construction-time value despite 6h wall-clock advance",
-            before, dayStartFlow.value
+            "After SoD crossing, dayStartFlow reflects SoD-anchored start of the new logical day",
+            Instant.parse("2026-04-26T04:00:00Z").toEpochMilli(), after
         )
     }
-
-    private fun millisAt(y: Int, m: Int, d: Int, h: Int, min: Int = 0): Long =
-        java.time.LocalDateTime.of(y, m, d, h, min)
-            .atZone(java.time.ZoneId.systemDefault())
-            .toInstant()
-            .toEpochMilli()
 }
