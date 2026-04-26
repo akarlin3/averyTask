@@ -188,7 +188,24 @@ jobs:
         if: steps.wait.outputs.merged == 'true'
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # Token choice — same rationale as auto-merge.yml's
+          # "Update branch if behind main" step. The bump push later in
+          # this job targets `main`, which is branch-protected and rejects
+          # any push that lacks the 4 required status checks. GITHUB_TOKEN
+          # has no bypass-protection capability, so the bot's bump push is
+          # rejected with `protected branch hook declined`. AUTOFIX_PAT
+          # belongs to a repo admin (per the same secret already in use
+          # by `gh pr update-branch`) and bypasses required-checks for
+          # direct pushes when "Include administrators" is unchecked in
+          # branch protection. Falls back to GITHUB_TOKEN if the secret
+          # isn't seeded — the push will then fail loud at the
+          # "Commit version bump" step rather than silently dropping.
+          #
+          # The token configured here propagates to every subsequent
+          # `git` invocation in this job (because actions/checkout sets
+          # the credential helper in the local repo config), so the
+          # later `git push origin HEAD:main` picks it up automatically.
+          token: ${{ secrets.AUTOFIX_PAT || secrets.GITHUB_TOKEN }}
           ref: ${{ steps.wait.outputs.merge_sha }}
           fetch-depth: 0
 
