@@ -1,21 +1,9 @@
 package com.averycorp.prismtask.data.preferences
 
 import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.intPreferencesKey
-import androidx.datastore.preferences.core.longPreferencesKey
-import androidx.datastore.preferences.core.stringPreferencesKey
 import com.averycorp.prismtask.domain.model.AutoDueDate
 import com.averycorp.prismtask.domain.model.StartOfWeek
 import com.averycorp.prismtask.domain.model.SwipeAction
-import com.averycorp.prismtask.domain.model.UiComplexityTier
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.runBlocking
 
 /**
  * Appearance/display preferences used by v1.3.0 customizability features.
@@ -536,3 +524,4 @@ class UserPreferencesDataStore(
 
     // endregion
 }
+
