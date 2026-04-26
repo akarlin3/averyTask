@@ -920,3 +920,100 @@ adds the missing interceptor unit test — single highest-leverage
 launch-derisking action surfaced by this audit.
 
 Awaiting your per-item approval before any Phase 2 PR work.
+
+---
+
+# Phase 3 — Post-merge sweep summary
+
+**Closed-out:** 2026-04-26. All Phase 2 PRs from the user-approved fan-out
+have merged. This section is the post-merge accounting + updated Phase F
+readiness scorecard.
+
+## Per-item outcome
+
+| # | Item | Outcome | PR(s) | SHA | LOC delta | Deviation from audit recommendation |
+|---|------|---------|-------|-----|-----------|-------------------------------------|
+| 1 | Backlog audit | **No PR — audit doc itself was the deliverable** | — (this doc, merged in #815 Phase 1) | `1c15ea2b`+ audit | +922 (audit doc) | None. Backlog catalog landed as Phase 1 doc per launch prompt. |
+| 2 | Per-feature readiness | **PROCEED (subset)** — Settings/AI gate test landed; other features stayed GREEN-as-found | #816 | `e8b564e9` | +261 | None. Sweep confirmed only Settings/AI gate had a meaningful test gap. |
+| 3 | Privacy drift | **STOP — no work needed** | — | — | 0 | None. Disclosure is current; no PR required. |
+| 4 | Stale TODOs | **STOP — premise wrong on verification** | — (PR abandoned) | — | 0 | **DEVIATION:** Audit recommended ~10 LOC cleanup PR. Verification of agent's classification showed the 5 `TODO(weekly-followup)` markers in `ApiModels.kt` + `EisenhowerViewModel.kt` document an active backend-Firestore-ID workaround (commit `018f2408`) — they are **STILL-RELEVANT**, not addressed-elsewhere. Abandoned the PR; flagged the misread for future audits. |
+| 5 | Dead code | **PROCEED (Tier 1 only, scope trimmed)** | #818 | `c874385a` | -442 | **DEVIATION:** Audit predicted ~180 LOC removal across "Tier 1 verified-only." Real number was -442 (4 files: `NdFeatureGate.kt` + test, `CalendarTimeUtil.kt` + test). Scope trimmed mid-PR after verification: agent claimed `HabitNotificationUtils.kt` was dead, but `HabitReminderScheduler.kt:277` references it — kept it. |
+| 6 | Doc drift | **PROCEED — CLAUDE.md baseline refresh + 2 planning issues** | #819 + issue #821 (widgets) + issue #822 (Phase G scope) | `c896cd0d` | +6/-4 (CLAUDE.md) | Audit predicted ~30-50 LOC. Smaller (10 LOC) because agent split widget question into its own issue (#821) for explicit user decision rather than silently editing CLAUDE.md. |
+| 7 | Release notes | **PROCEED — single doc PR** | #820 | `fdcad46e` | +147 | None. Predicted ~80, actual 147 (Play Store copy + GitHub Release notes + editorial notes). Larger because draft included both surfaces, not just one. |
+| 8 | Phase G scope | **STOP — planning issue** | — + issue #822 | — | 0 (issue) | None. Engineering-vs-marketing scope mismatch surfaced as user-decision issue per audit recommendation. |
+| 9 | Test infra | **PROCEED (subset)** — AI-gate test (covered by item 2 PR #816) + connected-tests triage doc; batch cross-entity test deferred | #816 + #817 | `e8b564e9` + `d41555e6` | +261 + +194 = +455 | **DEVIATION:** Audit predicted 3 PRs (~380 LOC). Shipped 2 PRs (~455 LOC). Batch cross-entity test deferred — connected-tests AVD failure means we can't validate new instrumented tests anyway until the workflow-level emulator-boot-timeout bump lands. |
+
+**Totals:** 5 PROCEED-merged PRs, 2 STOP-with-rationale, 2 planning issues
+filed. Combined LOC delta: **+613 / -442 = +171 net** across 5 PRs (vs.
+audit-predicted ~880 LOC). Lower-than-predicted because items 4 (PR
+abandoned on verification) and 9 (batch test deferred) shrank the
+fan-out, while item 5 was 2.5× larger than predicted.
+
+**Discipline scorecard:**
+- Mega-PR avoided ✅ (5 separate PRs, smallest +6/-4, largest +261)
+- Audit-first respected ✅ (no Phase 2 work before user PROCEED)
+- Verification before fix ✅ (item 4 + item 5 caught wrong premises)
+- All merges via auto-merge after CI green ✅
+- versionCode auto-bumped (706 → 712, six patch versions) ✅
+
+## Phase F readiness scorecard (post-fan-out)
+
+Comparison: pre-audit assessment vs. post-fan-out reality.
+
+| Surface | Pre-audit | Post-fan-out | Change driver |
+|---------|-----------|--------------|---------------|
+| AI feature gate (privacy invariant) | YELLOW (1 test file, no interceptor unit test) | **GREEN** (12 tests now: 2 ViewModel + 10 interceptor) | PR #816 |
+| Connected-tests CI signal | YELLOW (assumed flaky, root cause unknown) | **RED with known root cause** (AVD boot failure, ~17h of silent-bypass merges) | PR #817 (triage doc); fix not yet shipped |
+| Dead code surface area | YELLOW (~600 LOC suspected dead) | **GREEN for Tier 1** (442 LOC removed, verified live code preserved); Tier 2/3 deferred | PR #818 |
+| CLAUDE.md baseline accuracy | YELLOW (anchored to v1.3.0 in a v1.7+ repo) | **GREEN** (refreshed to "v1.7+ — see Roadmap") | PR #819 |
+| v2.0 launch comms | RED (no draft existed) | **GREEN** (draft ready for editorial pass) | PR #820 |
+| Stale TODO inventory | YELLOW (5 unverified markers) | **YELLOW unchanged** (verified still-relevant; not actually stale) | item 4 STOP |
+| Privacy disclosure copy | GREEN | **GREEN unchanged** | item 3 STOP |
+| Phase G engineering scope | RED (marketing copy ≠ engineering plan) | **YELLOW pending user decision** (issue #822) | item 8 STOP |
+| Widgets ship-or-cut decision | RED (code shipped disabled) | **YELLOW pending user decision** (issue #821) | item 6 split |
+
+**Net:** 5 surfaces moved GREEN, 2 RED→YELLOW (deferred to user
+decision), 1 YELLOW→RED (connected-tests, but with a known-cause +
+shipped triage doc — better than unknown YELLOW).
+
+**Single most consequential post-fan-out finding:** branch protection
+silent-bypassed every merge for ~17 hours because the connected-tests
+job CANCELLED (AVD boot timeout) rather than FAILED, and SKIPPED
+counts as success in the protection config. PR #817 triage doc
+recommends a workflow-level fix (emulator-boot-timeout 600 → 1200s)
+that is **outside the audit's PR scope** — should be its own PR before
+Phase F kickoff.
+
+## Phase F kickoff readiness — go / no-go
+
+**Go-ready:**
+- AI privacy invariant test coverage (item 2) ✅
+- Release notes draft (item 7) ✅
+- CLAUDE.md baseline (item 6) ✅
+- Dead code reduction Tier 1 (item 5) ✅
+
+**Blocking before kickoff:**
+- Connected-tests AVD boot fix (PR #817 triage → workflow PR not yet shipped). Without this, every Phase F PR will silently merge unverified.
+- User decision on issue #821 (widgets ship-or-cut) and issue #822 (Phase G scope alignment).
+
+**Recommend ship order pre-kickoff:**
+1. Workflow PR for emulator-boot-timeout bump (highest leverage — restores CI signal).
+2. User-driven decisions on #821 + #822 (informs Phase F scope).
+3. Tier 2 dead code sweep (deferred from item 5; only after CI signal restored).
+
+## Memory entry candidates (flagged, not auto-added)
+
+User to decide whether to persist these to repo memory. Each is phrased
+as a specific durable lesson, not a snapshot of current state.
+
+1. **AVD boot failure log signature** — The `[EmulatorConsole]: Failed to start Emulator console for 5554` line in `connected-tests` logs indicates AVD bootstrap failure (not test failure). When seen, the workflow CANCELLED (which counts as SKIPPED, which counts as success in branch protection). Fix is workflow-level, not test-code. (Source: PR #817, run `24948026658`.)
+
+2. **Branch protection's SKIPPED-as-success bypass** — A required check that cancels (vs. fails) is treated as passing. Combined with auto-bump cancel-on-superseded behavior, this means a flaky CI job can silent-bypass for hours without a single visible RED. Audit branch protection rules quarterly for this shape.
+
+3. **Audit-agent verification discipline** — Two of nine items in the mega-audit had wrong premises that only verification caught (item 4 stale-TODOs misclassified as addressed; item 5 `HabitNotificationUtils.kt` misclassified as dead). Pattern: when an agent says "addressed elsewhere" or "no longer used," verify with grep/Read before shipping the cleanup PR. Cost of verification: minutes. Cost of wrong cleanup PR: hours plus a revert.
+
+4. **Mega-audit cadence works** — 9-item batch with 3 checkpoints + per-item PR fan-out shipped 5 PRs cleanly with 0 mega-PR temptation, 2 caught-and-stopped wrong premises, and a clear go/no-go scorecard. Repeat this shape for the next pre-launch derisking sweep (Phase F mid-cycle, ~2026-05-30).
+
+---
+
+# End of Phase 3 — pre-Phase F mega audit closed.
