@@ -536,5 +536,3 @@ class UserPreferencesDataStore(
 
     // endregion
 }
-
-
