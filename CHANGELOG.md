@@ -358,6 +358,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Audit + reproduction trail at
   `docs/audits/MEDICATION_SOD_BOUNDARY_AUDIT.md`.
 
+- **Auto version-bump fires reliably on every PR merge.** Two
+  silent-skip failure modes in the post-merge bump chain are closed:
+  (1) PR #803 added a `commits/{sha}/pulls` fallback in
+  `version-bump-and-distribute.yml` for cases where
+  `github.event.workflow_run.pull_requests` lands empty (the common
+  case for same-repo PRs going through `Auto-merge & Release`), and
+  (2) PR #805 added a "wait until all required-status checks have
+  queued" step to `auto-merge.yml` so `wait-on-check-action` no
+  longer exits prematurely on a fast subset of checks (the upstream
+  race that, on PR #804, caused version-bump to fire 14 min before
+  the actual merge and time out before the squash landed).
+
 ## [1.6.0] — 2026-04-24
 
 > The 1.6.0 entry captures work that landed across several tagged builds
