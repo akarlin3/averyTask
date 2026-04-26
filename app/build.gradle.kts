@@ -104,6 +104,13 @@ android {
                 "proguard-rules.pro"
             )
             signingConfig = if (hasReleaseSigning) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
+            firebaseAppDistribution {
+                groups = "testers"
+                val notesFile = System.getenv("RELEASE_NOTES_FILE")
+                if (!notesFile.isNullOrEmpty()) {
+                    releaseNotesFile = notesFile
+                }
+            }
         }
     }
 
