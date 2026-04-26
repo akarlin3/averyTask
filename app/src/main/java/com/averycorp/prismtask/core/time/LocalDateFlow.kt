@@ -1,8 +1,15 @@
 package com.averycorp.prismtask.core.time
 
 import com.averycorp.prismtask.data.preferences.StartOfDay
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.isActive
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -10,35 +17,47 @@ import javax.inject.Singleton
 /**
  * Reactive Flow over the user's current logical date.
  *
- * The previous medication call sites snapshotted the logical date once per
- * upstream Start-of-Day emission and had no mechanism to advance when the
- * wall-clock crossed the next logical-day boundary. This helper centralises
- * the correct shape: combine the SoD source with a wall-clock ticker that
- * re-emits at every logical-day boundary, so any caller that needs "what
- * day are we on" gets a Flow that actually represents the answer over time.
+ * Combines a Start-of-Day source with a wall-clock ticker that re-emits at
+ * every logical-day boundary crossing. Backed by [TimeProvider] so tests
+ * can drive virtual time without monkey-patching `Instant.now()`.
  *
- * Backed by [TimeProvider] so tests can drive virtual time without
- * monkey-patching `Instant.now()`. See `LocalDateFlowTest` and the bug
- * audit at `docs/audits/MEDICATION_SOD_BOUNDARY_AUDIT.md`.
+ * Replaces the broken `MutableStateFlow(currentLocalDateString(hour))`
+ * snapshot pattern previously used in `MedicationViewModel.todayDate` and
+ * `MedicationStatusUseCase.observeDueDosesToday()` — see
+ * `docs/audits/MEDICATION_SOD_BOUNDARY_AUDIT.md`.
  *
- * STUB COMMIT — body intentionally empty so the gating
- * `MedicationTodayDateRefreshTest` fails until the real implementation
- * lands in the follow-up commit.
+ * The helper takes the SoD source as a parameter (not a constructor
+ * dependency) so the class itself depends only on [TimeProvider] and stays
+ * out of the data/preferences layer. Callers wire their own
+ * `taskBehaviorPreferences.getStartOfDay()` flow in.
  */
 @Singleton
 class LocalDateFlow @Inject constructor(
-    @Suppress("unused") private val timeProvider: TimeProvider
+    private val timeProvider: TimeProvider
 ) {
     /**
-     * Emit the current logical [LocalDate] for the active SoD, then re-emit
+     * Emit the current logical [LocalDate] on subscription, then re-emit
      * at every logical-day boundary crossing. Re-keys when [sodSource]
      * emits a new Start-of-Day. Deduped — consecutive equal emissions are
      * suppressed.
      */
-    fun observe(@Suppress("UNUSED_PARAMETER") sodSource: Flow<StartOfDay>): Flow<LocalDate> =
-        flowOf()
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun observe(sodSource: Flow<StartOfDay>): Flow<LocalDate> =
+        sodSource.flatMapLatest { sod ->
+            flow {
+                while (currentCoroutineContext().isActive) {
+                    val now = timeProvider.now()
+                    val zone = timeProvider.zone()
+                    emit(DayBoundary.logicalDate(now, sod.hour, sod.minute, zone))
+                    val nextStart = DayBoundary
+                        .nextLogicalDayStart(now, sod.hour, sod.minute, zone)
+                        .toEpochMilli()
+                    delay((nextStart - now.toEpochMilli()).coerceAtLeast(1L))
+                }
+            }
+        }.distinctUntilChanged()
 
     /** ISO `yyyy-MM-dd` form of [observe]. */
-    fun observeIsoString(@Suppress("UNUSED_PARAMETER") sodSource: Flow<StartOfDay>): Flow<String> =
-        flowOf()
+    fun observeIsoString(sodSource: Flow<StartOfDay>): Flow<String> =
+        observe(sodSource).map { it.toString() }
 }

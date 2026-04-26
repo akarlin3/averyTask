@@ -74,7 +74,7 @@ class MedicationTodayDateRefreshTest {
 
         val todayDate: StateFlow<String> = helper
             .observeIsoString(sod)
-            .stateIn(this, SharingStarted.Eagerly, "")
+            .stateIn(backgroundScope, SharingStarted.Eagerly, "")
 
         runCurrent()
         val before = todayDate.value
