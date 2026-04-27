@@ -342,6 +342,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Web `tasks.ts` no longer clobbers Android-only task fields on edit
+  (`dueTime`, `isFlagged`, `lifeCategory`, `eisenhowerReason`,
+  `userOverrodeQuadrant`, Focus-Release fields, `archived_at`,
+  `source_habit_id`).** Round-trip data-loss bug fixed: previously every
+  call to `updateTask` rebuilt the full Firestore document and every
+  `createTask` hardcoded `dueTime: null`, `isFlagged: false`,
+  `lifeCategory: null`, etc., which silently destroyed any state set on
+  Android (auto-classified life category, manually-pinned Eisenhower
+  quadrant, flag, parsed due-time, focus-release counters, etc.) on the
+  next web edit. `taskUpdateToDoc` now switches to merge-on-write — only
+  fields the caller actually changed are emitted, so unmentioned columns
+  stay as Android wrote them. `taskCreateToDoc` similarly omits Android-
+  only fields when the web user didn't supply them. The Quick Create
+  input now feeds typed text through `parseQuickAdd` so "Standup at 9am"
+  correctly populates `due_time` instead of dropping it (PR-1 of the
+  joint Q-F3+T-S2 fix). The Task Editor adds a Life Category picker on
+  the Organize tab (work/personal/self-care/health/uncategorized) so the
+  Work-Life Balance dashboard is finally reachable from web. The
+  Eisenhower drag-drop handler now sets `userOverrodeQuadrant: true` on
+  manual moves so Android's auto-classifier doesn't undo the user's
+  choice on the next sync. Tier A Phase F parity, audit PR #836; gaps
+  T-S1/2/3, T-F1/2/3 from § Surface 3.
+
 - **Medication screen day boundary now respects Start-of-Day on Android +
   web.** `MedicationViewModel.todayDate` (Android) and the four
   `const todayIso = logicalToday(Date.now(), startOfDayHour)` web sites
