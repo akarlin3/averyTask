@@ -415,6 +415,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Web sign-in now shows a RestorePending takeover when the user has
+  a pending account deletion (parity with Android `AuthScreen`
+  `RestorePending` state).** Previously a deletion-pending user could
+  silently overwrite the deletion mark by web-signing-in: the web
+  `signInWithGoogle` flow never called `getDeletionStatus` after the
+  Firebase + JWT exchange, so the next sync re-established the user as
+  active and erased the grace-window state initiated from Android.
+  `authStore` now refreshes the deletion status (via the existing
+  `authApi.getDeletionStatus` call, ordered before `fetchUser`) on every
+  Google sign-in, every legacy email/password login, and every
+  Firebase-auth-state-change re-hydration. A new
+  `routes/RestorePendingGate` (sits between `ProtectedRoute` and
+  `OnboardingGate`) takes over the entire authed route tree with a
+  full-screen `features/auth/RestorePendingScreen` whenever the gate
+  resolves to `'pending'` — `Restore Account` calls
+  `authApi.cancelAccountDeletion` and flips the gate to `'active'`;
+  `Sign Out` abandons the restore (deletion proceeds) and routes back
+  to `/login`. Fail-closed if the deletion check throws: the gate stays
+  on its splash rather than letting the user leak to the AppShell. Tier
+  A Phase F parity, audit PR #836; gap from § Surface 7.
 - **Web `tasks.ts` no longer clobbers Android-only task fields on edit
   (`dueTime`, `isFlagged`, `lifeCategory`, `eisenhowerReason`,
   `userOverrodeQuadrant`, Focus-Release fields, `archived_at`,
@@ -437,6 +457,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   manual moves so Android's auto-classifier doesn't undo the user's
   choice on the next sync. Tier A Phase F parity, audit PR #836; gaps
   T-S1/2/3, T-F1/2/3 from § Surface 3.
+- **Web `habits.ts` no longer clobbers Android-only habit fields on
+  edit (booking, built-in identity, today-skip, nag-suppression,
+  multi-reminder cadence). Habit completions now write
+  `completedDateLocal` (timezone-neutral day key from Android v50) so
+  cross-device DST drift is fixed.** `web/src/api/firestore/habits.ts`
+  previously hardcoded `isBookable: false`, `isBooked: false`,
+  `bookedDate: null`, `bookedNote: null`, `trackBooking: false`,
+  `trackPreviousPeriod: false`, `hasLogging: false`,
+  `reminderTimesPerDay: 1`, and `reminderIntervalMillis: null` on every
+  `createHabit` call, and silently omitted Android-only fields like
+  `showStreak`, `nagSuppressionOverrideEnabled`,
+  `nagSuppressionDaysOverride`, `todaySkipAfterCompleteDays`,
+  `todaySkipBeforeScheduleDays`, `isBuiltIn`, `templateKey`,
+  `sourceVersion`, `isUserModified`, and `isDetachedFromTemplate` —
+  meaning a habit created on Android with booking enabled, or a
+  built-in habit row, would have its identity and toggle state
+  destroyed by the next web-side round-trip. `habitCreateToDoc` now
+  emits only the ~10 fields the web user actually owns; merge-only
+  semantics on `updateHabit` (which already used `if (… !== undefined)`
+  guards) are preserved. Separately, `toggleCompletion`'s addDoc
+  payload now writes `completedDateLocal: <YYYY-MM-DD>` derived from
+  the caller's `useLogicalToday(startOfDayHour)` value, matching the
+  field Android added in Room migration 49→50 for timezone-neutral
+  day comparisons; without it, a completion logged on web at
+  23:55 local on a DST spring-forward day could decompose to a
+  different calendar date when read on Android in a different
+  timezone. `docToCompletion` reciprocally prefers
+  `completedDateLocal` when present and falls back to the legacy
+  epoch only for pre-v50 docs. Tier A+B Phase F parity, audit
+  PR #836; gaps H-S2, H-S4 from § Surface 2.
+
 - **Web medication-reminder-mode settings banner copy corrected.**
   Settings → Medication Reminder Mode previously claimed "Settings sync
   to Firestore so your phone picks them up," but Android's
