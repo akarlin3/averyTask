@@ -136,8 +136,16 @@ constructor(
         slots.map { slot ->
             val linkedMedIds = slotRepository.getMedicationIdsForSlotOnce(slot.id).toSet()
             val linkedMeds = meds.filter { it.id in linkedMedIds }
+            // Synthetic-skip rows exist only as scheduling anchors for the
+            // interval-mode reminder rescheduler — they should not make a
+            // med look "taken" in the per-med checkbox UI or in the
+            // achieved-tier auto-compute pass.
             val takenIds = doses.asSequence()
-                .filter { it.medicationId in linkedMedIds && it.slotKey == slot.id.toString() }
+                .filter {
+                    it.medicationId in linkedMedIds &&
+                        it.slotKey == slot.id.toString() &&
+                        !it.isSyntheticSkip
+                }
                 .map { it.medicationId }
                 .toSet()
             val computed = MedicationTierComputer.computeAchievedTier(
@@ -193,39 +201,6 @@ constructor(
     }
 
     /**
-     * Drop the slot's tier to SKIPPED for today. Records the row as
-     * `USER_SET` so subsequent dose changes don't auto-upgrade it.
-     *
-     * Also writes a synthetic-skip dose per affected medication so the
-     * interval-mode reminder rescheduler re-anchors on the skip. Synthetic
-     * doses are filtered out of the medication log UI but visible to the
-     * scheduler via [MedicationDoseDao.getMostRecentDoseAnyOnce]. Skipping
-     * a previously-synthetic-skipped slot is idempotent — a fresh row just
-     * pushes the anchor forward.
-     */
-    fun setSkippedForSlot(slot: MedicationSlotEntity) {
-        viewModelScope.launch {
-            val date = todayDate.value
-            val meds = medicationsForSlotOnce(slot.id)
-            val now = System.currentTimeMillis()
-            meds.forEach { med ->
-                slotRepository.upsertTierState(
-                    medicationId = med.id,
-                    slotId = slot.id,
-                    date = date,
-                    tier = AchievedTier.SKIPPED,
-                    source = TierSource.USER_SET
-                )
-                medicationRepository.logSyntheticSkipDose(
-                    medicationId = med.id,
-                    slotKey = slot.id.toString(),
-                    intendedAt = now
-                )
-            }
-        }
-    }
-
-    /**
      * Set a user-claimed intended_time on every per-(medication, slot, today)
      * tier-state row for the given slot. Materializes any missing rows via
      * an auto-compute pass first so the column is non-null after the call.
@@ -245,18 +220,6 @@ constructor(
                     intendedTime = intendedTime
                 )
             }
-        }
-    }
-
-    /**
-     * Clear a user override so the slot's tier goes back to auto-compute.
-     */
-    fun clearUserOverrideForSlot(slot: MedicationSlotEntity) {
-        viewModelScope.launch {
-            val date = todayDate.value
-            val states = todaysTierStates.value.filter { it.slotId == slot.id }
-            states.forEach { slotRepository.deleteTierState(it) }
-            refreshTierState(slot.id)
         }
     }
 
@@ -393,21 +356,31 @@ constructor(
     // ── Bulk tier marking ──────────────────────────────────────────────
 
     /**
-     * Mark every medication in [scope] to [tier] for today via the same
-     * batch infrastructure that powers PR #772's `STATE_CHANGE` /
-     * `SKIP` mutations. Every produced mutation shares one `batch_id`,
-     * so the existing 24h durable history undo (Settings → Batch
-     * History) reverses the whole bulk action atomically.
+     * Apply [tier] to every medication in [scope] by writing real
+     * dose-log rows for meds at that tier or below (the ladder semantic
+     * `MedicationTierComputer` already uses for auto-compute), and
+     * routing the work through the batch infrastructure so Settings →
+     * Batch History can reverse the whole action under one `batch_id`.
      *
-     * **Mutation choice by tier:** SKIPPED routes through
-     * [BatchMutationType.SKIP] so the synthetic-skip dose loop fires
-     * per medication and re-anchors interval-mode reminders — same
-     * behavior as [setSkippedForSlot]. Non-SKIPPED tiers route through
-     * [BatchMutationType.STATE_CHANGE], which writes only the
-     * tier-state row and leaves the dose log untouched.
+     * **Mutation choice by tier:**
+     *  - `SKIPPED` → [BatchMutationType.SKIP] for every linked med. The
+     *    batch handler deletes any real doses for the slot today and
+     *    writes a synthetic-skip row plus a `USER_SET=SKIPPED` tier-state
+     *    so interval-mode reminders re-anchor.
+     *  - non-`SKIPPED` → [BatchMutationType.COMPLETE] for every linked
+     *    med whose [MedicationTier] sits at or below the clicked rung
+     *    AND that doesn't already have a real dose for today. Already-
+     *    taken meds at higher tiers stay taken — clicking a lower tier
+     *    never auto-unchecks the user's manual marks.
      *
-     * **Empty scope is a no-op.** Matches the UI's pre-confirmation
-     * disable on zero targets.
+     * After a non-`SKIPPED` apply, the viewmodel deletes any
+     * `USER_SET` tier-state rows for the affected slot so the
+     * achieved-tier display flips back onto auto-compute (otherwise a
+     * stale `USER_SET=SKIPPED` from an earlier Skip would mask the new
+     * dose log).
+     *
+     * Empty scope / no eligible meds → no-op (returns null without
+     * touching the batch infra).
      */
     fun bulkMark(scope: BulkMarkScope, slotId: Long?, tier: AchievedTier) {
         viewModelScope.launch { bulkMarkInternal(scope, slotId, tier) }
@@ -425,7 +398,7 @@ constructor(
         tier: AchievedTier
     ): BatchOperationsRepository.BatchApplyResult? {
         val date = todayDate.value
-        val targets: List<Pair<MedicationEntity, MedicationSlotEntity>> = when (scope) {
+        val rawTargets: List<Pair<MedicationEntity, MedicationSlotEntity>> = when (scope) {
             BulkMarkScope.SLOT -> {
                 val slot = activeSlots.value.firstOrNull { it.id == slotId } ?: return null
                 medicationsForSlotOnce(slot.id).map { it to slot }
@@ -436,40 +409,84 @@ constructor(
                 }
             }
         }
-        if (targets.isEmpty()) return null
+        if (rawTargets.isEmpty()) return null
 
+        val mutations: List<ProposedMutationResponse>
         val storageTier = tier.toStorage()
-        val mutationType = if (tier == AchievedTier.SKIPPED) {
-            BatchMutationType.SKIP
+        val now = System.currentTimeMillis()
+
+        if (tier == AchievedTier.SKIPPED) {
+            mutations = rawTargets.map { (med, slot) ->
+                ProposedMutationResponse(
+                    entityType = BatchEntityType.MEDICATION.name,
+                    entityId = med.id.toString(),
+                    mutationType = BatchMutationType.SKIP.name,
+                    proposedNewValues = mapOf(
+                        "slot_key" to slot.name,
+                        "date" to date,
+                        "tier" to storageTier
+                    ),
+                    humanReadableDescription = "Skip ${med.name} (${slot.name})"
+                )
+            }
         } else {
-            BatchMutationType.STATE_CHANGE
+            // Filter by tier ladder: only meds at or below the clicked
+            // tier are eligible; already-taken meds are left alone so we
+            // don't pile up duplicate dose rows.
+            val takenByMed: Map<Long, Set<Long>> = todaysDoses.value
+                .asSequence()
+                .filter { !it.isSyntheticSkip }
+                .groupBy { it.medicationId }
+                .mapValues { (_, doses) -> doses.map { it.slotKey.toLongOrNull() ?: -1L }.toSet() }
+            mutations = rawTargets
+                .filter { (med, _) ->
+                    val medTier = MedicationTier.fromStorage(med.tier)
+                    AchievedTier.from(medTier).ordinal <= tier.ordinal
+                }
+                .filterNot { (med, slot) -> takenByMed[med.id]?.contains(slot.id) == true }
+                .map { (med, slot) ->
+                    ProposedMutationResponse(
+                        entityType = BatchEntityType.MEDICATION.name,
+                        entityId = med.id.toString(),
+                        mutationType = BatchMutationType.COMPLETE.name,
+                        proposedNewValues = mapOf(
+                            "slot_key" to slot.name,
+                            "date" to date,
+                            "tier" to storageTier,
+                            "taken_at" to now
+                        ),
+                        humanReadableDescription = "Mark ${med.name} (${slot.name}) taken"
+                    )
+                }
         }
 
-        val mutations = targets.map { (med, slot) ->
-            ProposedMutationResponse(
-                entityType = BatchEntityType.MEDICATION.name,
-                entityId = med.id.toString(),
-                mutationType = mutationType.name,
-                proposedNewValues = mapOf(
-                    "slot_key" to slot.name,
-                    "date" to date,
-                    "tier" to storageTier
-                ),
-                humanReadableDescription = "Mark ${med.name} (${slot.name}) as $storageTier"
-            )
-        }
+        if (mutations.isEmpty()) return null
 
         val commandText = when (scope) {
             BulkMarkScope.SLOT -> {
-                val slotName = targets.first().second.name
-                "Bulk mark ${targets.size} medication(s) in slot \"$slotName\" as $storageTier"
+                val slotName = rawTargets.first().second.name
+                "Bulk mark ${mutations.size} medication(s) in slot \"$slotName\" as $storageTier"
             }
             BulkMarkScope.FULL_DAY -> {
-                "Bulk mark ${targets.size} medication(s) across today as $storageTier"
+                "Bulk mark ${mutations.size} medication(s) across today as $storageTier"
             }
         }
 
-        return batchOperationsRepository.applyBatch(commandText, mutations)
+        val result = batchOperationsRepository.applyBatch(commandText, mutations)
+
+        // Stale USER_SET tier-state rows would mask the freshly logged
+        // doses — the slot card would still show "Skipped" with every
+        // checkbox now ticked. Drop them on the affected slots so
+        // auto-compute drives the display.
+        if (tier != AchievedTier.SKIPPED) {
+            val affectedSlotIds = rawTargets.map { it.second.id }.toSet()
+            val priorStates = slotRepository.getTierStatesForDateOnce(date)
+            priorStates
+                .filter { it.slotId in affectedSlotIds && it.tierSource == "user_set" }
+                .forEach { slotRepository.deleteTierState(it) }
+        }
+
+        return result
     }
 
     suspend fun selectionsForMedication(medicationId: Long): List<MedicationSlotSelection> {
