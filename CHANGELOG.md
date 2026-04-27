@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+- **Cross-device-tests CI job: drop shell-level retry.** The
+  `cross-device-tests` job in `.github/workflows/android-integration.yml`
+  previously ran `run_cross_device_tests || run_cross_device_tests
+  --rerun-tasks` inside `reactivecircus/android-emulator-runner@v2`,
+  doubling test wall-clock and crossing the 45-minute job timeout
+  whenever no concurrent push pre-empted the run (run `24970283404`,
+  sha `871c2da8`, exceeded 45m0s). Single-attempt now mirrors the
+  connected-tests job's shape (which sustains ~91% success without
+  retry). Real flakes will surface as honest failures, not silent
+  convergence on a second pass. Full audit at
+  `docs/audits/D2_CLEANUP_PHASE_F_UNBLOCK_MEGA_AUDIT.md` § 1.
+
+### Fixed
+
+- **Web mood-energy log writer no longer creates duplicate Firestore
+  docs for the same `(dateIso, timeOfDay)` slot.** Previously
+  `createLog` in `web/src/api/firestore/moodEnergyLogs.ts` used
+  `addDoc` (random doc id) with no uniqueness guard, so a second log
+  in the same slot wrote a second cloud doc. On the next Android pull
+  that doc would fail Room's unique index `(date, time_of_day)` on
+  `mood_energy_logs`, throwing `SQLiteConstraintException` and
+  leaving the cloud row orphaned. Fixed with a deterministic doc id
+  `${dateIso}__${timeOfDay}` written via
+  `setDoc(..., { merge: true })`, mirroring Android's natural-key
+  index and the existing convention in `medicationSlots.ts` (tier
+  states) and `checkInLogs.ts`. Tier B Phase F parity, audit PR
+  #836 § Surface 12.
+
 ### Added
 
 - **Auto-update-branch workflow.** A new
@@ -236,6 +266,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   doc; Android picks them up on the next sync. Optimistic update with
   rollback on failure.
 
+### Documentation
+
+- **Android↔web parity audit (Phase F).** New
+  `docs/audits/ANDROID_WEB_PARITY_AUDIT.md` covers all 15 launch-relevant
+  surfaces (medication, habits, tasks, AI quick-add, Pomodoro+, sync
+  infrastructure, account, settings, privacy, daily essentials/Today,
+  morning check-in, mood/energy, weekly review, voice, notifications)
+  on two axes (sync wiring + feature accessibility) with per-gap triage
+  classifying each as SHIP-BEFORE-MAY-15, DEFER-TO-G.0, or
+  ACCEPT-AS-DIVERGENCE. Deadline-realism check for the 2026-05-15
+  Phase F kickoff fires hard: 23 raw SHIP items vs the 8-item STOP
+  threshold; recommended Tier A + B re-triage (11 PRs, ~7-8 days)
+  preserves launch quality without burning the 19-day window. Headline
+  findings: web sync layer is structurally thinner than expected
+  (`api/sync.ts` is a 27-line stub with zero callers; real-time
+  listeners exist but `App.tsx` never calls them); web write paths in
+  `tasks.ts` and `habits.ts` systematically clobber Android-only
+  fields; web has no AI opt-out toggle / Anthropic disclosure surface
+  (PR #790 only shipped half the cross-platform privacy story); web
+  habit streak is strict-consecutive vs Android forgiveness-first;
+  three medication-collection mismatches and an onboarding completion
+  Firestore-path mismatch break the "complete once per account"
+  promise.
+
 ### Backend
 
 - **Medication tier_state / mark cross-system FK resolution** — On
@@ -362,6 +416,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "pending". Existing per-account `onboarding_prefs` writes from
   `GenericPreferenceSyncService` are kept unchanged so cross-Android sync
   also continues to work; the canonical field is purely additive.
+- **Web `habits.ts` no longer clobbers Android-only habit fields on
+  edit (booking, built-in identity, today-skip, nag-suppression,
+  multi-reminder cadence). Habit completions now write
+  `completedDateLocal` (timezone-neutral day key from Android v50) so
+  cross-device DST drift is fixed.** `web/src/api/firestore/habits.ts`
+  previously hardcoded `isBookable: false`, `isBooked: false`,
+  `bookedDate: null`, `bookedNote: null`, `trackBooking: false`,
+  `trackPreviousPeriod: false`, `hasLogging: false`,
+  `reminderTimesPerDay: 1`, and `reminderIntervalMillis: null` on every
+  `createHabit` call, and silently omitted Android-only fields like
+  `showStreak`, `nagSuppressionOverrideEnabled`,
+  `nagSuppressionDaysOverride`, `todaySkipAfterCompleteDays`,
+  `todaySkipBeforeScheduleDays`, `isBuiltIn`, `templateKey`,
+  `sourceVersion`, `isUserModified`, and `isDetachedFromTemplate` —
+  meaning a habit created on Android with booking enabled, or a
+  built-in habit row, would have its identity and toggle state
+  destroyed by the next web-side round-trip. `habitCreateToDoc` now
+  emits only the ~10 fields the web user actually owns; merge-only
+  semantics on `updateHabit` (which already used `if (… !== undefined)`
+  guards) are preserved. Separately, `toggleCompletion`'s addDoc
+  payload now writes `completedDateLocal: <YYYY-MM-DD>` derived from
+  the caller's `useLogicalToday(startOfDayHour)` value, matching the
+  field Android added in Room migration 49→50 for timezone-neutral
+  day comparisons; without it, a completion logged on web at
+  23:55 local on a DST spring-forward day could decompose to a
+  different calendar date when read on Android in a different
+  timezone. `docToCompletion` reciprocally prefers
+  `completedDateLocal` when present and falls back to the legacy
+  epoch only for pre-v50 docs. Tier A+B Phase F parity, audit
+  PR #836; gaps H-S2, H-S4 from § Surface 2.
+
+- **Web medication-reminder-mode settings banner copy corrected.**
+  Settings → Medication Reminder Mode previously claimed "Settings sync
+  to Firestore so your phone picks them up," but Android's
+  `MedicationReminderModeResolver` only reads the local
+  `MedicationPreferences` DataStore and Room
+  `medication_slots.reminder_mode` — there is no path that reads the
+  web-side `users/{uid}/medication_preferences/global` doc, so the
+  preference round-trips web↔web only. The banner now accurately states
+  the setting is device-local today and that cross-device sync to the
+  phone will arrive with Web Push (Phase G). Copy-only change; no
+  behavior change on either platform.
 
 - **Medication screen day boundary now respects Start-of-Day on Android +
   web.** `MedicationViewModel.todayDate` (Android) and the four
