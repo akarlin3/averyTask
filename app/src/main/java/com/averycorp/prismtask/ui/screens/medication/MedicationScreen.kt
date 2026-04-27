@@ -53,9 +53,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.averycorp.prismtask.data.local.entity.MedicationEntity
 import com.averycorp.prismtask.domain.model.medication.AchievedTier
+import com.averycorp.prismtask.domain.model.medication.BulkMarkScope
 import com.averycorp.prismtask.domain.model.medication.MedicationTier
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.screens.medication.components.BulkMarkDialog
+import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import com.averycorp.prismtask.ui.screens.medication.components.MedicationEditorDialog
 import com.averycorp.prismtask.ui.screens.medication.components.MedicationSlotSelection
 import com.averycorp.prismtask.ui.screens.medication.components.MedicationTimeEditSheet
@@ -172,11 +174,18 @@ fun MedicationScreen(
                             state = state,
                             editMode = editMode,
                             onToggleDose = { med -> viewModel.toggleDose(state.slot, med) },
-                            onTapTier = {
-                                if (state.isUserSet) {
+                            onSelectTier = { tier ->
+                                // Tapping the already-active USER_SET tier clears the override
+                                // (back to auto-compute). Tapping any other tier sets it as
+                                // USER_SET — SKIPPED routes through the synthetic-skip path so
+                                // interval-mode reminders re-anchor; the other 3 tiers go
+                                // through bulkMark's STATE_CHANGE mutation.
+                                if (tier == state.achievedTier && state.isUserSet) {
                                     viewModel.clearUserOverrideForSlot(state.slot)
-                                } else {
+                                } else if (tier == AchievedTier.SKIPPED) {
                                     viewModel.setSkippedForSlot(state.slot)
+                                } else {
+                                    viewModel.bulkMark(BulkMarkScope.SLOT, state.slot.id, tier)
                                 }
                             },
                             onLongPressTier = { timeEditingSlotState = state }
@@ -290,10 +299,9 @@ private fun SlotTodayCard(
     state: MedicationSlotTodayState,
     editMode: Boolean,
     onToggleDose: (MedicationEntity) -> Unit,
-    onTapTier: () -> Unit,
+    onSelectTier: (AchievedTier) -> Unit,
     onLongPressTier: () -> Unit
 ) {
-    val tierColor = tierColorFor(state.achievedTier)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -303,37 +311,35 @@ private fun SlotTodayCard(
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(14.dp))
             .padding(14.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = state.slot.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "${state.slot.idealTime} · ±${state.slot.driftMinutes}m",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                val takenLine = takenTimeLabel(state)
-                if (takenLine != null) {
-                    Text(
-                        text = takenLine,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-            TierChip(
-                tier = state.achievedTier,
-                color = tierColor,
-                isUserSet = state.isUserSet,
-                isBacklogged = state.isBacklogged,
-                onClick = onTapTier,
-                onLongClick = onLongPressTier
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = state.slot.name,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
             )
+            Text(
+                text = "${state.slot.idealTime} · ±${state.slot.driftMinutes}m",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            val takenLine = takenTimeLabel(state)
+            if (takenLine != null) {
+                Text(
+                    text = takenLine,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium
+                )
+            }
         }
+        Spacer(modifier = Modifier.height(9.dp))
+        TierSegmentedRow(
+            achievedTier = state.achievedTier,
+            isUserSet = state.isUserSet,
+            isBacklogged = state.isBacklogged,
+            onSelectTier = onSelectTier,
+            onLongPressActiveTier = onLongPressTier
+        )
         if (state.medications.isEmpty()) {
             Spacer(modifier = Modifier.height(6.dp))
             Text(
@@ -355,50 +361,98 @@ private fun SlotTodayCard(
     }
 }
 
+/**
+ * Four-button segmented selector — one button per [AchievedTier]. Tapping
+ * an inactive tier records it as `USER_SET`; tapping the active tier when
+ * it's already a user override clears the override (auto-compute resumes).
+ *
+ * Long-press on the active tier opens the intended-time edit sheet —
+ * mirrors the legacy single-chip long-press affordance so the gesture
+ * stays discoverable.
+ */
+@Composable
+private fun TierSegmentedRow(
+    achievedTier: AchievedTier,
+    isUserSet: Boolean,
+    isBacklogged: Boolean,
+    onSelectTier: (AchievedTier) -> Unit,
+    onLongPressActiveTier: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        AchievedTier.entries.forEach { tier ->
+            val active = tier == achievedTier
+            TierSegmentButton(
+                tier = tier,
+                color = tierColorFor(tier),
+                active = active,
+                isUserSet = active && isUserSet,
+                isBacklogged = active && isBacklogged,
+                onClick = { onSelectTier(tier) },
+                onLongClick = if (active) onLongPressActiveTier else null,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun TierChip(
+private fun TierSegmentButton(
     tier: AchievedTier,
     color: Color,
+    active: Boolean,
     isUserSet: Boolean,
     isBacklogged: Boolean,
     onClick: () -> Unit,
-    onLongClick: () -> Unit
+    onLongClick: (() -> Unit)?,
+    modifier: Modifier = Modifier
 ) {
+    val borderColor = if (active) color else MaterialTheme.colorScheme.outlineVariant
+    val textColor = if (active) color else MaterialTheme.colorScheme.onSurfaceVariant
+    val background = if (active) color.copy(alpha = 0.15f) else Color.Transparent
     Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(10.dp))
-            .background(color.copy(alpha = 0.15f))
-            .border(1.dp, color, RoundedCornerShape(10.dp))
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(background)
+            .border(1.dp, borderColor, RoundedCornerShape(8.dp))
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick,
-                onLongClickLabel = "Edit time"
+                onLongClickLabel = if (onLongClick != null) "Edit time" else null
             )
-            .padding(horizontal = 10.dp, vertical = 6.dp)
+            .padding(horizontal = 4.dp, vertical = 7.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
             if (isBacklogged) {
                 Icon(
                     imageVector = Icons.Default.Schedule,
                     contentDescription = "Logged at a different time than taken",
                     tint = color,
-                    modifier = Modifier.size(14.dp)
+                    modifier = Modifier.size(11.dp)
                 )
-                Spacer(modifier = Modifier.size(4.dp))
             }
             Text(
-                text = tierLabel(tier),
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = color
+                text = tierShortLabelForButton(tier),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                color = textColor
             )
             if (isUserSet) {
-                Spacer(modifier = Modifier.size(6.dp))
-                Text(
-                    text = "· tap to clear",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = color
+                // Small dot indicates the active tier was set by the user
+                // (vs. auto-computed). Lives inside the Row so it always
+                // sits next to the label without being clipped.
+                Box(
+                    modifier = Modifier
+                        .size(5.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(color)
                 )
             }
         }
@@ -592,11 +646,30 @@ private fun tierShortLabel(tier: MedicationTier): String = when (tier) {
     MedicationTier.COMPLETE -> "Complete"
 }
 
-private fun tierColorFor(tier: AchievedTier): Color = when (tier) {
-    AchievedTier.SKIPPED -> Color(0xFF6B7280)
-    AchievedTier.ESSENTIAL -> Color(0xFFEF4444)
-    AchievedTier.PRESCRIPTION -> Color(0xFF3B82F6)
-    AchievedTier.COMPLETE -> Color(0xFF10B981)
+/** Short labels for the 4-button segmented selector — long names truncate at narrow widths. */
+private fun tierShortLabelForButton(tier: AchievedTier): String = when (tier) {
+    AchievedTier.SKIPPED -> "Skip"
+    AchievedTier.ESSENTIAL -> "Ess"
+    AchievedTier.PRESCRIPTION -> "Rx"
+    AchievedTier.COMPLETE -> "Done"
+}
+
+/**
+ * Per-theme tier colors. Maps the 4 [AchievedTier] values to the
+ * `PrismThemeColors` semantic tokens so each theme expresses tier
+ * meaning in its own palette (Cyberpunk neon vs. Void editorial vs.
+ * Matrix phosphor vs. Synthwave retro), instead of locking everything
+ * to Material defaults.
+ */
+@Composable
+private fun tierColorFor(tier: AchievedTier): Color {
+    val c = LocalPrismColors.current
+    return when (tier) {
+        AchievedTier.SKIPPED -> MaterialTheme.colorScheme.onSurfaceVariant
+        AchievedTier.ESSENTIAL -> c.destructiveColor
+        AchievedTier.PRESCRIPTION -> c.infoColor
+        AchievedTier.COMPLETE -> c.successColor
+    }
 }
 
 /**
