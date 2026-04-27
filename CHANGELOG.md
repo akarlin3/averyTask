@@ -342,6 +342,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Web sign-in now shows a RestorePending takeover when the user has
+  a pending account deletion (parity with Android `AuthScreen`
+  `RestorePending` state).** Previously a deletion-pending user could
+  silently overwrite the deletion mark by web-signing-in: the web
+  `signInWithGoogle` flow never called `getDeletionStatus` after the
+  Firebase + JWT exchange, so the next sync re-established the user as
+  active and erased the grace-window state initiated from Android.
+  `authStore` now refreshes the deletion status (via the existing
+  `authApi.getDeletionStatus` call, ordered before `fetchUser`) on every
+  Google sign-in, every legacy email/password login, and every
+  Firebase-auth-state-change re-hydration. A new
+  `routes/RestorePendingGate` (sits between `ProtectedRoute` and
+  `OnboardingGate`) takes over the entire authed route tree with a
+  full-screen `features/auth/RestorePendingScreen` whenever the gate
+  resolves to `'pending'` — `Restore Account` calls
+  `authApi.cancelAccountDeletion` and flips the gate to `'active'`;
+  `Sign Out` abandons the restore (deletion proceeds) and routes back
+  to `/login`. Fail-closed if the deletion check throws: the gate stays
+  on its splash rather than letting the user leak to the AppShell. Tier
+  A Phase F parity, audit PR #836; gap from § Surface 7.
+
 - **Medication screen day boundary now respects Start-of-Day on Android +
   web.** `MedicationViewModel.todayDate` (Android) and the four
   `const todayIso = logicalToday(Date.now(), startOfDayHour)` web sites
