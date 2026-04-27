@@ -21,6 +21,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   convergence on a second pass. Full audit at
   `docs/audits/D2_CLEANUP_PHASE_F_UNBLOCK_MEGA_AUDIT.md` § 1.
 
+### Fixed
+
+- **Web mood-energy log writer no longer creates duplicate Firestore
+  docs for the same `(dateIso, timeOfDay)` slot.** Previously
+  `createLog` in `web/src/api/firestore/moodEnergyLogs.ts` used
+  `addDoc` (random doc id) with no uniqueness guard, so a second log
+  in the same slot wrote a second cloud doc. On the next Android pull
+  that doc would fail Room's unique index `(date, time_of_day)` on
+  `mood_energy_logs`, throwing `SQLiteConstraintException` and
+  leaving the cloud row orphaned. Fixed with a deterministic doc id
+  `${dateIso}__${timeOfDay}` written via
+  `setDoc(..., { merge: true })`, mirroring Android's natural-key
+  index and the existing convention in `medicationSlots.ts` (tier
+  states) and `checkInLogs.ts`. Tier B Phase F parity, audit PR
+  #836 § Surface 12.
+
 ### Added
 
 - **Auto-update-branch workflow.** A new
@@ -379,6 +395,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the dev cleanup window.
 
 ### Fixed
+
+- **Web sign-in now shows a RestorePending takeover when the user has
+  a pending account deletion (parity with Android `AuthScreen`
+  `RestorePending` state).** Previously a deletion-pending user could
+  silently overwrite the deletion mark by web-signing-in: the web
+  `signInWithGoogle` flow never called `getDeletionStatus` after the
+  Firebase + JWT exchange, so the next sync re-established the user as
+  active and erased the grace-window state initiated from Android.
+  `authStore` now refreshes the deletion status (via the existing
+  `authApi.getDeletionStatus` call, ordered before `fetchUser`) on every
+  Google sign-in, every legacy email/password login, and every
+  Firebase-auth-state-change re-hydration. A new
+  `routes/RestorePendingGate` (sits between `ProtectedRoute` and
+  `OnboardingGate`) takes over the entire authed route tree with a
+  full-screen `features/auth/RestorePendingScreen` whenever the gate
+  resolves to `'pending'` — `Restore Account` calls
+  `authApi.cancelAccountDeletion` and flips the gate to `'active'`;
+  `Sign Out` abandons the restore (deletion proceeds) and routes back
+  to `/login`. Fail-closed if the deletion check throws: the gate stays
+  on its splash rather than letting the user leak to the AppShell. Tier
+  A Phase F parity, audit PR #836; gap from § Surface 7.
+- **Web `tasks.ts` no longer clobbers Android-only task fields on edit
+  (`dueTime`, `isFlagged`, `lifeCategory`, `eisenhowerReason`,
+  `userOverrodeQuadrant`, Focus-Release fields, `archived_at`,
+  `source_habit_id`).** Round-trip data-loss bug fixed: previously every
+  call to `updateTask` rebuilt the full Firestore document and every
+  `createTask` hardcoded `dueTime: null`, `isFlagged: false`,
+  `lifeCategory: null`, etc., which silently destroyed any state set on
+  Android (auto-classified life category, manually-pinned Eisenhower
+  quadrant, flag, parsed due-time, focus-release counters, etc.) on the
+  next web edit. `taskUpdateToDoc` now switches to merge-on-write — only
+  fields the caller actually changed are emitted, so unmentioned columns
+  stay as Android wrote them. `taskCreateToDoc` similarly omits Android-
+  only fields when the web user didn't supply them. The Quick Create
+  input now feeds typed text through `parseQuickAdd` so "Standup at 9am"
+  correctly populates `due_time` instead of dropping it (PR-1 of the
+  joint Q-F3+T-S2 fix). The Task Editor adds a Life Category picker on
+  the Organize tab (work/personal/self-care/health/uncategorized) so the
+  Work-Life Balance dashboard is finally reachable from web. The
+  Eisenhower drag-drop handler now sets `userOverrodeQuadrant: true` on
+  manual moves so Android's auto-classifier doesn't undo the user's
+  choice on the next sync. Tier A Phase F parity, audit PR #836; gaps
+  T-S1/2/3, T-F1/2/3 from § Surface 3.
+- **Web `habits.ts` no longer clobbers Android-only habit fields on
+  edit (booking, built-in identity, today-skip, nag-suppression,
+  multi-reminder cadence). Habit completions now write
+  `completedDateLocal` (timezone-neutral day key from Android v50) so
+  cross-device DST drift is fixed.** `web/src/api/firestore/habits.ts`
+  previously hardcoded `isBookable: false`, `isBooked: false`,
+  `bookedDate: null`, `bookedNote: null`, `trackBooking: false`,
+  `trackPreviousPeriod: false`, `hasLogging: false`,
+  `reminderTimesPerDay: 1`, and `reminderIntervalMillis: null` on every
+  `createHabit` call, and silently omitted Android-only fields like
+  `showStreak`, `nagSuppressionOverrideEnabled`,
+  `nagSuppressionDaysOverride`, `todaySkipAfterCompleteDays`,
+  `todaySkipBeforeScheduleDays`, `isBuiltIn`, `templateKey`,
+  `sourceVersion`, `isUserModified`, and `isDetachedFromTemplate` —
+  meaning a habit created on Android with booking enabled, or a
+  built-in habit row, would have its identity and toggle state
+  destroyed by the next web-side round-trip. `habitCreateToDoc` now
+  emits only the ~10 fields the web user actually owns; merge-only
+  semantics on `updateHabit` (which already used `if (… !== undefined)`
+  guards) are preserved. Separately, `toggleCompletion`'s addDoc
+  payload now writes `completedDateLocal: <YYYY-MM-DD>` derived from
+  the caller's `useLogicalToday(startOfDayHour)` value, matching the
+  field Android added in Room migration 49→50 for timezone-neutral
+  day comparisons; without it, a completion logged on web at
+  23:55 local on a DST spring-forward day could decompose to a
+  different calendar date when read on Android in a different
+  timezone. `docToCompletion` reciprocally prefers
+  `completedDateLocal` when present and falls back to the legacy
+  epoch only for pre-v50 docs. Tier A+B Phase F parity, audit
+  PR #836; gaps H-S2, H-S4 from § Surface 2.
 
 - **Web medication-reminder-mode settings banner copy corrected.**
   Settings → Medication Reminder Mode previously claimed "Settings sync
