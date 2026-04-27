@@ -342,6 +342,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Web habit daily streak now uses forgiveness-first semantics.**
+  Mirrors Android `DailyForgivenessStreakCore` (one missed day inside
+  a rolling 7-day window is forgiven; two missed days — or any miss
+  with the grace already spent — terminates the run). Previously
+  `web/src/utils/streaks.ts` was strict-consecutive (a single missed
+  day broke the streak), so the same habit displayed different streaks
+  on phone vs web. New `ForgivenessConfig` interface mirrors Android's
+  data class shape; default config matches Android's defaults. 30
+  vitest cases cover the threshold edges, active-day rewind, SoD-aware
+  day boundary, DST. Tier B Phase F parity (audit PR #836, gap H-F1).
+
 - **Medication screen day boundary now respects Start-of-Day on Android +
   web.** `MedicationViewModel.todayDate` (Android) and the four
   `const todayIso = logicalToday(Date.now(), startOfDayHour)` web sites
