@@ -396,6 +396,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Web sign-in now shows a RestorePending takeover when the user has
+  a pending account deletion (parity with Android `AuthScreen`
+  `RestorePending` state).** Previously a deletion-pending user could
+  silently overwrite the deletion mark by web-signing-in: the web
+  `signInWithGoogle` flow never called `getDeletionStatus` after the
+  Firebase + JWT exchange, so the next sync re-established the user as
+  active and erased the grace-window state initiated from Android.
+  `authStore` now refreshes the deletion status (via the existing
+  `authApi.getDeletionStatus` call, ordered before `fetchUser`) on every
+  Google sign-in, every legacy email/password login, and every
+  Firebase-auth-state-change re-hydration. A new
+  `routes/RestorePendingGate` (sits between `ProtectedRoute` and
+  `OnboardingGate`) takes over the entire authed route tree with a
+  full-screen `features/auth/RestorePendingScreen` whenever the gate
+  resolves to `'pending'` — `Restore Account` calls
+  `authApi.cancelAccountDeletion` and flips the gate to `'active'`;
+  `Sign Out` abandons the restore (deletion proceeds) and routes back
+  to `/login`. Fail-closed if the deletion check throws: the gate stays
+  on its splash rather than letting the user leak to the AppShell. Tier
+  A Phase F parity, audit PR #836; gap from § Surface 7.
+- **Web `tasks.ts` no longer clobbers Android-only task fields on edit
+  (`dueTime`, `isFlagged`, `lifeCategory`, `eisenhowerReason`,
+  `userOverrodeQuadrant`, Focus-Release fields, `archived_at`,
+  `source_habit_id`).** Round-trip data-loss bug fixed: previously every
+  call to `updateTask` rebuilt the full Firestore document and every
+  `createTask` hardcoded `dueTime: null`, `isFlagged: false`,
+  `lifeCategory: null`, etc., which silently destroyed any state set on
+  Android (auto-classified life category, manually-pinned Eisenhower
+  quadrant, flag, parsed due-time, focus-release counters, etc.) on the
+  next web edit. `taskUpdateToDoc` now switches to merge-on-write — only
+  fields the caller actually changed are emitted, so unmentioned columns
+  stay as Android wrote them. `taskCreateToDoc` similarly omits Android-
+  only fields when the web user didn't supply them. The Quick Create
+  input now feeds typed text through `parseQuickAdd` so "Standup at 9am"
+  correctly populates `due_time` instead of dropping it (PR-1 of the
+  joint Q-F3+T-S2 fix). The Task Editor adds a Life Category picker on
+  the Organize tab (work/personal/self-care/health/uncategorized) so the
+  Work-Life Balance dashboard is finally reachable from web. The
+  Eisenhower drag-drop handler now sets `userOverrodeQuadrant: true` on
+  manual moves so Android's auto-classifier doesn't undo the user's
+  choice on the next sync. Tier A Phase F parity, audit PR #836; gaps
+  T-S1/2/3, T-F1/2/3 from § Surface 3.
 - **Web `habits.ts` no longer clobbers Android-only habit fields on
   edit (booking, built-in identity, today-skip, nag-suppression,
   multi-reminder cadence). Habit completions now write
