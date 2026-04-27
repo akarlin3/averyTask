@@ -54,13 +54,10 @@ import com.averycorp.prismtask.data.remote.GenericPreferenceSyncService
 import com.averycorp.prismtask.data.remote.SortPreferencesSyncService
 import com.averycorp.prismtask.data.remote.SyncService
 import com.averycorp.prismtask.data.remote.ThemePreferencesSyncService
-import com.averycorp.prismtask.data.remote.UpdateChecker
-import com.averycorp.prismtask.data.remote.VersionInfo
 import com.averycorp.prismtask.data.remote.sync.BackendSyncService
 import com.averycorp.prismtask.domain.usecase.ScreenshotCapture
 import com.averycorp.prismtask.domain.usecase.ShakeDetector
 import com.averycorp.prismtask.notifications.NotificationHelper
-import com.averycorp.prismtask.ui.components.UpdateDialog
 import com.averycorp.prismtask.ui.navigation.PrismTaskNavGraph
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
 import com.averycorp.prismtask.ui.theme.PriorityColors
@@ -215,28 +212,6 @@ class MainActivity : ComponentActivity() {
             else -> null
         }
         setContent {
-            var updateInfo by remember { mutableStateOf<VersionInfo?>(null) }
-
-            LaunchedEffect(Unit) {
-                try {
-                    val checker = UpdateChecker(this@MainActivity)
-                    updateInfo = checker.checkForUpdate()
-                } catch (e: Exception) {
-                    Log.w("MainActivity", "Update check failed", e)
-                }
-            }
-
-            updateInfo?.let { info ->
-                UpdateDialog(
-                    versionInfo = info,
-                    onUpdate = {
-                        UpdateChecker(this@MainActivity).downloadAndInstall(info)
-                        updateInfo = null
-                    },
-                    onDismiss = { updateInfo = null }
-                )
-            }
-
             // Hilt-scoped ThemeViewModel owns the persisted PrismTheme choice
             // and writes back through ThemePreferences when the user picks a
             // new theme in Settings.
