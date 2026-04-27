@@ -174,11 +174,11 @@ constructor(
         // Realtime listeners keep firing normally for everything after this.
         if (success) {
             try {
-                val applied = pullRemoteChanges()
+                val pullSummary = pullRemoteChanges()
                 logger.debug(
                     operation = "initialUpload.post_release_pull",
                     status = "success",
-                    detail = "applied=$applied"
+                    detail = "applied=${pullSummary.applied} permanently_failed=${pullSummary.skippedPermanent}"
                 )
             } catch (e: Throwable) {
                 logger.error(
@@ -1519,9 +1519,15 @@ constructor(
      *   habit_completions → habit_logs → milestones → task_templates
      */
     @Suppress("CyclomaticComplexMethod", "LongMethod")
-    suspend fun pullRemoteChanges(): Int {
+    suspend fun pullRemoteChanges(): PullSummary {
         var applied = 0
         var skipped = 0
+        // P0 sync audit PR-D. Tracks the subset of skips that came from
+        // a thrown exception (SQLiteConstraintException, etc.) — the
+        // permanent-data-loss kind that previously hid inside the warn
+        // emit at pull.summary. Surfaced separately to fullSync so
+        // sync.completed can flip status when non-zero.
+        var skippedPermanent = 0
 
         val projectsResult = pullCollection("projects") { data, cloudId ->
             val localId = syncMetadataDao.getLocalId(cloudId, "project")
@@ -1550,6 +1556,7 @@ constructor(
         }
         applied += projectsResult.applied
         skipped += projectsResult.skipped
+        skippedPermanent += projectsResult.skippedPermanent
 
         val tagsResult = pullCollection("tags") { data, cloudId ->
             val localId = syncMetadataDao.getLocalId(cloudId, "tag")
@@ -1573,6 +1580,7 @@ constructor(
         }
         applied += tagsResult.applied
         skipped += tagsResult.skipped
+        skippedPermanent += tagsResult.skippedPermanent
 
         // Habits before tasks: tasks may reference habits via sourceHabitId.
         val habitsResult = pullCollection("habits") { data, cloudId ->
@@ -1600,6 +1608,7 @@ constructor(
         }
         applied += habitsResult.applied
         skipped += habitsResult.skipped
+        skippedPermanent += habitsResult.skippedPermanent
 
         val tasksResult = pullCollection("tasks") { data, cloudId ->
             val localId = syncMetadataDao.getLocalId(cloudId, "task")
@@ -1641,6 +1650,7 @@ constructor(
         }
         applied += tasksResult.applied
         skipped += tasksResult.skipped
+        skippedPermanent += tasksResult.skippedPermanent
 
         // task_completions after tasks and projects so FK cloud IDs can be resolved.
         val taskCompletionsResult = pullCollection("task_completions") { data, cloudId ->
@@ -1665,6 +1675,7 @@ constructor(
         }
         applied += taskCompletionsResult.applied
         skipped += taskCompletionsResult.skipped
+        skippedPermanent += taskCompletionsResult.skippedPermanent
 
         val habitCompletionsResult = pullCollection("habit_completions") { data, cloudId ->
             val localId = syncMetadataDao.getLocalId(cloudId, "habit_completion")
@@ -1707,6 +1718,7 @@ constructor(
         }
         applied += habitCompletionsResult.applied
         skipped += habitCompletionsResult.skipped
+        skippedPermanent += habitCompletionsResult.skippedPermanent
 
         val habitLogsResult = pullCollection("habit_logs") { data, cloudId ->
             val localId = syncMetadataDao.getLocalId(cloudId, "habit_log")
@@ -1730,6 +1742,7 @@ constructor(
         }
         applied += habitLogsResult.applied
         skipped += habitLogsResult.skipped
+        skippedPermanent += habitLogsResult.skippedPermanent
 
         // Milestones after projects: projectCloudId must already be in sync_metadata.
         val milestonesResult = pullCollection("milestones") { data, cloudId ->
@@ -1761,6 +1774,7 @@ constructor(
         }
         applied += milestonesResult.applied
         skipped += milestonesResult.skipped
+        skippedPermanent += milestonesResult.skippedPermanent
 
         val taskTemplatesResult = pullCollection("task_templates") { data, cloudId ->
             val localId = syncMetadataDao.getLocalId(cloudId, "task_template")
@@ -1789,6 +1803,7 @@ constructor(
         }
         applied += taskTemplatesResult.applied
         skipped += taskTemplatesResult.skipped
+        skippedPermanent += taskTemplatesResult.skippedPermanent
 
         // Courses before course_completions so courseCloudId FK can be resolved.
         val coursesResult = pullCollection("courses") { data, cloudId ->
@@ -1816,6 +1831,7 @@ constructor(
         }
         applied += coursesResult.applied
         skipped += coursesResult.skipped
+        skippedPermanent += coursesResult.skippedPermanent
 
         val courseCompletionsResult = pullCollection("course_completions") { data, cloudId ->
             val localId = syncMetadataDao.getLocalId(cloudId, "course_completion")
@@ -1846,6 +1862,7 @@ constructor(
         }
         applied += courseCompletionsResult.applied
         skipped += courseCompletionsResult.skipped
+        skippedPermanent += courseCompletionsResult.skippedPermanent
 
         val leisureLogsResult = pullCollection("leisure_logs") { data, cloudId ->
             val localId = syncMetadataDao.getLocalId(cloudId, "leisure_log")
@@ -1872,6 +1889,7 @@ constructor(
         }
         applied += leisureLogsResult.applied
         skipped += leisureLogsResult.skipped
+        skippedPermanent += leisureLogsResult.skippedPermanent
 
         // self_care_steps before self_care_logs (logical dependency).
         // Dedup by stepId+routineType to avoid duplicating built-in default steps
@@ -1920,6 +1938,7 @@ constructor(
         }
         applied += selfCareStepsResult.applied
         skipped += selfCareStepsResult.skipped
+        skippedPermanent += selfCareStepsResult.skippedPermanent
 
         val selfCareLogsResult = pullCollection("self_care_logs") { data, cloudId ->
             val localId = syncMetadataDao.getLocalId(cloudId, "self_care_log")
@@ -1946,6 +1965,7 @@ constructor(
         }
         applied += selfCareLogsResult.applied
         skipped += selfCareLogsResult.skipped
+        skippedPermanent += selfCareLogsResult.skippedPermanent
 
         // medication_slots BEFORE medications so the junction rebuild lands
         // cleanly (medication pull embeds slotCloudIds that need local IDs).
@@ -1976,6 +1996,7 @@ constructor(
         }
         applied += medicationSlotsResult.applied
         skipped += medicationSlotsResult.skipped
+        skippedPermanent += medicationSlotsResult.skippedPermanent
 
         // medications BEFORE medication_doses so the FK resolution lands.
         // Junction rebuild: after every medication pull, replace its
@@ -2028,6 +2049,7 @@ constructor(
         }
         applied += medicationsResult.applied
         skipped += medicationsResult.skipped
+        skippedPermanent += medicationsResult.skippedPermanent
 
         val medicationDosesResult = pullCollection("medication_doses") { data, cloudId ->
             val medCloudId = data["medicationCloudId"] as? String ?: return@pullCollection false
@@ -2059,6 +2081,7 @@ constructor(
         }
         applied += medicationDosesResult.applied
         skipped += medicationDosesResult.skipped
+        skippedPermanent += medicationDosesResult.skippedPermanent
 
         val medicationSlotOverridesResult = pullCollection("medication_slot_overrides") { data, cloudId ->
             val medCloudId = data["medicationCloudId"] as? String ?: return@pullCollection false
@@ -2104,6 +2127,7 @@ constructor(
         }
         applied += medicationSlotOverridesResult.applied
         skipped += medicationSlotOverridesResult.skipped
+        skippedPermanent += medicationSlotOverridesResult.skippedPermanent
 
         val medicationTierStatesResult = pullCollection("medication_tier_states") { data, cloudId ->
             val medCloudId = data["medicationCloudId"] as? String ?: return@pullCollection false
@@ -2149,6 +2173,7 @@ constructor(
         }
         applied += medicationTierStatesResult.applied
         skipped += medicationTierStatesResult.skipped
+        skippedPermanent += medicationTierStatesResult.skippedPermanent
 
         // v1.4.37 Room config families — last-write-wins per-row using updatedAt.
         val notificationProfilesResult = pullRoomConfigFamily(
@@ -2164,6 +2189,7 @@ constructor(
         )
         applied += notificationProfilesResult.applied
         skipped += notificationProfilesResult.skipped
+        skippedPermanent += notificationProfilesResult.skippedPermanent
 
         val customSoundsResult = pullRoomConfigFamily(
             collection = "custom_sounds",
@@ -2178,6 +2204,7 @@ constructor(
         )
         applied += customSoundsResult.applied
         skipped += customSoundsResult.skipped
+        skippedPermanent += customSoundsResult.skippedPermanent
 
         val savedFiltersResult = pullRoomConfigFamily(
             collection = "saved_filters",
@@ -2192,6 +2219,7 @@ constructor(
         )
         applied += savedFiltersResult.applied
         skipped += savedFiltersResult.skipped
+        skippedPermanent += savedFiltersResult.skippedPermanent
 
         val nlpShortcutsResult = pullRoomConfigFamily(
             collection = "nlp_shortcuts",
@@ -2206,6 +2234,7 @@ constructor(
         )
         applied += nlpShortcutsResult.applied
         skipped += nlpShortcutsResult.skipped
+        skippedPermanent += nlpShortcutsResult.skippedPermanent
 
         val habitTemplatesResult = pullRoomConfigFamily(
             collection = "habit_templates",
@@ -2220,6 +2249,7 @@ constructor(
         )
         applied += habitTemplatesResult.applied
         skipped += habitTemplatesResult.skipped
+        skippedPermanent += habitTemplatesResult.skippedPermanent
 
         val projectTemplatesResult = pullRoomConfigFamily(
             collection = "project_templates",
@@ -2234,6 +2264,7 @@ constructor(
         )
         applied += projectTemplatesResult.applied
         skipped += projectTemplatesResult.skipped
+        skippedPermanent += projectTemplatesResult.skippedPermanent
 
         val boundaryRulesResult = pullRoomConfigFamily(
             collection = "boundary_rules",
@@ -2248,6 +2279,7 @@ constructor(
         )
         applied += boundaryRulesResult.applied
         skipped += boundaryRulesResult.skipped
+        skippedPermanent += boundaryRulesResult.skippedPermanent
 
         // v1.4.38 content families (FK-free) — same LWW semantics as above.
         val checkInLogsResult = pullRoomConfigFamily(
@@ -2263,6 +2295,7 @@ constructor(
         )
         applied += checkInLogsResult.applied
         skipped += checkInLogsResult.skipped
+        skippedPermanent += checkInLogsResult.skippedPermanent
 
         val moodEnergyLogsResult = pullRoomConfigFamily(
             collection = "mood_energy_logs",
@@ -2277,6 +2310,7 @@ constructor(
         )
         applied += moodEnergyLogsResult.applied
         skipped += moodEnergyLogsResult.skipped
+        skippedPermanent += moodEnergyLogsResult.skippedPermanent
 
         val medicationRefillsResult = pullRoomConfigFamily(
             collection = "medication_refills",
@@ -2291,6 +2325,7 @@ constructor(
         )
         applied += medicationRefillsResult.applied
         skipped += medicationRefillsResult.skipped
+        skippedPermanent += medicationRefillsResult.skippedPermanent
 
         val weeklyReviewsResult = pullRoomConfigFamily(
             collection = "weekly_reviews",
@@ -2305,6 +2340,7 @@ constructor(
         )
         applied += weeklyReviewsResult.applied
         skipped += weeklyReviewsResult.skipped
+        skippedPermanent += weeklyReviewsResult.skippedPermanent
 
         val dailyEssentialSlotResult = pullRoomConfigFamily(
             collection = "daily_essential_slot_completions",
@@ -2323,6 +2359,7 @@ constructor(
         )
         applied += dailyEssentialSlotResult.applied
         skipped += dailyEssentialSlotResult.skipped
+        skippedPermanent += dailyEssentialSlotResult.skippedPermanent
 
         // v1.4.38 content families with FK translation.
         val focusReleaseLogsResult = pullCollection("focus_release_logs") { data, cloudId ->
@@ -2348,6 +2385,7 @@ constructor(
         }
         applied += focusReleaseLogsResult.applied
         skipped += focusReleaseLogsResult.skipped
+        skippedPermanent += focusReleaseLogsResult.skippedPermanent
 
         val assignmentsResult = pullCollection("assignments") { data, cloudId ->
             val courseCloudId = data["courseId"] as? String ?: return@pullCollection false
@@ -2379,6 +2417,7 @@ constructor(
         }
         applied += assignmentsResult.applied
         skipped += assignmentsResult.skipped
+        skippedPermanent += assignmentsResult.skippedPermanent
 
         val attachmentsResult = pullCollection("attachments") { data, cloudId ->
             val taskCloudId = data["taskId"] as? String ?: return@pullCollection false
@@ -2406,6 +2445,7 @@ constructor(
         }
         applied += attachmentsResult.applied
         skipped += attachmentsResult.skipped
+        skippedPermanent += attachmentsResult.skippedPermanent
 
         val studyLogsResult = pullCollection("study_logs") { data, cloudId ->
             val coursePickCloudId = data["coursePick"] as? String
@@ -2452,43 +2492,80 @@ constructor(
         }
         applied += studyLogsResult.applied
         skipped += studyLogsResult.skipped
+        skippedPermanent += studyLogsResult.skippedPermanent
 
-        if (skipped > 0) {
-            logger.warn(
-                operation = "pull.summary",
-                entity = "all",
-                status = "warning",
-                detail = "applied=$applied skipped=$skipped — check pull.apply status=failed logs for details"
-            )
-        } else {
-            logger.info(
-                operation = "pull.summary",
-                entity = "all",
-                status = "success",
-                detail = "applied=$applied skipped=0"
-            )
+        // P0 sync audit PR-D. Promote pull.summary to status=error only
+        // when at least one doc threw an exception during apply (the
+        // permanent-data-loss kind). Routine transient skips (handler
+        // returned false because a parent FK hadn't been pulled yet)
+        // stay at status=warning since they self-heal on the next pull.
+        when {
+            skippedPermanent > 0 -> {
+                logger.error(
+                    operation = "pull.summary",
+                    entity = "all",
+                    status = "error",
+                    detail = "applied=$applied skipped=$skipped permanent=$skippedPermanent — check pull.apply status=failed logs for details"
+                )
+            }
+            skipped > 0 -> {
+                logger.warn(
+                    operation = "pull.summary",
+                    entity = "all",
+                    status = "warning",
+                    detail = "applied=$applied skipped=$skipped (all transient — child waiting on parent) — see pull.apply for details"
+                )
+            }
+            else -> {
+                logger.info(
+                    operation = "pull.summary",
+                    entity = "all",
+                    status = "success",
+                    detail = "applied=$applied skipped=0"
+                )
+            }
         }
-        return applied
+        return PullSummary(applied = applied, skippedPermanent = skippedPermanent)
     }
 
     /**
+     * Result of a [pullRemoteChanges] cycle. P0 sync audit PR-D — exposes
+     * `skippedPermanent` so [fullSync] can plumb it into
+     * `markSyncCompleted` and flip `sync.completed` to a data-loss
+     * status when any doc threw during apply.
+     */
+    data class PullSummary(val applied: Int, val skippedPermanent: Int)
+
+    /**
      * Handler returns `true` if the document was applied, `false` if it was
-     * intentionally skipped (e.g. missing FK reference). Exceptions are
-     * caught and counted as skipped.
+     * intentionally skipped (e.g. missing FK reference — handler chose to
+     * defer; will be retried on next pull). Exceptions are caught and
+     * counted as PERMANENT skips (data loss for that doc until external
+     * intervention).
+     *
+     * P0 sync audit PR-D. Pre-fix this method collapsed both outcomes into
+     * a single `skipped` counter, and `pull.summary` then emitted
+     * `status=warning` for any non-zero skip count. Tooling that watched
+     * for `status=warning` was implicitly tuned to ignore it (since
+     * transient FK skips on first-ever pull are routine), masking real
+     * SQLiteConstraintException data loss. The split lets `pull.summary`
+     * promote to `status=error` only when at least one doc threw — a
+     * signal the user should actually see.
      */
     private suspend fun pullCollection(
         name: String,
         handler: suspend (Map<String, Any?>, String) -> Boolean
     ): PullResult {
-        val snapshot = userCollection(name)?.get()?.await() ?: return PullResult(0, 0)
+        val snapshot = userCollection(name)?.get()?.await() ?: return PullResult(0, 0, 0)
         var applied = 0
-        var skipped = 0
+        var skippedTransient = 0
+        var skippedPermanent = 0
         for (doc in snapshot.documents) {
             val data = doc.data ?: continue
             try {
-                if (handler(data, doc.id)) applied++ else skipped++
+                if (handler(data, doc.id)) applied++ else skippedTransient++
             } catch (e: Exception) {
-                skipped++
+                skippedPermanent++
                 logger.error(
                     operation = "pull.apply",
                     entity = name,
@@ -2503,10 +2580,16 @@ constructor(
                 }
             }
         }
-        return PullResult(applied, skipped)
+        return PullResult(applied, skippedTransient, skippedPermanent)
     }
 
-    private data class PullResult(val applied: Int, val skipped: Int)
+    private data class PullResult(
+        val applied: Int,
+        val skippedTransient: Int,
+        val skippedPermanent: Int
+    ) {
+        val skipped: Int get() = skippedTransient + skippedPermanent
+    }
 
     /**
      * Pull helper for the v1.4.37 Room-entity config families. Identical
@@ -2558,9 +2641,12 @@ constructor(
         syncStateRepository.markSyncStarted(source = SOURCE_FIREBASE, trigger = trigger)
         var pushed = 0
         var pulled = 0
+        var permanentlyFailed = 0
         try {
             pushed = pushLocalChanges()
-            pulled = pullRemoteChanges()
+            val pullSummary = pullRemoteChanges()
+            pulled = pullSummary.applied
+            permanentlyFailed = pullSummary.skippedPermanent
             // Re-queue pushes for any local row with a cloud_id that no
             // longer has a matching Firestore doc. See
             // [CloudIdOrphanHealer] — covers post-Fix-D out-of-band wipe.
@@ -2593,7 +2679,8 @@ constructor(
                 success = true,
                 durationMs = System.currentTimeMillis() - start,
                 pushed = pushed,
-                pulled = pulled
+                pulled = pulled,
+                permanentlyFailed = permanentlyFailed
             )
         } catch (e: Exception) {
             syncStateRepository.markSyncCompleted(
@@ -2602,6 +2689,7 @@ constructor(
                 durationMs = System.currentTimeMillis() - start,
                 pushed = pushed,
                 pulled = pulled,
+                permanentlyFailed = permanentlyFailed,
                 throwable = e
             )
             throw e
@@ -2824,12 +2912,13 @@ constructor(
                         if (removedCloudIds.isNotEmpty()) {
                             processRemoteDeletions(collection, removedCloudIds)
                         }
-                        val applied = pullRemoteChanges()
+                        val pullSummary = pullRemoteChanges()
                         syncStateRepository.markSyncCompleted(
                             source = SOURCE_FIREBASE,
                             success = true,
                             durationMs = System.currentTimeMillis() - start,
-                            pulled = applied
+                            pulled = pullSummary.applied,
+                            permanentlyFailed = pullSummary.skippedPermanent
                         )
                     } catch (e: Exception) {
                         syncStateRepository.markSyncCompleted(
