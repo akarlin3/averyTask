@@ -449,7 +449,13 @@ constructor(
         return when (mutationType) {
             BatchMutationType.COMPLETE -> {
                 if (slotKey == null) return MutationOutcome(false, "missing slot_key")
-                val takenAt = parseIsoDateToMillis(date) ?: now
+                // `taken_at` from the mutation wins over the date-derived
+                // midnight fallback so tier-button taps record the actual
+                // wall-clock instant, not 00:00. Haiku batch path leaves it
+                // unset and keeps the legacy midnight default.
+                val takenAt = (mutation.proposedNewValues["taken_at"] as? Number)?.toLong()
+                    ?: parseIsoDateToMillis(date)
+                    ?: now
                 val doseId = medicationDoseDao.insert(
                     MedicationDoseEntity(
                         medicationId = entityId,
@@ -470,6 +476,14 @@ constructor(
             }
             BatchMutationType.SKIP -> {
                 if (slotKey == null) return MutationOutcome(false, "missing slot_key")
+                // Delete real (non-synthetic) doses for (med, slot, date) before
+                // recording the skip. This is the bulk-mark "Skip wins" semantic
+                // — a skipped slot shouldn't keep a stale "taken" row from earlier
+                // in the day. Snapshot deleted rows so undo restores them.
+                val priorRealDoses = medicationDoseDao.getAllForMedOnce(entityId).filter {
+                    it.slotKey == slotKey && it.takenDateLocal == date && !it.isSyntheticSkip
+                }
+                priorRealDoses.forEach { medicationDoseDao.deleteById(it.id) }
                 val takenAt = parseIsoDateToMillis(date) ?: now
                 val doseId = medicationDoseDao.insert(
                     MedicationDoseEntity(
@@ -482,7 +496,21 @@ constructor(
                         updatedAt = now
                     )
                 )
-                val snap = mutableMapOf<String, Any?>("dose_id" to doseId)
+                val snap = mutableMapOf<String, Any?>(
+                    "dose_id" to doseId,
+                    "deleted_real_doses" to priorRealDoses.map { d ->
+                        mapOf(
+                            "id" to d.id,
+                            "cloud_id" to d.cloudId,
+                            "slot_key" to d.slotKey,
+                            "taken_at" to d.takenAt,
+                            "taken_date_local" to d.takenDateLocal,
+                            "note" to d.note,
+                            "is_synthetic_skip" to d.isSyntheticSkip,
+                            "created_at" to d.createdAt
+                        )
+                    }
+                )
                 val slot = resolveSlotByKey(slotKey)
                 if (slot != null) {
                     val prior = medicationTierStateDao.getForTripleOnce(entityId, date, slot.id)
@@ -777,6 +805,24 @@ constructor(
                     } else {
                         medicationTierStateDao.deleteById(tierStateId)
                     }
+                }
+                // Restore the real doses that the SKIP apply path deleted.
+                @Suppress("UNCHECKED_CAST")
+                val deletedRealDoses = snapshot["deleted_real_doses"] as? List<Map<String, Any?>>
+                deletedRealDoses?.forEach { d ->
+                    medicationDoseDao.insert(
+                        MedicationDoseEntity(
+                            medicationId = entityId,
+                            cloudId = d["cloud_id"] as? String,
+                            slotKey = d["slot_key"] as? String ?: return@forEach,
+                            takenAt = (d["taken_at"] as? Number)?.toLong() ?: return@forEach,
+                            takenDateLocal = d["taken_date_local"] as? String ?: return@forEach,
+                            note = d["note"] as? String ?: "",
+                            isSyntheticSkip = d["is_synthetic_skip"] as? Boolean ?: false,
+                            createdAt = (d["created_at"] as? Number)?.toLong() ?: now,
+                            updatedAt = now
+                        )
+                    )
                 }
                 true
             }
