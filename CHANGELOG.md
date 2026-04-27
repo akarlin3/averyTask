@@ -442,6 +442,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   store integration (default-on, optimistic toggle, signed-in vs
   signed-out push behaviour, push-failure tolerance, Firestore-load
   side, full round-trip).
+- **Web sign-in now shows a RestorePending takeover when the user has
+  a pending account deletion (parity with Android `AuthScreen`
+  `RestorePending` state).** Previously a deletion-pending user could
+  silently overwrite the deletion mark by web-signing-in: the web
+  `signInWithGoogle` flow never called `getDeletionStatus` after the
+  Firebase + JWT exchange, so the next sync re-established the user as
+  active and erased the grace-window state initiated from Android.
+  `authStore` now refreshes the deletion status (via the existing
+  `authApi.getDeletionStatus` call, ordered before `fetchUser`) on every
+  Google sign-in, every legacy email/password login, and every
+  Firebase-auth-state-change re-hydration. A new
+  `routes/RestorePendingGate` (sits between `ProtectedRoute` and
+  `OnboardingGate`) takes over the entire authed route tree with a
+  full-screen `features/auth/RestorePendingScreen` whenever the gate
+  resolves to `'pending'` — `Restore Account` calls
+  `authApi.cancelAccountDeletion` and flips the gate to `'active'`;
+  `Sign Out` abandons the restore (deletion proceeds) and routes back
+  to `/login`. Fail-closed if the deletion check throws: the gate stays
+  on its splash rather than letting the user leak to the AppShell. Tier
+  A Phase F parity, audit PR #836; gap from § Surface 7.
+- **Web `tasks.ts` no longer clobbers Android-only task fields on edit
+  (`dueTime`, `isFlagged`, `lifeCategory`, `eisenhowerReason`,
+  `userOverrodeQuadrant`, Focus-Release fields, `archived_at`,
+  `source_habit_id`).** Round-trip data-loss bug fixed: previously every
+  call to `updateTask` rebuilt the full Firestore document and every
+  `createTask` hardcoded `dueTime: null`, `isFlagged: false`,
+  `lifeCategory: null`, etc., which silently destroyed any state set on
+  Android (auto-classified life category, manually-pinned Eisenhower
+  quadrant, flag, parsed due-time, focus-release counters, etc.) on the
+  next web edit. `taskUpdateToDoc` now switches to merge-on-write — only
+  fields the caller actually changed are emitted, so unmentioned columns
+  stay as Android wrote them. `taskCreateToDoc` similarly omits Android-
+  only fields when the web user didn't supply them. The Quick Create
+  input now feeds typed text through `parseQuickAdd` so "Standup at 9am"
+  correctly populates `due_time` instead of dropping it (PR-1 of the
+  joint Q-F3+T-S2 fix). The Task Editor adds a Life Category picker on
+  the Organize tab (work/personal/self-care/health/uncategorized) so the
+  Work-Life Balance dashboard is finally reachable from web. The
+  Eisenhower drag-drop handler now sets `userOverrodeQuadrant: true` on
+  manual moves so Android's auto-classifier doesn't undo the user's
+  choice on the next sync. Tier A Phase F parity, audit PR #836; gaps
+  T-S1/2/3, T-F1/2/3 from § Surface 3.
 - **Web `habits.ts` no longer clobbers Android-only habit fields on
   edit (booking, built-in identity, today-skip, nag-suppression,
   multi-reminder cadence). Habit completions now write
@@ -484,6 +526,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the setting is device-local today and that cross-device sync to the
   phone will arrive with Web Push (Phase G). Copy-only change; no
   behavior change on either platform.
+
+- **Web now wires Firestore real-time listeners from `App.tsx` for
+  tasks, habits, projects, tags, medication slots, and medication
+  preferences.** Previously the seven `subscribeTo*` functions in
+  `web/src/api/firestore/*.ts` (`subscribeToTasks`,
+  `subscribeToProjects`, `subscribeToTags`, `subscribeToHabits`,
+  `subscribeToCompletions`, `subscribeToSlotDefs`,
+  `subscribeToReminderModePreferences`) were defined and exposed via
+  store wrappers but never called from any component or `App.tsx`,
+  which meant cross-device updates required a manual page refresh. A
+  new `useFirestoreSync(uid)` hook keyed on the Firebase UID kicks
+  every subscriber off when the user signs in and cleanly invokes the
+  returned unsubscribers when the UID flips to `null` (sign-out) or on
+  unmount. Two thin Zustand stores
+  (`medicationSlotsStore`, `medicationPreferencesStore`) cache the live
+  Firestore data for the medication surfaces — the existing imperative
+  reads in `MedicationReminderModeSection` and `MedicationScreen` still
+  work, the stores are additive and back the live-sync path. Conflict
+  resolution at apply time is intentionally last-write-wins (Firestore
+  is source of truth on web); `cloud_id` dedup and LWW-timestamp guards
+  remain tracked separately as G.0 follow-ups. Surfaced by the Tier B
+  Phase F parity audit (PR #836, § Surface 6).
 
 - **Medication screen day boundary now respects Start-of-Day on Android +
   web.** `MedicationViewModel.todayDate` (Android) and the four
