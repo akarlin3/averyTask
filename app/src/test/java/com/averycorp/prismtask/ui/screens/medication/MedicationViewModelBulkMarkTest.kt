@@ -316,6 +316,52 @@ class MedicationViewModelBulkMarkTest {
     }
 
     @Test
+    fun bulkMark_complete_materializesTierStateRowsSoSlotCardCanRenderTakenTime() = runTest(dispatcher) {
+        // Regression: the slot card reads `state.loggedAt` from any
+        // `medication_tier_states` row for the slot. The batch handler only
+        // writes dose rows for COMPLETE; without an explicit tier-state
+        // upsert in `bulkMarkInternal`, the row never materializes, the
+        // takenTimeLabel falls through to `else -> null`, and the user
+        // perceives that the tier buttons "stopped recording a time".
+        val vm = newViewModel()
+        backgroundScope.warmStateFlows(vm)
+        advanceUntilIdle()
+
+        vm.bulkMarkInternal(BulkMarkScope.SLOT, morningSlot.id, AchievedTier.COMPLETE)
+        advanceUntilIdle()
+
+        // One upsert per linked med in the affected slot — the same shape
+        // toggleDose uses via refreshTierState.
+        coVerify(exactly = 1) {
+            slotRepository.upsertTierState(
+                medicationId = essMed.id,
+                slotId = morningSlot.id,
+                date = today,
+                tier = any(),
+                source = com.averycorp.prismtask.domain.model.medication.TierSource.COMPUTED
+            )
+        }
+        coVerify(exactly = 1) {
+            slotRepository.upsertTierState(
+                medicationId = rxMed.id,
+                slotId = morningSlot.id,
+                date = today,
+                tier = any(),
+                source = com.averycorp.prismtask.domain.model.medication.TierSource.COMPUTED
+            )
+        }
+        coVerify(exactly = 1) {
+            slotRepository.upsertTierState(
+                medicationId = completeMed.id,
+                slotId = morningSlot.id,
+                date = today,
+                tier = any(),
+                source = com.averycorp.prismtask.domain.model.medication.TierSource.COMPUTED
+            )
+        }
+    }
+
+    @Test
     fun bulkMark_complete_clearsUserSetTierStateOnAffectedSlot() = runTest(dispatcher) {
         // After bulkMark(COMPLETE) the displayTier should come from
         // auto-compute, not a stale USER_SET=SKIPPED from an earlier Skip.
