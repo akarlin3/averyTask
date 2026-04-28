@@ -122,8 +122,18 @@ jobs:
             exit 0
           fi
 
+          # Audit PR #876 → CI pathway efficiency: split the prior single
+          # `fail_conflict` counter into two so handled merge conflicts
+          # (where we successfully posted a CONFLICT_BODY comment to the
+          # PR — the user is informed and can act) don't drag the job to
+          # a red status. Truly unexpected output (or auth failure) still
+          # exits 1 LOUD. Pre-split the workflow had a ~40% job-level
+          # failure rate dominated by handled conflicts, drowning out
+          # genuine signals (per audit Item 3 redundancy + cancellation
+          # findings).
           fail_auth=0
-          fail_conflict=0
+          fail_handled=0     # cosmetic — conflict comment posted to user
+          fail_unexpected=0  # genuine — un-categorized update-branch error
 
           # Resolve mergeStateStatus with retries — GitHub recomputes
           # mergeable_state asynchronously after a base advance, and the
@@ -215,7 +225,7 @@ jobs:
                       else
                         gh pr comment "$n" --repo "$REPO" --body "$CONFLICT_BODY"
                       fi
-                      fail_conflict=$((fail_conflict + 1))
+                      fail_handled=$((fail_handled + 1))
                       ;;
                     *"404"*|*"not found"*)
                       shopt -u nocasematch
@@ -224,7 +234,7 @@ jobs:
                     *)
                       shopt -u nocasematch
                       echo "::warning::PR #$n: unexpected update-branch failure: $OUT"
-                      fail_conflict=$((fail_conflict + 1))
+                      fail_unexpected=$((fail_unexpected + 1))
                       ;;
                   esac
                 fi
@@ -243,9 +253,16 @@ jobs:
             exit 1
           fi
 
-          if [ "$fail_conflict" -gt 0 ]; then
-            echo "::error::$fail_conflict PR(s) had update-branch failures (conflict or unexpected)."
+          if [ "$fail_unexpected" -gt 0 ]; then
+            echo "::error::$fail_unexpected PR(s) hit un-categorized update-branch errors — investigate logs above."
             exit 1
+          fi
+
+          # Handled conflicts are cosmetic: the user has been notified via a
+          # PR comment and can resolve manually. Job exits success so the
+          # workflow status page reflects "did its job" rather than "broken".
+          if [ "$fail_handled" -gt 0 ]; then
+            echo "::notice::$fail_handled PR(s) had merge conflicts — comment posted on each. Job exiting success (cosmetic state, not a failure)."
           fi
 
           echo "Auto-update-branch run complete."
