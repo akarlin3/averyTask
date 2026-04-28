@@ -673,6 +673,10 @@ internal fun takenTimeLabel(state: MedicationSlotTodayState): String? {
     // If nothing's been taken and no user override exists, don't
     // clutter the card with a time line.
     if (state.takenMedicationIds.isEmpty() && !state.isUserSet) return null
+    // Skip is not a take event — preserved prior intended_time / logged_at
+    // would render a stale "Taken at HH:mm" line that contradicts the tier.
+    // The values stay in the DB for undo; we just don't surface them here.
+    if (state.achievedTier == AchievedTier.SKIPPED) return null
     val format = SimpleDateFormat("h:mm a", Locale.getDefault())
     val intended = state.intendedTime
     val logged = state.loggedAt
