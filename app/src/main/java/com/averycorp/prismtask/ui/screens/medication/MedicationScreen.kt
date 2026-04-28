@@ -92,6 +92,7 @@ fun MedicationScreen(
     val medications by viewModel.medications.collectAsStateWithLifecycle()
     val slots by viewModel.activeSlots.collectAsStateWithLifecycle()
     val slotStates by viewModel.slotTodayStates.collectAsStateWithLifecycle()
+    val todayDateIso by viewModel.todayDate.collectAsStateWithLifecycle()
 
     var showAddDialog by remember { mutableStateOf(false) }
     var showBulkMarkDialog by remember { mutableStateOf(false) }
@@ -242,9 +243,20 @@ fun MedicationScreen(
     }
 
     timeEditingSlotState?.let { state ->
+        // The sheet anchors the user-picked HH:mm to the slot card's logical
+        // day (not wall-clock). When the SoD-boundary window is open
+        // (wall-clock has crossed midnight but the logical day has not yet
+        // rolled over), parsing todayDateIso gives the canonical anchor —
+        // an unparseable value (only at first emission before LocalDateFlow
+        // settles) falls back to the wall-clock day, matching legacy behavior.
+        val logicalDay = remember(todayDateIso) {
+            runCatching { java.time.LocalDate.parse(todayDateIso) }
+                .getOrDefault(java.time.LocalDate.now())
+        }
         MedicationTimeEditSheet(
             initialIntendedTime = state.intendedTime,
             slotName = state.slot.name,
+            logicalDay = logicalDay,
             onDismiss = { timeEditingSlotState = null },
             onSave = { intendedTime ->
                 viewModel.setIntendedTimeForSlot(state.slot, intendedTime)

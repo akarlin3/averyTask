@@ -22,7 +22,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import java.util.Calendar
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 
 /**
  * Bottom sheet that lets the user stamp a wall-clock time on the slot's
@@ -32,32 +34,35 @@ import java.util.Calendar
  *
  * The time picker defaults to the current intended_time (or the current
  * wall-clock if no user override exists yet). Save composes the picked
- * hour/minute with today's date in the device timezone. Future times
- * are capped to `now` — backdating only, no forward-dating.
+ * hour/minute with the slot card's [logicalDay] (the user's SoD-anchored
+ * "today"), then caps to `now` so the user can never produce a future
+ * timestamp. See [composeIntendedTime] for the algorithm — in particular,
+ * it correctly handles the SoD-boundary window where wall-clock has
+ * crossed midnight but the logical day has not yet rolled over.
  *
- * Cross-day backlogging is intentionally out of scope for v1; long-tail
- * "log yesterday's dose" happens via the medication log screen.
+ * Long-tail "log yesterday's dose" (a logical-day cross-day backlog)
+ * remains out of scope; that case is served via the medication log
+ * screen.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MedicationTimeEditSheet(
     initialIntendedTime: Long?,
     slotName: String,
+    logicalDay: LocalDate,
     onDismiss: () -> Unit,
     onSave: (intendedTime: Long) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState()
 
-    // Seed from the user's existing intended_time or "now". Keep the full
-    // Calendar around so we compose against today's date, not epoch.
-    val now = System.currentTimeMillis()
-    val seed = initialIntendedTime ?: now
-    val seedCal = remember(seed) {
-        Calendar.getInstance().apply { timeInMillis = seed }
+    val zone = remember { ZoneId.systemDefault() }
+    val seed = initialIntendedTime ?: System.currentTimeMillis()
+    val seedTime = remember(seed) {
+        Instant.ofEpochMilli(seed).atZone(zone).toLocalTime()
     }
     val timePickerState = rememberTimePickerState(
-        initialHour = seedCal.get(Calendar.HOUR_OF_DAY),
-        initialMinute = seedCal.get(Calendar.MINUTE),
+        initialHour = seedTime.hour,
+        initialMinute = seedTime.minute,
         is24Hour = false
     )
 
@@ -92,20 +97,57 @@ fun MedicationTimeEditSheet(
                 TextButton(onClick = onDismiss) { Text("Cancel") }
                 Spacer(modifier = Modifier.padding(start = 8.dp))
                 Button(onClick = {
-                    val edited = Calendar.getInstance().apply {
-                        timeInMillis = System.currentTimeMillis()
-                        set(Calendar.HOUR_OF_DAY, timePickerState.hour)
-                        set(Calendar.MINUTE, timePickerState.minute)
-                        set(Calendar.SECOND, 0)
-                        set(Calendar.MILLISECOND, 0)
-                    }
-                    // Cap forward-dating — future times aren't a supported
-                    // backlog use case and would corrupt the audit story.
-                    val capped = minOf(edited.timeInMillis, System.currentTimeMillis())
-                    onSave(capped)
+                    onSave(
+                        composeIntendedTime(
+                            pickedHour = timePickerState.hour,
+                            pickedMinute = timePickerState.minute,
+                            logicalDay = logicalDay,
+                            nowMillis = System.currentTimeMillis(),
+                            zone = zone
+                        )
+                    )
                 }) { Text("Save") }
             }
             Spacer(modifier = Modifier.height(8.dp))
         }
     }
+}
+
+/**
+ * Compose the user-picked HH:mm with the slot card's [logicalDay] into an
+ * absolute epoch-millis timestamp.
+ *
+ * The user-anchor we want is "the latest moment ≤ [nowMillis] within the
+ * logical-day window matching the picked HH:mm". Because a logical day
+ * with SoD > 00:00 spans two calendar dates (e.g. logical Apr 28 with
+ * SoD = 04:00 runs Apr 28 04:00 → Apr 29 03:59 wall-clock), the picked
+ * time may resolve to either calendar date. We try both and pick the
+ * latest candidate that's still in the past.
+ *
+ *  - User on logical Apr 28 (wall-clock Apr 28 14:00) picks 08:00 →
+ *    onLogicalDay = Apr 28 08:00 ≤ now ✓; onNextDay = Apr 29 08:00 > now ✗.
+ *    Result: Apr 28 08:00.
+ *  - User on logical Apr 28 (wall-clock Apr 29 02:00, after midnight) picks
+ *    08:00 → onLogicalDay = Apr 28 08:00 ≤ now ✓; onNextDay = Apr 29 08:00
+ *    > now ✗. Result: Apr 28 08:00 (this morning by SoD).
+ *  - Same context, picks 01:00 → onLogicalDay = Apr 28 01:00 ≤ now ✓;
+ *    onNextDay = Apr 29 01:00 ≤ now ✓. Result: Apr 29 01:00 (just an
+ *    hour ago, the more recent candidate).
+ *
+ * If neither candidate is ≤ now (the user picked a forward time that
+ * wraps past now on both calendar dates — vanishingly rare), cap to now.
+ */
+internal fun composeIntendedTime(
+    pickedHour: Int,
+    pickedMinute: Int,
+    logicalDay: LocalDate,
+    nowMillis: Long,
+    zone: ZoneId = ZoneId.systemDefault()
+): Long {
+    val onLogicalDay = logicalDay.atTime(pickedHour, pickedMinute)
+        .atZone(zone).toInstant().toEpochMilli()
+    val onNextDay = logicalDay.plusDays(1).atTime(pickedHour, pickedMinute)
+        .atZone(zone).toInstant().toEpochMilli()
+    val pastCandidates = listOf(onLogicalDay, onNextDay).filter { it <= nowMillis }
+    return pastCandidates.maxOrNull() ?: nowMillis
 }
