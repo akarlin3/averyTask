@@ -29,6 +29,7 @@ import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskCompletionEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.local.entity.TaskTemplateEntity
+import com.averycorp.prismtask.data.local.entity.TaskTimingEntity
 import com.averycorp.prismtask.data.local.entity.WeeklyReviewEntity
 
 @Suppress("TooManyFunctions") // Cohesive sync-surface object — one entityToMap + one mapToEntity per synced Room table.
@@ -401,6 +402,37 @@ object SyncMapper {
         "wasOverdue" to completion.wasOverdue,
         "daysToComplete" to completion.daysToComplete,
         "tags" to completion.tags
+    )
+
+    fun taskTimingToMap(
+        timing: TaskTimingEntity,
+        taskCloudId: String?
+    ): Map<String, Any?> = mapOf(
+        "localId" to timing.id,
+        "taskId" to taskCloudId,
+        "startedAt" to timing.startedAt,
+        "endedAt" to timing.endedAt,
+        "durationMinutes" to timing.durationMinutes,
+        "source" to timing.source,
+        "notes" to timing.notes,
+        "createdAt" to timing.createdAt
+    )
+
+    fun mapToTaskTiming(
+        data: Map<String, Any?>,
+        localId: Long = 0,
+        taskLocalId: Long,
+        cloudId: String? = null
+    ): TaskTimingEntity = TaskTimingEntity(
+        id = localId,
+        cloudId = cloudId,
+        taskId = taskLocalId,
+        startedAt = (data["startedAt"] as? Number)?.toLong(),
+        endedAt = (data["endedAt"] as? Number)?.toLong(),
+        durationMinutes = (data["durationMinutes"] as? Number)?.toInt() ?: 0,
+        source = data["source"] as? String ?: TaskTimingEntity.SOURCE_MANUAL,
+        notes = data["notes"] as? String,
+        createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
     )
 
     fun mapToTaskCompletion(

@@ -79,6 +79,9 @@ object TestDatabaseModule {
     fun provideTaskCompletionDao(database: PrismTaskDatabase) = database.taskCompletionDao()
 
     @Provides
+    fun provideTaskTimingDao(database: PrismTaskDatabase) = database.taskTimingDao()
+
+    @Provides
     fun provideMilestoneDao(database: PrismTaskDatabase) = database.milestoneDao()
 
     @Provides
@@ -143,9 +146,6 @@ object TestDatabaseModule {
     @Provides
     fun provideMedicationTierStateDao(database: PrismTaskDatabase) =
         database.medicationTierStateDao()
-
-    @Provides
-    fun provideTaskTimingDao(database: PrismTaskDatabase) = database.taskTimingDao()
 
     @Provides
     @Singleton
