@@ -1863,6 +1863,41 @@ val MIGRATION_63_64 = object : Migration(63, 64) {
 }
 
 /**
+ * v64 → v65 — Adds `task_timings` table for per-task time-tracking entries.
+ *
+ * One row per logged interval; multiple per task. Used by the analytics
+ * time-tracking aggregator (slice C4) and bar chart (slice C5) — see
+ * `docs/audits/ANALYTICS_C4_C5_TIME_TRACKING_DESIGN.md` (Path 2).
+ *
+ * `cloud_id` is included from the start so cross-device sync (P2-D
+ * follow-up) does not require a second migration.
+ */
+val MIGRATION_64_65 = object : Migration(64, 65) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `task_timings` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT,
+                `cloud_id` TEXT,
+                `task_id` INTEGER NOT NULL,
+                `started_at` INTEGER,
+                `ended_at` INTEGER,
+                `duration_minutes` INTEGER NOT NULL,
+                `source` TEXT NOT NULL DEFAULT 'manual',
+                `notes` TEXT,
+                `created_at` INTEGER NOT NULL,
+                FOREIGN KEY(`task_id`) REFERENCES `tasks`(`id`) ON DELETE CASCADE
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_task_timings_task_id` ON `task_timings` (`task_id`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_task_timings_started_at` ON `task_timings` (`started_at`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_task_timings_created_at` ON `task_timings` (`created_at`)")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_task_timings_cloud_id` ON `task_timings` (`cloud_id`)")
+    }
+}
+
+/**
  * Single source of truth for the Room schema version. Referenced by both
  * `@Database(version = CURRENT_DB_VERSION)` on [PrismTaskDatabase] and by
  * `StartupCrashDiagnosticTest`. Bumping the schema means:
@@ -1874,7 +1909,7 @@ val MIGRATION_63_64 = object : Migration(63, 64) {
  * The diagnostic test will fail until all three are done, preventing the
  * "forgot to add migration" class of startup crash from reaching main.
  */
-const val CURRENT_DB_VERSION = 64
+const val CURRENT_DB_VERSION = 65
 
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
@@ -1939,5 +1974,6 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_60_61,
     MIGRATION_61_62,
     MIGRATION_62_63,
-    MIGRATION_63_64
+    MIGRATION_63_64,
+    MIGRATION_64_65
 )
