@@ -269,3 +269,48 @@ sooner.
 
 Reply with your pick (e.g. "C1") and I'll begin Phase 2.
 
+**User pick: C3** — ship all four PRs in this session.
+
+---
+
+## Phase 3 — Bundle summary (post-merge)
+
+### PRs landed
+
+| PR | Scope | Merge SHA | Wall-clock impact |
+|---|---|---|---|
+| **#872** | Audit doc + Phase 2 plan (improvements #1, #2, #4, #7 — local-only ops + audit doc) | `244de846` | One-time. 30 stale merged branches deleted, 3 worktrees removed, 5 stale `~/.claude/projects/` dirs (~16 MB freed), 1 memory orphan deleted, settings allowlist cleaned (`.claude/` is gitignored so cleanup was local-only). |
+| **#873** | CLAUDE.md trim (improvement #3) + audit length-cap convention (improvement #6) | `7310b06d` | **Per-session recurring.** CLAUDE.md: 327 → 197 lines (−40 %), 36 KB → 22 KB (−39 %). Estimated ~3 K tokens/session saved on system-prompt context. |
+| **#874** | `/audit-first` slash command + narrow `.claude/commands/` `.gitignore` exception (improvement #5) | `4bf42b76` | **Per-audit recurring.** ~5–15 min/audit of prompt-writing wall-clock saved by `/audit-first <scope>`. |
+
+### Re-baseline
+
+- **Repo branch state:** `git branch --no-merged main` → 2 entries (`ci-logs` + open `fix/ktlint-inline-comment` for PR #871). Was 30 stale-merged + 1 special. **Improvement: ~30 entries cleaned.**
+- **Worktrees:** 2 (main + active `prismTask-ktlint`). Was 5 (4 stale, 1 active). **Improvement: 3 stale removed.**
+- **CLAUDE.md per-session cost:** 22 KB / ~6 K tokens. Was 36 KB / ~9 K tokens. **Improvement: ~3 K tokens/session saved.**
+- **Audit doc total:** 25 docs (was 24 + this one). Length-cap convention now in `CLAUDE.md` "Repo conventions" — applies to future audits, not retroactive.
+- **Stale `~/.claude/projects/` dirs:** 0 from old worktree paths. ~16 MB freed.
+- **Memory entries:** 22 in `MEMORY.md` index. Cap 30, 8 slots free. Healthy.
+
+### Anti-pattern flags revisited
+
+- **AP-1 (mega-audit length):** addressed structurally by length-cap convention in PR #873. Will validate over next ~3 audits.
+- **AP-3 (file-tree drift):** addressed in PR #873 via top-level overview + explicit "list directory contents directly" pointer.
+- **AP-4 (memory orphan):** `project_testdebugunit_blocked.md` deleted (verified stale: `SwipeActionStyleTest.kt` is gone, CI green on `testDebugUnitTest`).
+- **AP-5 (branch deletion never automated):** still optional. This audit brought stale count to 0; revisit if drift recurs.
+- **AP-6 (stale rebrand paths):** addressed (settings cleanup, local-only because `.claude/` is gitignored).
+
+### New finding surfaced during Phase 2
+
+- **Windows long-path leftover worktree dirs:** 11 directories under `C:/Projects/prismTask-{cdt-fix, dao-gap-audit, leisure-cols, leisure-fix, med-log, medication-batch, medication-instrumentation, no-firebase, parity-onboarding, per-med-time, phase-d-2}/` are filesystem-orphans from past `git worktree remove` calls that hit Windows `MAX_PATH` and silently left files behind. They're not in `git worktree list` (registry is clean) but eat disk + clutter `ls C:/Projects/`. **Out of scope this round** (could contain unsaved dev state). Flag for next CC self-audit or a manual `rm -rf` pass.
+
+### Memory entry candidates
+
+**None.** This audit's value was in *removing* state (stale branches, orphan memory, settings cruft, file tree narrative), not in adding memory. The length-cap convention is now in CLAUDE.md.
+
+### Next CC self-audit
+
+- **Trigger:** quarterly OR after another major process change (Phase F kickoff 2026-05-15, post-launch G.0 ~2026-06-05) — whichever comes first.
+- **Default cadence:** ~2026-07-28.
+- **Scope to revisit:** length-cap effectiveness, Windows leftover-dir cleanup, branch debris recurrence (does memory #16 hold?), Firebase MCP usage trend (31 % of sessions in this audit).
+
