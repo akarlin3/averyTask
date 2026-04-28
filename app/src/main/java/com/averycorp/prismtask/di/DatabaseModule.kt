@@ -34,6 +34,7 @@ import com.averycorp.prismtask.data.local.dao.SelfCareDao
 import com.averycorp.prismtask.data.local.dao.SyncMetadataDao
 import com.averycorp.prismtask.data.local.dao.TagDao
 import com.averycorp.prismtask.data.local.dao.TaskCompletionDao
+import com.averycorp.prismtask.data.local.dao.TaskTimingDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.dao.TaskTemplateDao
 import com.averycorp.prismtask.data.local.dao.UsageLogDao
@@ -150,6 +151,9 @@ object DatabaseModule {
 
     @Provides
     fun provideTaskCompletionDao(database: PrismTaskDatabase): TaskCompletionDao = database.taskCompletionDao()
+
+    @Provides
+    fun provideTaskTimingDao(database: PrismTaskDatabase): TaskTimingDao = database.taskTimingDao()
 
     @Provides
     fun provideFocusReleaseLogDao(database: PrismTaskDatabase): FocusReleaseLogDao = database.focusReleaseLogDao()

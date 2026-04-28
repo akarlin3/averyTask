@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- **`TaskTimingEntity` + `TaskTimingDao` + `TaskTimingRepository` — per-task
+  time-tracking data layer.** P2-A of the analytics C4/C5 implementation
+  (`docs/audits/ANALYTICS_C4_C5_TIME_TRACKING_DESIGN.md`, Path 2). New Room
+  table `task_timings` (migration 64 → 65) with `cloud_id`, `task_id` (FK
+  CASCADE), nullable `started_at` / `ended_at`, `duration_minutes`,
+  `source` (`manual` / `pomodoro` / `timer`), `notes`, `created_at`. DAO
+  exposes per-task list/observe queries, range-window observe, and total-
+  minutes aggregation. Repository wraps insertion, deletion, and updates;
+  no sync-tracker wiring yet (cross-device sync ships in P2-D follow-up).
+  Adds `Migration64To65Test` (instrumented) covering create/insert/CASCADE
+  and `TaskTimingRepositoryTest` (JVM) covering 9 repository contract
+  cases.
+
 ### Removed
 
 - **Medication reminders on the Today (start) screen.** The Daily
