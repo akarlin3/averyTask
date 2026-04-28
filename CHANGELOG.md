@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Manual "Logged Time" section in the task editor's Schedule tab.** P2-B
+  of the analytics C4/C5 implementation
+  (`docs/audits/ANALYTICS_C4_C5_TIME_TRACKING_DESIGN.md`, Path 2). New chip
+  row (`+15m` / `+30m` / `+1h` / `+Custom`) appends a manual
+  `TaskTimingEntity` (source = `manual`) and the running total updates
+  reactively below the chips. Section is edit-mode only — manual logging
+  needs a persisted `taskId` to FK against. Wires
+  `TaskTimingRepository` into `AddEditTaskViewModel` and exposes
+  `loggedMinutes: StateFlow<Int>` and a `logTime(minutes)` action.
+
+- **`TaskTimingEntity` + `TaskTimingDao` + `TaskTimingRepository` — per-task
+  time-tracking data layer.** P2-A of the analytics C4/C5 implementation
+  (`docs/audits/ANALYTICS_C4_C5_TIME_TRACKING_DESIGN.md`, Path 2). New Room
+  table `task_timings` (migration 64 → 65) with `cloud_id`, `task_id` (FK
+  CASCADE), nullable `started_at` / `ended_at`, `duration_minutes`,
+  `source` (`manual` / `pomodoro` / `timer`), `notes`, `created_at`. DAO
+  exposes per-task list/observe queries, range-window observe, and total-
+  minutes aggregation. Repository wraps insertion, deletion, and updates;
+  no sync-tracker wiring yet (cross-device sync ships in P2-D follow-up).
+  Adds `Migration64To65Test` (instrumented) covering create/insert/CASCADE
+  and `TaskTimingRepositoryTest` (JVM) covering 9 repository contract
+  cases.
+
 - **Productivity score chart on `TaskAnalyticsScreen` — Pro-gated.** Slice 3
   of the web PR #715 Android port (`docs/audits/ANALYTICS_PR715_PORT_AUDIT.md`,
   Subset C). Compose Canvas area chart with a 7d/30d/90d range selector,

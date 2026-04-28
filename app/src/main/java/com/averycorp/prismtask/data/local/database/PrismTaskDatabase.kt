@@ -35,6 +35,7 @@ import com.averycorp.prismtask.data.local.dao.TagDao
 import com.averycorp.prismtask.data.local.dao.TaskCompletionDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.dao.TaskTemplateDao
+import com.averycorp.prismtask.data.local.dao.TaskTimingDao
 import com.averycorp.prismtask.data.local.dao.UsageLogDao
 import com.averycorp.prismtask.data.local.dao.WeeklyReviewDao
 import com.averycorp.prismtask.data.local.entity.AssignmentEntity
@@ -76,6 +77,7 @@ import com.averycorp.prismtask.data.local.entity.TaskCompletionEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.local.entity.TaskTagCrossRef
 import com.averycorp.prismtask.data.local.entity.TaskTemplateEntity
+import com.averycorp.prismtask.data.local.entity.TaskTimingEntity
 import com.averycorp.prismtask.data.local.entity.UsageLogEntity
 import com.averycorp.prismtask.data.local.entity.WeeklyReviewEntity
 
@@ -121,7 +123,8 @@ import com.averycorp.prismtask.data.local.entity.WeeklyReviewEntity
         MedicationSlotEntity::class,
         MedicationSlotOverrideEntity::class,
         MedicationSlotCrossRef::class,
-        MedicationTierStateEntity::class
+        MedicationTierStateEntity::class,
+        TaskTimingEntity::class
     ],
     version = CURRENT_DB_VERSION,
     exportSchema = false
@@ -196,4 +199,6 @@ abstract class PrismTaskDatabase : RoomDatabase() {
     abstract fun medicationSlotOverrideDao(): MedicationSlotOverrideDao
 
     abstract fun medicationTierStateDao(): MedicationTierStateDao
+
+    abstract fun taskTimingDao(): TaskTimingDao
 }
