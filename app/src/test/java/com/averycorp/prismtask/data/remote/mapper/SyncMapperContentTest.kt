@@ -8,6 +8,7 @@ import com.averycorp.prismtask.data.local.entity.FocusReleaseLogEntity
 import com.averycorp.prismtask.data.local.entity.MedicationRefillEntity
 import com.averycorp.prismtask.data.local.entity.MoodEnergyLogEntity
 import com.averycorp.prismtask.data.local.entity.StudyLogEntity
+import com.averycorp.prismtask.data.local.entity.TaskTimingEntity
 import com.averycorp.prismtask.data.local.entity.WeeklyReviewEntity
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -263,5 +264,74 @@ class SyncMapperContentTest {
             cloudId = "c11"
         )
         assertEquals(source.copy(cloudId = "c11"), decoded)
+    }
+
+    @Test
+    fun taskTiming_roundTripsWithTaskFkResolution() {
+        // taskId = 42 is the local task row id; the push side resolves it
+        // to a cloud id via syncMetadataDao.
+        val source = TaskTimingEntity(
+            id = 12,
+            taskId = 42,
+            startedAt = 1_700_000_000_000L,
+            endedAt = 1_700_000_900_000L,
+            durationMinutes = 15,
+            source = TaskTimingEntity.SOURCE_MANUAL,
+            notes = "Reviewed PR comments",
+            createdAt = 1_700_000_950_000L
+        )
+        val map = SyncMapper.taskTimingToMap(source, taskCloudId = "task-cloud-xyz")
+        assertEquals("task-cloud-xyz", map["taskId"])
+        assertEquals(15, map["durationMinutes"])
+        assertEquals("manual", map["source"])
+
+        val decoded = SyncMapper.mapToTaskTiming(
+            map,
+            localId = source.id,
+            taskLocalId = 42,
+            cloudId = "c12"
+        )
+        assertEquals("c12", decoded.cloudId)
+        assertEquals(source.copy(cloudId = "c12"), decoded)
+    }
+
+    @Test
+    fun taskTiming_pomodoroSourceRoundTrips() {
+        val source = TaskTimingEntity(
+            id = 13,
+            taskId = 7,
+            startedAt = null,
+            endedAt = null,
+            durationMinutes = 25,
+            source = TaskTimingEntity.SOURCE_POMODORO,
+            notes = null,
+            createdAt = 1_700_000_000_000L
+        )
+        val map = SyncMapper.taskTimingToMap(source, taskCloudId = "task-cloud-7")
+        assertEquals("pomodoro", map["source"])
+        assertEquals(null, map["startedAt"])
+
+        val decoded = SyncMapper.mapToTaskTiming(map, localId = source.id, taskLocalId = 7, cloudId = "c13")
+        assertEquals(source.copy(cloudId = "c13"), decoded)
+    }
+
+    @Test
+    fun taskTiming_unknownSourceFallsBackToManual() {
+        // Defensive: a future client could write an unknown source string;
+        // current clients treat the field as free-form. Pull-side guard:
+        // when "source" is missing entirely, decoder falls back to "manual".
+        val map = mapOf<String, Any?>(
+            "localId" to 14L,
+            "taskId" to "task-cloud-xyz",
+            "startedAt" to null,
+            "endedAt" to null,
+            "durationMinutes" to 30,
+            // "source" intentionally omitted
+            "notes" to null,
+            "createdAt" to 1_700_000_000_000L
+        )
+        val decoded = SyncMapper.mapToTaskTiming(map, localId = 14, taskLocalId = 42, cloudId = "c14")
+        assertEquals(TaskTimingEntity.SOURCE_MANUAL, decoded.source)
+        assertEquals(30, decoded.durationMinutes)
     }
 }
