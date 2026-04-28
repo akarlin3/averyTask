@@ -363,3 +363,45 @@ Audit-first track record stays at 13 of 14 if this audit's reframe lands cleanly
 - **`feedback_repro_first_for_time_boundary_bugs.md`** — A2 must write the repro test first
 - **`feedback_use_worktrees_for_features.md`** — every Phase 2 PR uses a worktree, paired teardown
 - **`feedback_skip_ci_in_commit_message.md`** — no `[skip ci]` in commit titles or bodies
+
+---
+
+## Phase 3 — Bundle summary (post-merge, 2026-04-28)
+
+All three Tier A PRs merged the same session as Phase 1 audit landed. Wall-clock: **~3 hours from audit merge to A1-batch merge**, vs. the audit's ~6-day projection — single-session execution beat the projection because the surface was already well-understood when Phase 2 started.
+
+### Per-PR landings
+
+| PR | Title | Merge SHA | Tier | Files | Lines |
+|---|---|---|---|---|---|
+| **#879** | `docs(audits): automated edge-case testing infrastructure (Phase 1)` | (merged 2026-04-28 ~07:10 UTC) | Phase 1 | 1 | +365 |
+| **#882** | `feat(test): sync fuzz harness — setup PR (Tier A1)` | `b00bafff` | A1-setup | 5 | +413 |
+| **#885** | `feat(test): inject now param for boundary testability (Tier A2)` | (merged 2026-04-28 ~06:06 UTC) | A2 | 4 | +237 |
+| **#886** | `feat(test): medication/dose/cross-device fuzz scenarios (Tier A1-batch)` | `1e94746e` | A1-batch | 5 | +613 |
+
+**Test count delta:** +18 unit tests (8 new in `SyncFuzzGeneratorTest`, 10 new in `DailyResetWorkerScheduleTest`) + 6 instrumented fuzz scenarios. Total Phase 2 test contribution: **+24 tests**.
+
+### Scope-vs-audit deviations
+
+- **A2 surface was 14 callers, not ~6 (audit underestimated by ~2.3×).** PR #885 took surgical scope (`DailyResetWorker` + `WidgetDataProvider` only — the two highest-leverage targets) rather than churning all 14 production files in one PR. Remaining 12 `util/DayBoundary` callers (`HabitRepository`, `TodayViewModel`, `MorningCheckInViewModel`, `MedicationRepository`, …) are deferred to incremental follow-ups when their owning features need test coverage. **Audit-first track record:** the audit-phase reframe (matrix compression) was correct; the per-cell scope estimate for A2 was off by 2.3×. Track record now **13 of 14** (no full miss; the audit's intent stood, only the call-site count was wrong).
+- **A1-setup CI failed first push** (`compileDebugUnitTestKotlin`: 13+ unresolved references). Root cause: `SyncFuzzGenerator` was placed under `app/src/androidTest/` but referenced from a JVM regression-gate test under `app/src/test/`. The two test source sets are isolated and cannot reference each other's classpaths. Fix moved the generator to `app/src/main/java/.../sync/fuzz/` with `@VisibleForTesting`. Force-with-lease push to A1-batch was blocked by the harness rule; cherry-pick onto A1-batch was used instead, preserving history.
+
+### Phase F readiness
+
+- **Tier A complete by 2026-04-28**, well ahead of May 15 Phase F kickoff.
+- Sync fuzzer running 5 medication/slot scenarios + 1 task baseline scenario in `android-integration` workflow on every PR labeled `ci:integration`. Replay seeds: 17, 31, 53, 89, 113 (medication batch), 42 (task baseline).
+- `DailyResetWorker.computeNextDelayMs(now)` deterministically testable; 10 cases cover boundary edges + DST-adjacent shapes + multi-cycle non-drift regression-gate.
+- `WidgetDataProvider`'s 6 public functions accept `now: Long` for future widget boundary tests.
+- **Tier B** (DST fall-back / leap-day table tests, cross-entity fuzzer, expanded `WorkManager.TestDriver` coverage) deferred to G.0 per audit recommendation.
+- **Tier C** (Paparazzi snapshot setup, Compose state-fuzz, kotlinx-datetime migration) remains G.0 work.
+
+### Memory entry candidates
+
+1. **`feedback_test_fixture_source_set_visibility.md`** — "Test fixtures referenced from both `test/` (JVM) and `androidTest/` (instrumented) source sets must live under `main/` because the two test source sets are isolated. Mark with `@VisibleForTesting`. Debug-APK dex cost is ~1–2 KB; release builds strip via R8." Surfaced from PR #882 first-push CI failure. **Strong candidate.**
+2. **`feedback_audit_callsite_estimate_verify.md`** — "When an audit estimates production-code call-site counts (e.g. 'migrate ~6 callers'), grep before scoping the PR. Estimates can be 2–3× off; A2 audit said ~6 callers, actual was 14." Somewhat generic — flag for the user to decide.
+
+### Follow-up scheduling
+
+- No Phase 4 / continuation PRs needed — Tier A is shipped.
+- **G.0 deferred work** (Tier B + C from audit) does not block Phase F.
+- **Optional:** if a Phase F bug surfaces a sync edge case the current 5 fuzz scenarios miss, add a 7th scenario anchored to a fresh seed reproducing the failure shape — replay infra is already in place.
