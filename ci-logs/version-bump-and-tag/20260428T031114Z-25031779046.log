@@ -1,0 +1,607 @@
+=== CI FAILURE ===
+Workflow:      Version Bump & Tag
+Workflow file: akarlin3/prismTask/.github/workflows/version-bump-and-tag.yml@refs/heads/main
+Job(s):        Version Bump & Tag
+Run ID:        25031779046
+Run attempt:   1
+Run URL:       https://github.com/akarlin3/prismTask/actions/runs/25031779046
+Commit:        f1dd873cb3e344df926b9841166f0be4a99d4467
+Branch:        main
+Event:         workflow_run
+Actor:         akarlin3
+Runner OS:     Linux
+Timestamp:     2026-04-28T03:11:13.874Z
+
+Failed steps:
+  - Version Bump & Tag: #8 Dispatch release.yml on the new tag
+
+=== FAILED JOB LOG ===
+
+--- Job: Version Bump & Tag (id 73314782946) ---
+2026-04-28T03:10:34.2416950Z Current runner version: '2.333.1'
+2026-04-28T03:10:34.2464092Z ##[group]Runner Image Provisioner
+2026-04-28T03:10:34.2465369Z Hosted Compute Agent
+2026-04-28T03:10:34.2465900Z Version: 20260213.493
+2026-04-28T03:10:34.2466489Z Commit: 5c115507f6dd24b8de37d8bbe0bb4509d0cc0fa3
+2026-04-28T03:10:34.2467262Z Build Date: 2026-02-13T00:28:41Z
+2026-04-28T03:10:34.2467874Z Worker ID: {16f43449-0887-4e51-bf48-6ab60dfa3865}
+2026-04-28T03:10:34.2468531Z Azure Region: westus
+2026-04-28T03:10:34.2469143Z ##[endgroup]
+2026-04-28T03:10:34.2470733Z ##[group]Operating System
+2026-04-28T03:10:34.2471373Z Ubuntu
+2026-04-28T03:10:34.2471900Z 24.04.4
+2026-04-28T03:10:34.2472351Z LTS
+2026-04-28T03:10:34.2472779Z ##[endgroup]
+2026-04-28T03:10:34.2473356Z ##[group]Runner Image
+2026-04-28T03:10:34.2473896Z Image: ubuntu-24.04
+2026-04-28T03:10:34.2474361Z Version: 20260413.86.1
+2026-04-28T03:10:34.2475841Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260413.86/images/ubuntu/Ubuntu2404-Readme.md
+2026-04-28T03:10:34.2477260Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260413.86
+2026-04-28T03:10:34.2478205Z ##[endgroup]
+2026-04-28T03:10:34.2479349Z ##[group]GITHUB_TOKEN Permissions
+2026-04-28T03:10:34.2481216Z Actions: read
+2026-04-28T03:10:34.2481738Z Contents: write
+2026-04-28T03:10:34.2482280Z Metadata: read
+2026-04-28T03:10:34.2482872Z PullRequests: read
+2026-04-28T03:10:34.2483351Z ##[endgroup]
+2026-04-28T03:10:34.2485618Z Secret source: Actions
+2026-04-28T03:10:34.2486408Z Prepare workflow directory
+2026-04-28T03:10:34.2812611Z Prepare all required actions
+2026-04-28T03:10:34.2853691Z Getting action download info
+2026-04-28T03:10:34.7055972Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+2026-04-28T03:10:34.9337982Z Complete job name: Version Bump & Tag
+2026-04-28T03:10:34.9993011Z ##[group]Run set -euo pipefail
+2026-04-28T03:10:34.9993683Z [36;1mset -euo pipefail[0m
+2026-04-28T03:10:34.9994241Z [36;1mif [ "$EVENT_NAME" = "workflow_dispatch" ]; then[0m
+2026-04-28T03:10:34.9995464Z [36;1m  # Manual dispatch path — use the input if provided, otherwise[0m
+2026-04-28T03:10:34.9996256Z [36;1m  # walk the latest merged PR on main and target that.[0m
+2026-04-28T03:10:34.9996890Z [36;1m  if [ -n "$DISPATCH_PR" ]; then[0m
+2026-04-28T03:10:34.9997492Z [36;1m    echo "pr_number=$DISPATCH_PR" >> "$GITHUB_OUTPUT"[0m
+2026-04-28T03:10:34.9998162Z [36;1m    echo "found=true" >> "$GITHUB_OUTPUT"[0m
+2026-04-28T03:10:34.9998814Z [36;1m    echo "Using PR #$DISPATCH_PR from dispatch input."[0m
+2026-04-28T03:10:34.9999393Z [36;1m    exit 0[0m
+2026-04-28T03:10:34.9999783Z [36;1m  fi[0m
+2026-04-28T03:10:35.0000340Z [36;1m  PR_NUMBER=$(gh pr list --repo "$REPO" --state merged --base main \[0m
+2026-04-28T03:10:35.0001148Z [36;1m    --limit 1 --json number -q '.[0].number // empty')[0m
+2026-04-28T03:10:35.0001751Z [36;1m  if [ -z "$PR_NUMBER" ]; then[0m
+2026-04-28T03:10:35.0002474Z [36;1m    echo "::warning::No merged PRs found on main. Cannot resolve PR; skipping."[0m
+2026-04-28T03:10:35.0003254Z [36;1m    echo "found=false" >> "$GITHUB_OUTPUT"[0m
+2026-04-28T03:10:35.0003780Z [36;1m    exit 0[0m
+2026-04-28T03:10:35.0004167Z [36;1m  fi[0m
+2026-04-28T03:10:35.0004769Z [36;1m  echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"[0m
+2026-04-28T03:10:35.0005413Z [36;1m  echo "found=true" >> "$GITHUB_OUTPUT"[0m
+2026-04-28T03:10:35.0006137Z [36;1m  echo "Resolved most-recent merged PR #$PR_NUMBER for dispatch run."[0m
+2026-04-28T03:10:35.0006805Z [36;1m  exit 0[0m
+2026-04-28T03:10:35.0007185Z [36;1mfi[0m
+2026-04-28T03:10:35.0007544Z [36;1m[0m
+2026-04-28T03:10:35.0008007Z [36;1m# Path 1 — fast path: pull_requests was populated.[0m
+2026-04-28T03:10:35.0008753Z [36;1mPR_NUMBER=$(echo "$PR_JSON" | jq -r '.[0].number // empty')[0m
+2026-04-28T03:10:35.0009411Z [36;1mif [ -n "$PR_NUMBER" ]; then[0m
+2026-04-28T03:10:35.0009989Z [36;1m  echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"[0m
+2026-04-28T03:10:35.0010607Z [36;1m  echo "found=true" >> "$GITHUB_OUTPUT"[0m
+2026-04-28T03:10:35.0011548Z [36;1m  echo "Resolved PR #$PR_NUMBER from workflow_run payload."[0m
+2026-04-28T03:10:35.0012159Z [36;1m  exit 0[0m
+2026-04-28T03:10:35.0012533Z [36;1mfi[0m
+2026-04-28T03:10:35.0013211Z [36;1m[0m
+2026-04-28T03:10:35.0013910Z [36;1m# Path 2 — fallback: look the PR up by HEAD SHA. Works in both[0m
+2026-04-28T03:10:35.0014967Z [36;1m# the pre-merge case (auto-merge.yml fires before the squash[0m
+2026-04-28T03:10:35.0015752Z [36;1m# actually happens; the open PR still has this commit at its[0m
+2026-04-28T03:10:35.0016534Z [36;1m# head) and the post-merge case (GitHub keeps the commit→PR[0m
+2026-04-28T03:10:35.0017318Z [36;1m# mapping after squash, so we still resolve correctly even if[0m
+2026-04-28T03:10:35.0018105Z [36;1m# the source branch was deleted). The downstream "Wait for PR[0m
+2026-04-28T03:10:35.0018853Z [36;1m# to merge" step handles the timing — we only need the PR[0m
+2026-04-28T03:10:35.0019486Z [36;1m# number here, not its merge state.[0m
+2026-04-28T03:10:35.0019988Z [36;1m#[0m
+2026-04-28T03:10:35.0020502Z [36;1m# Deliberately NOT falling back to "most recent merged PR" —[0m
+2026-04-28T03:10:35.0021266Z [36;1m# that race-condition-bumps a previously-merged PR if[0m
+2026-04-28T03:10:35.0021970Z [36;1m# workflow_run fires before the queued merge lands.[0m
+2026-04-28T03:10:35.0022565Z [36;1mif [ -z "$HEAD_SHA" ]; then[0m
+2026-04-28T03:10:35.0023273Z [36;1m  echo "::warning::workflow_run.head_sha is empty; cannot resolve PR. Skipping."[0m
+2026-04-28T03:10:35.0024053Z [36;1m  echo "found=false" >> "$GITHUB_OUTPUT"[0m
+2026-04-28T03:10:35.0024688Z [36;1m  exit 0[0m
+2026-04-28T03:10:35.0025064Z [36;1mfi[0m
+2026-04-28T03:10:35.0025597Z [36;1m# Capture the API response separately instead of piping through[0m
+2026-04-28T03:10:35.0026570Z [36;1m# `gh api --jq` directly. Under `set -euo pipefail`, an empty or[0m
+2026-04-28T03:10:35.0027360Z [36;1m# non-JSON response body crashes the embedded jq with[0m
+2026-04-28T03:10:35.0028096Z [36;1m# `unexpected end of JSON input` and aborts the whole script[0m
+2026-04-28T03:10:35.0028859Z [36;1m# before the empty-result branch below can fire — observed on[0m
+2026-04-28T03:10:35.0029622Z [36;1m# PR #857's post-merge run, which silently dropped the version[0m
+2026-04-28T03:10:35.0030381Z [36;1m# bump on the floor. The retry loop covers the indexing-lag[0m
+2026-04-28T03:10:35.0031121Z [36;1m# window where `commits/{sha}/pulls` returns `[]` for a few[0m
+2026-04-28T03:10:35.0031800Z [36;1m# seconds after the squash-merge push lands.[0m
+2026-04-28T03:10:35.0032352Z [36;1mPR_NUMBER=""[0m
+2026-04-28T03:10:35.0032767Z [36;1mfor attempt in 1 2 3; do[0m
+2026-04-28T03:10:35.0033252Z [36;1m  RESPONSE=$(gh api \[0m
+2026-04-28T03:10:35.0033775Z [36;1m    "repos/$REPO/commits/$HEAD_SHA/pulls" \[0m
+2026-04-28T03:10:35.0034494Z [36;1m    -H "Accept: application/vnd.github+json" 2>/dev/null || echo "[]")[0m
+2026-04-28T03:10:35.0035629Z [36;1m  PR_NUMBER=$(printf '%s' "$RESPONSE" | jq -r '[0m
+2026-04-28T03:10:35.0036257Z [36;1m    if type == "array" and length > 0 then[0m
+2026-04-28T03:10:35.0036885Z [36;1m      (sort_by(.number) | reverse | .[0].number // empty)[0m
+2026-04-28T03:10:35.0037474Z [36;1m    else empty end[0m
+2026-04-28T03:10:35.0037926Z [36;1m  ' 2>/dev/null || echo "")[0m
+2026-04-28T03:10:35.0038417Z [36;1m  [ -n "$PR_NUMBER" ] && break[0m
+2026-04-28T03:10:35.0039190Z [36;1m  echo "commits/$HEAD_SHA/pulls returned no PR (attempt $attempt/3); sleeping 5s..."[0m
+2026-04-28T03:10:35.0039935Z [36;1m  sleep 5[0m
+2026-04-28T03:10:35.0040324Z [36;1mdone[0m
+2026-04-28T03:10:35.0040712Z [36;1mif [ -z "$PR_NUMBER" ]; then[0m
+2026-04-28T03:10:35.0041527Z [36;1m  echo "::warning::No PR found for commit $HEAD_SHA via commits/{sha}/pulls after 3 attempts. Skipping."[0m
+2026-04-28T03:10:35.0042415Z [36;1m  echo "found=false" >> "$GITHUB_OUTPUT"[0m
+2026-04-28T03:10:35.0042942Z [36;1m  exit 0[0m
+2026-04-28T03:10:35.0043309Z [36;1mfi[0m
+2026-04-28T03:10:35.0043931Z [36;1mecho "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"[0m
+2026-04-28T03:10:35.0044690Z [36;1mecho "found=true" >> "$GITHUB_OUTPUT"[0m
+2026-04-28T03:10:35.0045416Z [36;1mecho "Resolved PR #$PR_NUMBER from commits/$HEAD_SHA/pulls fallback."[0m
+2026-04-28T03:10:35.0070563Z shell: /usr/bin/bash -e {0}
+2026-04-28T03:10:35.0071306Z env:
+2026-04-28T03:10:35.0071876Z   GH_TOKEN: ***
+2026-04-28T03:10:35.0072283Z   REPO: akarlin3/prismTask
+2026-04-28T03:10:35.0072729Z   EVENT_NAME: workflow_run
+2026-04-28T03:10:35.0073157Z   PR_JSON: []
+2026-04-28T03:10:35.0073601Z   HEAD_SHA: 09b2ea541e3c50ae7bf32a0bcdcd75176523a05a
+2026-04-28T03:10:35.0074150Z   DISPATCH_PR: 
+2026-04-28T03:10:35.0074522Z ##[endgroup]
+2026-04-28T03:10:35.8945755Z Resolved PR #865 from commits/09b2ea541e3c50ae7bf32a0bcdcd75176523a05a/pulls fallback.
+2026-04-28T03:10:35.9102066Z ##[group]Run set -euo pipefail
+2026-04-28T03:10:35.9103260Z [36;1mset -euo pipefail[0m
+2026-04-28T03:10:35.9104918Z [36;1m# gh pr merge --auto may queue the merge until required checks[0m
+2026-04-28T03:10:35.9106724Z [36;1m# pass. Poll until MERGED, CLOSED, or timeout.[0m
+2026-04-28T03:10:35.9108083Z [36;1mfor i in $(seq 1 60); do[0m
+2026-04-28T03:10:35.9109643Z [36;1m  STATE=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json state -q '.state')[0m
+2026-04-28T03:10:35.9111365Z [36;1m  case "$STATE" in[0m
+2026-04-28T03:10:35.9112378Z [36;1m    MERGED)[0m
+2026-04-28T03:10:35.9114069Z [36;1m      MERGE_SHA=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json mergeCommit -q '.mergeCommit.oid')[0m
+2026-04-28T03:10:35.9116367Z [36;1m      echo "merged=true" >> "$GITHUB_OUTPUT"[0m
+2026-04-28T03:10:35.9117841Z [36;1m      echo "merge_sha=$MERGE_SHA" >> "$GITHUB_OUTPUT"[0m
+2026-04-28T03:10:35.9119305Z [36;1m      echo "PR merged at $MERGE_SHA"[0m
+2026-04-28T03:10:35.9120519Z [36;1m      exit 0[0m
+2026-04-28T03:10:35.9121365Z [36;1m      ;;[0m
+2026-04-28T03:10:35.9122178Z [36;1m    CLOSED)[0m
+2026-04-28T03:10:35.9123156Z [36;1m      echo "merged=false" >> "$GITHUB_OUTPUT"[0m
+2026-04-28T03:10:35.9124766Z [36;1m      echo "PR closed without merging — skipping bump."[0m
+2026-04-28T03:10:35.9126111Z [36;1m      exit 0[0m
+2026-04-28T03:10:35.9126919Z [36;1m      ;;[0m
+2026-04-28T03:10:35.9127681Z [36;1m    *)[0m
+2026-04-28T03:10:35.9128755Z [36;1m      echo "PR state=$STATE (attempt $i/60); sleeping 10s..."[0m
+2026-04-28T03:10:35.9130164Z [36;1m      sleep 10[0m
+2026-04-28T03:10:35.9131024Z [36;1m      ;;[0m
+2026-04-28T03:10:35.9131770Z [36;1m  esac[0m
+2026-04-28T03:10:35.9132522Z [36;1mdone[0m
+2026-04-28T03:10:35.9133400Z [36;1mecho "merged=false" >> "$GITHUB_OUTPUT"[0m
+2026-04-28T03:10:35.9135289Z [36;1mecho "::warning::PR did not reach MERGED within 10 minutes — skipping bump."[0m
+2026-04-28T03:10:35.9158761Z shell: /usr/bin/bash -e {0}
+2026-04-28T03:10:35.9159714Z env:
+2026-04-28T03:10:35.9160864Z   GH_TOKEN: ***
+2026-04-28T03:10:35.9161635Z   PR_NUMBER: 865
+2026-04-28T03:10:35.9162448Z   REPO: akarlin3/prismTask
+2026-04-28T03:10:35.9163333Z ##[endgroup]
+2026-04-28T03:10:36.6457771Z PR merged at f1dd873cb3e344df926b9841166f0be4a99d4467
+2026-04-28T03:10:36.6602328Z ##[group]Run actions/checkout@v4
+2026-04-28T03:10:36.6602691Z with:
+2026-04-28T03:10:36.6603501Z   token: ***
+2026-04-28T03:10:36.6603804Z   ref: f1dd873cb3e344df926b9841166f0be4a99d4467
+2026-04-28T03:10:36.6604127Z   fetch-depth: 0
+2026-04-28T03:10:36.6604386Z   repository: akarlin3/prismTask
+2026-04-28T03:10:36.6605026Z   ssh-strict: true
+2026-04-28T03:10:36.6605270Z   ssh-user: git
+2026-04-28T03:10:36.6605520Z   persist-credentials: true
+2026-04-28T03:10:36.6605788Z   clean: true
+2026-04-28T03:10:36.6606038Z   sparse-checkout-cone-mode: true
+2026-04-28T03:10:36.6606327Z   fetch-tags: false
+2026-04-28T03:10:36.6606558Z   show-progress: true
+2026-04-28T03:10:36.6606807Z   lfs: false
+2026-04-28T03:10:36.6607035Z   submodules: false
+2026-04-28T03:10:36.6607277Z   set-safe-directory: true
+2026-04-28T03:10:36.6607541Z ##[endgroup]
+2026-04-28T03:10:36.7646907Z Syncing repository: akarlin3/prismTask
+2026-04-28T03:10:36.7648756Z ##[group]Getting Git version info
+2026-04-28T03:10:36.7649290Z Working directory is '/home/runner/work/prismTask/prismTask'
+2026-04-28T03:10:36.7649925Z [command]/usr/bin/git version
+2026-04-28T03:10:36.7700765Z git version 2.53.0
+2026-04-28T03:10:36.7726868Z ##[endgroup]
+2026-04-28T03:10:36.7741003Z Temporarily overriding HOME='/home/runner/work/_temp/d9bad0ef-8f93-4010-9ada-12421a9b0f72' before making global git config changes
+2026-04-28T03:10:36.7741890Z Adding repository directory to the temporary git global config as a safe directory
+2026-04-28T03:10:36.7746700Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/prismTask/prismTask
+2026-04-28T03:10:36.7777445Z Deleting the contents of '/home/runner/work/prismTask/prismTask'
+2026-04-28T03:10:36.7780850Z ##[group]Initializing the repository
+2026-04-28T03:10:36.7785184Z [command]/usr/bin/git init /home/runner/work/prismTask/prismTask
+2026-04-28T03:10:36.7884506Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-04-28T03:10:36.7885866Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-04-28T03:10:36.7886964Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-04-28T03:10:36.7887811Z hint: call:
+2026-04-28T03:10:36.7888224Z hint:
+2026-04-28T03:10:36.7888783Z hint: 	git config --global init.defaultBranch <name>
+2026-04-28T03:10:36.7889455Z hint:
+2026-04-28T03:10:36.7890142Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-04-28T03:10:36.7891193Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-04-28T03:10:36.7892054Z hint:
+2026-04-28T03:10:36.7892522Z hint: 	git branch -m <name>
+2026-04-28T03:10:36.7893044Z hint:
+2026-04-28T03:10:36.7893696Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-04-28T03:10:36.7895068Z Initialized empty Git repository in /home/runner/work/prismTask/prismTask/.git/
+2026-04-28T03:10:36.7900196Z [command]/usr/bin/git remote add origin https://github.com/akarlin3/prismTask
+2026-04-28T03:10:36.7931019Z ##[endgroup]
+2026-04-28T03:10:36.7931809Z ##[group]Disabling automatic garbage collection
+2026-04-28T03:10:36.7936520Z [command]/usr/bin/git config --local gc.auto 0
+2026-04-28T03:10:36.7963738Z ##[endgroup]
+2026-04-28T03:10:36.7964515Z ##[group]Setting up auth
+2026-04-28T03:10:36.7971433Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-04-28T03:10:36.8001176Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-04-28T03:10:36.8325879Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-04-28T03:10:36.8354466Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-04-28T03:10:36.8577881Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-04-28T03:10:36.8606659Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-04-28T03:10:36.8822486Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-04-28T03:10:36.8855997Z ##[endgroup]
+2026-04-28T03:10:36.8856623Z ##[group]Fetching the repository
+2026-04-28T03:10:36.8865954Z [command]/usr/bin/git -c protocol.version=2 fetch --prune --no-recurse-submodules origin +refs/heads/*:refs/remotes/origin/* +refs/tags/*:refs/tags/*
+2026-04-28T03:10:57.3131330Z From https://github.com/akarlin3/prismTask
+2026-04-28T03:10:57.3134250Z  * [new branch]        ci-logs         -> origin/ci-logs
+2026-04-28T03:10:57.3135344Z  * [new branch]        main            -> origin/main
+2026-04-28T03:10:57.3136488Z  * [new branch]        v0.1.0-legacy   -> origin/v0.1.0-legacy
+2026-04-28T03:10:57.3137301Z  * [new branch]        v0.2.0-legacy   -> origin/v0.2.0-legacy
+2026-04-28T03:10:57.3138023Z  * [new branch]        v0.3.0-legacy   -> origin/v0.3.0-legacy
+2026-04-28T03:10:57.3138786Z  * [new branch]        v0.4.0-legacy   -> origin/v0.4.0-legacy
+2026-04-28T03:10:57.3139578Z  * [new branch]        v0.5.0-legacy   -> origin/v0.5.0-legacy
+2026-04-28T03:10:57.3140337Z  * [new branch]        v0.6.0-legacy   -> origin/v0.6.0-legacy
+2026-04-28T03:10:57.3141088Z  * [new branch]        v0.7.0-legacy   -> origin/v0.7.0-legacy
+2026-04-28T03:10:57.3141786Z  * [new tag]           v0.1.0          -> v0.1.0
+2026-04-28T03:10:57.3142407Z  * [new tag]           v0.2.0          -> v0.2.0
+2026-04-28T03:10:57.3143013Z  * [new tag]           v0.3.0          -> v0.3.0
+2026-04-28T03:10:57.3143625Z  * [new tag]           v0.4.0          -> v0.4.0
+2026-04-28T03:10:57.3144282Z  * [new tag]           v0.5.0          -> v0.5.0
+2026-04-28T03:10:57.3145103Z  * [new tag]           v0.7.0          -> v0.7.0
+2026-04-28T03:10:57.3145702Z  * [new tag]           v0.7.12         -> v0.7.12
+2026-04-28T03:10:57.3146194Z  * [new tag]           v0.7.13         -> v0.7.13
+2026-04-28T03:10:57.3146672Z  * [new tag]           v0.7.14         -> v0.7.14
+2026-04-28T03:10:57.3147155Z  * [new tag]           v0.7.15         -> v0.7.15
+2026-04-28T03:10:57.3147640Z  * [new tag]           v0.7.16         -> v0.7.16
+2026-04-28T03:10:57.3148116Z  * [new tag]           v0.7.17         -> v0.7.17
+2026-04-28T03:10:57.3148648Z  * [new tag]           v0.7.17-build.2 -> v0.7.17-build.2
+2026-04-28T03:10:57.3149214Z  * [new tag]           v0.7.17-build.3 -> v0.7.17-build.3
+2026-04-28T03:10:57.3149756Z  * [new tag]           v0.7.17-build.4 -> v0.7.17-build.4
+2026-04-28T03:10:57.3150298Z  * [new tag]           v0.7.17-build.5 -> v0.7.17-build.5
+2026-04-28T03:10:57.3151204Z  * [new tag]           v0.7.17-build.6 -> v0.7.17-build.6
+2026-04-28T03:10:57.3151783Z  * [new tag]           v0.7.17-build.7 -> v0.7.17-build.7
+2026-04-28T03:10:57.3165681Z  * [new tag]           v0.7.17-build.8 -> v0.7.17-build.8
+2026-04-28T03:10:57.3166815Z  * [new tag]           v0.7.17-build.9 -> v0.7.17-build.9
+2026-04-28T03:10:57.3167652Z  * [new tag]           v0.7.18         -> v0.7.18
+2026-04-28T03:10:57.3257865Z  * [new tag]           v0.7.18-build.2 -> v0.7.18-build.2
+2026-04-28T03:10:57.3258479Z  * [new tag]           v0.7.18-build.3 -> v0.7.18-build.3
+2026-04-28T03:10:57.3259042Z  * [new tag]           v0.7.18-build.4 -> v0.7.18-build.4
+2026-04-28T03:10:57.3259653Z  * [new tag]           v0.7.19         -> v0.7.19
+2026-04-28T03:10:57.3260270Z  * [new tag]           v0.7.19-build.2 -> v0.7.19-build.2
+2026-04-28T03:10:57.3260856Z  * [new tag]           v0.7.20         -> v0.7.20
+2026-04-28T03:10:57.3261444Z  * [new tag]           v0.7.20-build.2 -> v0.7.20-build.2
+2026-04-28T03:10:57.3261993Z  * [new tag]           v0.7.20-build.3 -> v0.7.20-build.3
+2026-04-28T03:10:57.3262539Z  * [new tag]           v0.7.20-build.4 -> v0.7.20-build.4
+2026-04-28T03:10:57.3263296Z  * [new tag]           v0.8.0          -> v0.8.0
+2026-04-28T03:10:57.3263851Z  * [new tag]           v0.8.0-build.2  -> v0.8.0-build.2
+2026-04-28T03:10:57.3264760Z  * [new tag]           v0.8.1          -> v0.8.1
+2026-04-28T03:10:57.3265284Z  * [new tag]           v0.8.10         -> v0.8.10
+2026-04-28T03:10:57.3265785Z  * [new tag]           v0.8.11         -> v0.8.11
+2026-04-28T03:10:57.3269402Z  * [new tag]           v0.8.12         -> v0.8.12
+2026-04-28T03:10:57.3270179Z  * [new tag]           v0.8.13         -> v0.8.13
+2026-04-28T03:10:57.3271124Z  * [new tag]           v0.8.14         -> v0.8.14
+2026-04-28T03:10:57.3272066Z  * [new tag]           v0.8.15         -> v0.8.15
+2026-04-28T03:10:57.3272862Z  * [new tag]           v0.8.2          -> v0.8.2
+2026-04-28T03:10:57.3273619Z  * [new tag]           v0.8.3          -> v0.8.3
+2026-04-28T03:10:57.3274359Z  * [new tag]           v0.8.4          -> v0.8.4
+2026-04-28T03:10:57.3275522Z  * [new tag]           v0.8.5          -> v0.8.5
+2026-04-28T03:10:57.3276687Z  * [new tag]           v0.8.6          -> v0.8.6
+2026-04-28T03:10:57.3277458Z  * [new tag]           v0.8.7          -> v0.8.7
+2026-04-28T03:10:57.3278227Z  * [new tag]           v0.8.8          -> v0.8.8
+2026-04-28T03:10:57.3279019Z  * [new tag]           v0.8.9          -> v0.8.9
+2026-04-28T03:10:57.3279796Z  * [new tag]           v0.9.1          -> v0.9.1
+2026-04-28T03:10:57.3280551Z  * [new tag]           v0.9.2          -> v0.9.2
+2026-04-28T03:10:57.3281322Z  * [new tag]           v1.0.1          -> v1.0.1
+2026-04-28T03:10:57.3282091Z  * [new tag]           v1.0.10         -> v1.0.10
+2026-04-28T03:10:57.3282860Z  * [new tag]           v1.0.11         -> v1.0.11
+2026-04-28T03:10:57.3283626Z  * [new tag]           v1.0.12         -> v1.0.12
+2026-04-28T03:10:57.3284349Z  * [new tag]           v1.0.13         -> v1.0.13
+2026-04-28T03:10:57.3285362Z  * [new tag]           v1.0.2          -> v1.0.2
+2026-04-28T03:10:57.3286111Z  * [new tag]           v1.0.3          -> v1.0.3
+2026-04-28T03:10:57.3286959Z  * [new tag]           v1.0.4          -> v1.0.4
+2026-04-28T03:10:57.3287737Z  * [new tag]           v1.0.5          -> v1.0.5
+2026-04-28T03:10:57.3288486Z  * [new tag]           v1.0.6          -> v1.0.6
+2026-04-28T03:10:57.3289257Z  * [new tag]           v1.0.7          -> v1.0.7
+2026-04-28T03:10:57.3290041Z  * [new tag]           v1.0.8          -> v1.0.8
+2026-04-28T03:10:57.3290737Z  * [new tag]           v1.0.9          -> v1.0.9
+2026-04-28T03:10:57.3291426Z  * [new tag]           v1.1.1          -> v1.1.1
+2026-04-28T03:10:57.3292159Z  * [new tag]           v1.1.1-build.2  -> v1.1.1-build.2
+2026-04-28T03:10:57.3292909Z  * [new tag]           v1.1.1-build.3  -> v1.1.1-build.3
+2026-04-28T03:10:57.3293669Z  * [new tag]           v1.1.1-build.4  -> v1.1.1-build.4
+2026-04-28T03:10:57.3294396Z  * [new tag]           v1.1.10         -> v1.1.10
+2026-04-28T03:10:57.3295344Z  * [new tag]           v1.1.11         -> v1.1.11
+2026-04-28T03:10:57.3296074Z  * [new tag]           v1.1.12         -> v1.1.12
+2026-04-28T03:10:57.3296779Z  * [new tag]           v1.1.2          -> v1.1.2
+2026-04-28T03:10:57.3297521Z  * [new tag]           v1.1.3          -> v1.1.3
+2026-04-28T03:10:57.3298205Z  * [new tag]           v1.1.4          -> v1.1.4
+2026-04-28T03:10:57.3298893Z  * [new tag]           v1.1.5          -> v1.1.5
+2026-04-28T03:10:57.3299605Z  * [new tag]           v1.1.6          -> v1.1.6
+2026-04-28T03:10:57.3300347Z  * [new tag]           v1.1.7          -> v1.1.7
+2026-04-28T03:10:57.3301030Z  * [new tag]           v1.1.8          -> v1.1.8
+2026-04-28T03:10:57.3301716Z  * [new tag]           v1.1.9          -> v1.1.9
+2026-04-28T03:10:57.3302395Z  * [new tag]           v1.3.0          -> v1.3.0
+2026-04-28T03:10:57.3303068Z  * [new tag]           v1.3.1          -> v1.3.1
+2026-04-28T03:10:57.3303758Z  * [new tag]           v1.3.10         -> v1.3.10
+2026-04-28T03:10:57.3304449Z  * [new tag]           v1.3.11         -> v1.3.11
+2026-04-28T03:10:57.3305436Z  * [new tag]           v1.3.11-build.2 -> v1.3.11-build.2
+2026-04-28T03:10:57.3306392Z  * [new tag]           v1.3.12         -> v1.3.12
+2026-04-28T03:10:57.3307139Z  * [new tag]           v1.3.13         -> v1.3.13
+2026-04-28T03:10:57.3307873Z  * [new tag]           v1.3.13-build.2 -> v1.3.13-build.2
+2026-04-28T03:10:57.3308597Z  * [new tag]           v1.3.14         -> v1.3.14
+2026-04-28T03:10:57.3309284Z  * [new tag]           v1.3.15         -> v1.3.15
+2026-04-28T03:10:57.3309970Z  * [new tag]           v1.3.16         -> v1.3.16
+2026-04-28T03:10:57.3310658Z  * [new tag]           v1.3.17         -> v1.3.17
+2026-04-28T03:10:57.3311334Z  * [new tag]           v1.3.18         -> v1.3.18
+2026-04-28T03:10:57.3312024Z  * [new tag]           v1.3.19         -> v1.3.19
+2026-04-28T03:10:57.3312712Z  * [new tag]           v1.3.2          -> v1.3.2
+2026-04-28T03:10:57.3313401Z  * [new tag]           v1.3.20         -> v1.3.20
+2026-04-28T03:10:57.3314079Z  * [new tag]           v1.3.21         -> v1.3.21
+2026-04-28T03:10:57.3315235Z  * [new tag]           v1.3.22         -> v1.3.22
+2026-04-28T03:10:57.3315945Z  * [new tag]           v1.3.23         -> v1.3.23
+2026-04-28T03:10:57.3316638Z  * [new tag]           v1.3.24         -> v1.3.24
+2026-04-28T03:10:57.3317315Z  * [new tag]           v1.3.25         -> v1.3.25
+2026-04-28T03:10:57.3318078Z  * [new tag]           v1.3.26         -> v1.3.26
+2026-04-28T03:10:57.3318759Z  * [new tag]           v1.3.27         -> v1.3.27
+2026-04-28T03:10:57.3319436Z  * [new tag]           v1.3.28         -> v1.3.28
+2026-04-28T03:10:57.3320150Z  * [new tag]           v1.3.29         -> v1.3.29
+2026-04-28T03:10:57.3321025Z  * [new tag]           v1.3.3          -> v1.3.3
+2026-04-28T03:10:57.3321767Z  * [new tag]           v1.3.30         -> v1.3.30
+2026-04-28T03:10:57.3322250Z  * [new tag]           v1.3.31         -> v1.3.31
+2026-04-28T03:10:57.3322735Z  * [new tag]           v1.3.32         -> v1.3.32
+2026-04-28T03:10:57.3323212Z  * [new tag]           v1.3.33         -> v1.3.33
+2026-04-28T03:10:57.3323554Z  * [new tag]           v1.3.34         -> v1.3.34
+2026-04-28T03:10:57.3323823Z  * [new tag]           v1.3.35         -> v1.3.35
+2026-04-28T03:10:57.3324091Z  * [new tag]           v1.3.36         -> v1.3.36
+2026-04-28T03:10:57.3324358Z  * [new tag]           v1.3.37         -> v1.3.37
+2026-04-28T03:10:57.3324888Z  * [new tag]           v1.3.38         -> v1.3.38
+2026-04-28T03:10:57.3325168Z  * [new tag]           v1.3.39         -> v1.3.39
+2026-04-28T03:10:57.3325431Z  * [new tag]           v1.3.4          -> v1.3.4
+2026-04-28T03:10:57.3325699Z  * [new tag]           v1.3.40         -> v1.3.40
+2026-04-28T03:10:57.3325963Z  * [new tag]           v1.3.41         -> v1.3.41
+2026-04-28T03:10:57.3326230Z  * [new tag]           v1.3.42         -> v1.3.42
+2026-04-28T03:10:57.3326495Z  * [new tag]           v1.3.43         -> v1.3.43
+2026-04-28T03:10:57.3326753Z  * [new tag]           v1.3.44         -> v1.3.44
+2026-04-28T03:10:57.3327012Z  * [new tag]           v1.3.45         -> v1.3.45
+2026-04-28T03:10:57.3327286Z  * [new tag]           v1.3.46         -> v1.3.46
+2026-04-28T03:10:57.3327562Z  * [new tag]           v1.3.47         -> v1.3.47
+2026-04-28T03:10:57.3327840Z  * [new tag]           v1.3.48         -> v1.3.48
+2026-04-28T03:10:57.3328113Z  * [new tag]           v1.3.49         -> v1.3.49
+2026-04-28T03:10:57.3328377Z  * [new tag]           v1.3.5          -> v1.3.5
+2026-04-28T03:10:57.3328669Z  * [new tag]           v1.3.5-build.2  -> v1.3.5-build.2
+2026-04-28T03:10:57.3328958Z  * [new tag]           v1.3.50         -> v1.3.50
+2026-04-28T03:10:57.3329217Z  * [new tag]           v1.3.51         -> v1.3.51
+2026-04-28T03:10:57.3329485Z  * [new tag]           v1.3.52         -> v1.3.52
+2026-04-28T03:10:57.3329749Z  * [new tag]           v1.3.53         -> v1.3.53
+2026-04-28T03:10:57.3330011Z  * [new tag]           v1.3.54         -> v1.3.54
+2026-04-28T03:10:57.3330267Z  * [new tag]           v1.3.55         -> v1.3.55
+2026-04-28T03:10:57.3330529Z  * [new tag]           v1.3.56         -> v1.3.56
+2026-04-28T03:10:57.3330793Z  * [new tag]           v1.3.57         -> v1.3.57
+2026-04-28T03:10:57.3331235Z  * [new tag]           v1.3.58         -> v1.3.58
+2026-04-28T03:10:57.3331528Z  * [new tag]           v1.3.59         -> v1.3.59
+2026-04-28T03:10:57.3331803Z  * [new tag]           v1.3.6          -> v1.3.6
+2026-04-28T03:10:57.3332070Z  * [new tag]           v1.3.60         -> v1.3.60
+2026-04-28T03:10:57.3332331Z  * [new tag]           v1.3.61         -> v1.3.61
+2026-04-28T03:10:57.3332594Z  * [new tag]           v1.3.62         -> v1.3.62
+2026-04-28T03:10:57.3332854Z  * [new tag]           v1.3.7          -> v1.3.7
+2026-04-28T03:10:57.3333115Z  * [new tag]           v1.3.8          -> v1.3.8
+2026-04-28T03:10:57.3333378Z  * [new tag]           v1.3.9          -> v1.3.9
+2026-04-28T03:10:57.3333633Z  * [new tag]           v1.4.40         -> v1.4.40
+2026-04-28T03:10:57.3333893Z  * [new tag]           v1.5.0          -> v1.5.0
+2026-04-28T03:10:57.3334156Z  * [new tag]           v1.5.2          -> v1.5.2
+2026-04-28T03:10:57.3334535Z  * [new tag]           v1.5.3          -> v1.5.3
+2026-04-28T03:10:57.3335066Z  * [new tag]           v1.6.0          -> v1.6.0
+2026-04-28T03:10:57.3335334Z  * [new tag]           v1.7.0          -> v1.7.0
+2026-04-28T03:10:57.3335596Z  * [new tag]           v1.7.37         -> v1.7.37
+2026-04-28T03:10:57.3335855Z  * [new tag]           v1.7.38         -> v1.7.38
+2026-04-28T03:10:57.3336118Z  * [new tag]           v1.7.39         -> v1.7.39
+2026-04-28T03:10:57.3336381Z  * [new tag]           v1.7.40         -> v1.7.40
+2026-04-28T03:10:57.3336637Z  * [new tag]           v1.7.41         -> v1.7.41
+2026-04-28T03:10:57.3336896Z  * [new tag]           v1.7.42         -> v1.7.42
+2026-04-28T03:10:57.3337154Z  * [new tag]           v1.7.43         -> v1.7.43
+2026-04-28T03:10:57.3337408Z  * [new tag]           v1.7.44         -> v1.7.44
+2026-04-28T03:10:57.3337666Z  * [new tag]           v1.7.45         -> v1.7.45
+2026-04-28T03:10:57.3337927Z  * [new tag]           v1.7.46         -> v1.7.46
+2026-04-28T03:10:57.3338183Z  * [new tag]           v1.7.47         -> v1.7.47
+2026-04-28T03:10:57.3338444Z  * [new tag]           v1.7.48         -> v1.7.48
+2026-04-28T03:10:57.3338698Z  * [new tag]           v1.7.49         -> v1.7.49
+2026-04-28T03:10:57.3338957Z  * [new tag]           v1.7.50         -> v1.7.50
+2026-04-28T03:10:57.3339209Z  * [new tag]           v1.7.51         -> v1.7.51
+2026-04-28T03:10:57.3379475Z [command]/usr/bin/git rev-parse --verify --quiet f1dd873cb3e344df926b9841166f0be4a99d4467^{object}
+2026-04-28T03:10:57.3403125Z f1dd873cb3e344df926b9841166f0be4a99d4467
+2026-04-28T03:10:57.3409380Z ##[endgroup]
+2026-04-28T03:10:57.3410058Z ##[group]Determining the checkout info
+2026-04-28T03:10:57.3410778Z ##[endgroup]
+2026-04-28T03:10:57.3415498Z [command]/usr/bin/git sparse-checkout disable
+2026-04-28T03:10:57.3472149Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-04-28T03:10:57.3497234Z ##[group]Checking out the ref
+2026-04-28T03:10:57.3502089Z [command]/usr/bin/git checkout --progress --force f1dd873cb3e344df926b9841166f0be4a99d4467
+2026-04-28T03:10:57.5988733Z Note: switching to 'f1dd873cb3e344df926b9841166f0be4a99d4467'.
+2026-04-28T03:10:57.5989068Z 
+2026-04-28T03:10:57.5989326Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-04-28T03:10:57.5989868Z changes and commit them, and you can discard any commits you make in this
+2026-04-28T03:10:57.5990386Z state without impacting any branches by switching back to a branch.
+2026-04-28T03:10:57.5990695Z 
+2026-04-28T03:10:57.5990890Z If you want to create a new branch to retain commits you create, you may
+2026-04-28T03:10:57.5991378Z do so (now or later) by using -c with the switch command. Example:
+2026-04-28T03:10:57.5991664Z 
+2026-04-28T03:10:57.5991771Z   git switch -c <new-branch-name>
+2026-04-28T03:10:57.5991961Z 
+2026-04-28T03:10:57.5992057Z Or undo this operation with:
+2026-04-28T03:10:57.5992222Z 
+2026-04-28T03:10:57.5992314Z   git switch -
+2026-04-28T03:10:57.5992438Z 
+2026-04-28T03:10:57.5992671Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-04-28T03:10:57.5993235Z 
+2026-04-28T03:10:57.5993531Z HEAD is now at f1dd873c chore(ci): retire Firebase App Distribution; release every merge (#865)
+2026-04-28T03:10:57.6022169Z ##[endgroup]
+2026-04-28T03:10:57.6067325Z [command]/usr/bin/git log -1 --format=%H
+2026-04-28T03:10:57.6090665Z f1dd873cb3e344df926b9841166f0be4a99d4467
+2026-04-28T03:10:57.6202224Z ##[group]Run set -euo pipefail
+2026-04-28T03:10:57.6202534Z [36;1mset -euo pipefail[0m
+2026-04-28T03:10:57.6202851Z [36;1m# Switch off the detached merge-sha checkout onto a local branch[0m
+2026-04-28T03:10:57.6203291Z [36;1m# tracking main so the later `git push HEAD:main` has somewhere[0m
+2026-04-28T03:10:57.6203715Z [36;1m# to go. Fetch the latest main first so we bump from the tip the[0m
+2026-04-28T03:10:57.6204151Z [36;1m# push will target — otherwise a concurrent PR's bump from a[0m
+2026-04-28T03:10:57.6204836Z [36;1m# queued run ahead of us would get overwritten.[0m
+2026-04-28T03:10:57.6205411Z [36;1mgit fetch origin main[0m
+2026-04-28T03:10:57.6205664Z [36;1mgit checkout -B main origin/main[0m
+2026-04-28T03:10:57.6205898Z [36;1m[0m
+2026-04-28T03:10:57.6206235Z [36;1mCURRENT_CODE=$(grep -oP 'versionCode\s*=\s*\K[0-9]+' app/build.gradle.kts | head -1)[0m
+2026-04-28T03:10:57.6206664Z [36;1mNEW_CODE=$(( CURRENT_CODE + 1 ))[0m
+2026-04-28T03:10:57.6207070Z [36;1msed -i "s/versionCode = [0-9]*/versionCode = $NEW_CODE/" app/build.gradle.kts[0m
+2026-04-28T03:10:57.6207448Z [36;1m[0m
+2026-04-28T03:10:57.6207777Z [36;1mCURRENT_NAME=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts | head -1)[0m
+2026-04-28T03:10:57.6208223Z [36;1mMAJOR=$(echo "$CURRENT_NAME" | cut -d. -f1)[0m
+2026-04-28T03:10:57.6208548Z [36;1mMINOR=$(echo "$CURRENT_NAME" | cut -d. -f2)[0m
+2026-04-28T03:10:57.6208846Z [36;1mPATCH=$(echo "$CURRENT_NAME" | cut -d. -f3)[0m
+2026-04-28T03:10:57.6209124Z [36;1mNEW_PATCH=$(( PATCH + 1 ))[0m
+2026-04-28T03:10:57.6209399Z [36;1mNEW_NAME="${MAJOR}.${MINOR}.${NEW_PATCH}"[0m
+2026-04-28T03:10:57.6209849Z [36;1msed -i "s/versionName = \"${CURRENT_NAME}\"/versionName = \"${NEW_NAME}\"/" app/build.gradle.kts[0m
+2026-04-28T03:10:57.6210285Z [36;1m[0m
+2026-04-28T03:10:57.6210509Z [36;1mecho "version_name=$NEW_NAME" >> "$GITHUB_OUTPUT"[0m
+2026-04-28T03:10:57.6210860Z [36;1mecho "version_code=$NEW_CODE" >> "$GITHUB_OUTPUT"[0m
+2026-04-28T03:10:57.6211198Z [36;1mecho "Bumping to v$NEW_NAME (build $NEW_CODE)"[0m
+2026-04-28T03:10:57.6232936Z shell: /usr/bin/bash -e {0}
+2026-04-28T03:10:57.6233172Z ##[endgroup]
+2026-04-28T03:10:57.9703377Z From https://github.com/akarlin3/prismTask
+2026-04-28T03:10:57.9703916Z  * branch              main       -> FETCH_HEAD
+2026-04-28T03:10:58.1475342Z Switched to a new branch 'main'
+2026-04-28T03:10:58.1478065Z branch 'main' set up to track 'origin/main'.
+2026-04-28T03:10:58.1596451Z Bumping to v1.7.52 (build 752)
+2026-04-28T03:10:58.1647249Z ##[group]Run set -euo pipefail
+2026-04-28T03:10:58.1647585Z [36;1mset -euo pipefail[0m
+2026-04-28T03:10:58.1647967Z [36;1mgit config --local user.email "github-actions[bot]@users.noreply.github.com"[0m
+2026-04-28T03:10:58.1648447Z [36;1mgit config --local user.name "github-actions[bot]"[0m
+2026-04-28T03:10:58.1648786Z [36;1mgit add app/build.gradle.kts[0m
+2026-04-28T03:10:58.1649068Z [36;1mif git diff --cached --quiet; then[0m
+2026-04-28T03:10:58.1649335Z [36;1m  echo "No version bump to commit"[0m
+2026-04-28T03:10:58.1649576Z [36;1m  exit 0[0m
+2026-04-28T03:10:58.1649755Z [36;1mfi[0m
+2026-04-28T03:10:58.1650004Z [36;1mgit commit -m "chore: bump to v1.7.52 (build 752) [skip ci]"[0m
+2026-04-28T03:10:58.1650433Z [36;1m# Another PR merge can push to main while this job is running,[0m
+2026-04-28T03:10:58.1650847Z [36;1m# so a straight `git push` here races and silently loses the[0m
+2026-04-28T03:10:58.1651313Z [36;1m# bump commit. Rebase onto the current main tip and retry on rejection.[0m
+2026-04-28T03:10:58.1651681Z [36;1mfor attempt in 1 2 3 4 5; do[0m
+2026-04-28T03:10:58.1651940Z [36;1m  if git push origin HEAD:main; then[0m
+2026-04-28T03:10:58.1652256Z [36;1m    echo "Pushed version bump on attempt $attempt"[0m
+2026-04-28T03:10:58.1652542Z [36;1m    exit 0[0m
+2026-04-28T03:10:58.1652715Z [36;1m  fi[0m
+2026-04-28T03:10:58.1653036Z [36;1m  echo "Push rejected on attempt $attempt; rebasing onto origin/main and retrying"[0m
+2026-04-28T03:10:58.1653443Z [36;1m  git fetch origin main[0m
+2026-04-28T03:10:58.1653683Z [36;1m  if ! git rebase origin/main; then[0m
+2026-04-28T03:10:58.1653965Z [36;1m    git rebase --abort || true[0m
+2026-04-28T03:10:58.1654337Z [36;1m    echo "::error::Rebase conflict while replaying version bump; aborting."[0m
+2026-04-28T03:10:58.1654994Z [36;1m    exit 1[0m
+2026-04-28T03:10:58.1655178Z [36;1m  fi[0m
+2026-04-28T03:10:58.1655357Z [36;1m  sleep $((attempt * 2))[0m
+2026-04-28T03:10:58.1655575Z [36;1mdone[0m
+2026-04-28T03:10:58.1655844Z [36;1mecho "::error::Failed to push version bump after 5 attempts."[0m
+2026-04-28T03:10:58.1656356Z [36;1mexit 1[0m
+2026-04-28T03:10:58.1677237Z shell: /usr/bin/bash -e {0}
+2026-04-28T03:10:58.1677474Z ##[endgroup]
+2026-04-28T03:10:58.1883387Z [main bf249f3c] chore: bump to v1.7.52 (build 752) [skip ci]
+2026-04-28T03:10:58.1884011Z  1 file changed, 2 insertions(+), 2 deletions(-)
+2026-04-28T03:10:59.2691803Z remote: Bypassed rule violations for refs/heads/main:        
+2026-04-28T03:10:59.2692579Z remote: 
+2026-04-28T03:10:59.2693143Z remote: - 4 of 4 required status checks are expected.        
+2026-04-28T03:10:59.2693835Z remote: 
+2026-04-28T03:10:59.2704843Z To https://github.com/akarlin3/prismTask
+2026-04-28T03:10:59.2705338Z    f1dd873c..bf249f3c  HEAD -> main
+2026-04-28T03:10:59.2748297Z Pushed version bump on attempt 1
+2026-04-28T03:10:59.2780211Z ##[group]Run set -euo pipefail
+2026-04-28T03:10:59.2780531Z [36;1mset -euo pipefail[0m
+2026-04-28T03:10:59.2780769Z [36;1mif [ -z "${NEW_NAME:-}" ]; then[0m
+2026-04-28T03:10:59.2781136Z [36;1m  echo "No version_name output — bump didn't land. Skipping tag push."[0m
+2026-04-28T03:10:59.2781526Z [36;1m  exit 0[0m
+2026-04-28T03:10:59.2781696Z [36;1mfi[0m
+2026-04-28T03:10:59.2781868Z [36;1mTAG="v${NEW_NAME}"[0m
+2026-04-28T03:10:59.2782177Z [36;1m# Idempotency guard: another concurrent run may have raced us[0m
+2026-04-28T03:10:59.2782595Z [36;1m# to push the same tag. Refusing to clobber a pre-existing tag[0m
+2026-04-28T03:10:59.2783004Z [36;1m# keeps the release.yml run that fired on the first push as[0m
+2026-04-28T03:10:59.2783345Z [36;1m# the canonical artifact source.[0m
+2026-04-28T03:10:59.2783724Z [36;1mif git ls-remote --tags origin "refs/tags/${TAG}" | grep -q "${TAG}"; then[0m
+2026-04-28T03:10:59.2784276Z [36;1m  echo "Tag ${TAG} already exists on origin; another run pushed first. Skipping."[0m
+2026-04-28T03:10:59.2785041Z [36;1m  exit 0[0m
+2026-04-28T03:10:59.2785222Z [36;1mfi[0m
+2026-04-28T03:10:59.2785482Z [36;1m# Re-sync to the post-bump main tip so the tag points at the[0m
+2026-04-28T03:10:59.2785848Z [36;1m# version-bump commit we just pushed.[0m
+2026-04-28T03:10:59.2786130Z [36;1mgit fetch origin main[0m
+2026-04-28T03:10:59.2786359Z [36;1mgit checkout main[0m
+2026-04-28T03:10:59.2786585Z [36;1mgit reset --hard origin/main[0m
+2026-04-28T03:10:59.2786920Z [36;1mgit tag -a "${TAG}" -m "PrismTask v${NEW_NAME} (build ${NEW_CODE})"[0m
+2026-04-28T03:10:59.2787353Z [36;1m# The tag push *event* would normally fire release.yml via its[0m
+2026-04-28T03:10:59.2787754Z [36;1m# `push: tags:` trigger, but that's blocked here: the bump[0m
+2026-04-28T03:10:59.2788141Z [36;1m# commit carries `[skip ci]` (to prevent loops on the bump[0m
+2026-04-28T03:10:59.2788526Z [36;1m# push to main), and a tag pointing at a `[skip ci]` commit[0m
+2026-04-28T03:10:59.2788909Z [36;1m# suppresses the push-tag workflow run. We dispatch[0m
+2026-04-28T03:10:59.2789311Z [36;1m# release.yml explicitly in the next step instead — that path[0m
+2026-04-28T03:10:59.2789723Z [36;1m# bypasses the suppression cleanly. If the tag push itself[0m
+2026-04-28T03:10:59.2790130Z [36;1m# races and loses, the existence check above on the next run[0m
+2026-04-28T03:10:59.2790451Z [36;1m# picks it up.[0m
+2026-04-28T03:10:59.2790650Z [36;1mfor attempt in 1 2 3; do[0m
+2026-04-28T03:10:59.2790899Z [36;1m  if git push origin "${TAG}"; then[0m
+2026-04-28T03:10:59.2791191Z [36;1m    echo "Pushed ${TAG} on attempt ${attempt}"[0m
+2026-04-28T03:10:59.2791459Z [36;1m    exit 0[0m
+2026-04-28T03:10:59.2791637Z [36;1m  fi[0m
+2026-04-28T03:10:59.2791891Z [36;1m  echo "Tag push rejected on attempt ${attempt}; retrying"[0m
+2026-04-28T03:10:59.2792201Z [36;1m  sleep $((attempt * 2))[0m
+2026-04-28T03:10:59.2792417Z [36;1mdone[0m
+2026-04-28T03:10:59.2792680Z [36;1mecho "::error::Failed to push tag ${TAG} after 3 attempts."[0m
+2026-04-28T03:10:59.2792993Z [36;1mexit 1[0m
+2026-04-28T03:10:59.2813997Z shell: /usr/bin/bash -e {0}
+2026-04-28T03:10:59.2814217Z env:
+2026-04-28T03:10:59.2814825Z   GH_TOKEN: ***
+2026-04-28T03:10:59.2815208Z   NEW_NAME: 1.7.52
+2026-04-28T03:10:59.2815385Z   NEW_CODE: 752
+2026-04-28T03:10:59.2815557Z ##[endgroup]
+2026-04-28T03:10:59.9569293Z From https://github.com/akarlin3/prismTask
+2026-04-28T03:10:59.9569709Z  * branch              main       -> FETCH_HEAD
+2026-04-28T03:10:59.9674535Z Already on 'main'
+2026-04-28T03:10:59.9678158Z Your branch is up to date with 'origin/main'.
+2026-04-28T03:10:59.9760802Z HEAD is now at bf249f3c chore: bump to v1.7.52 (build 752) [skip ci]
+2026-04-28T03:11:00.9909343Z To https://github.com/akarlin3/prismTask
+2026-04-28T03:11:00.9909861Z  * [new tag]           v1.7.52 -> v1.7.52
+2026-04-28T03:11:00.9948894Z Pushed v1.7.52 on attempt 1
+2026-04-28T03:11:00.9987386Z ##[group]Run set -euo pipefail
+2026-04-28T03:11:00.9987695Z [36;1mset -euo pipefail[0m
+2026-04-28T03:11:00.9987923Z [36;1mTAG="v${NEW_NAME}"[0m
+2026-04-28T03:11:00.9988226Z [36;1m# Confirm no release.yml run already exists on this tag — a[0m
+2026-04-28T03:11:00.9988659Z [36;1m# concurrent run that won the tag-push race may have already[0m
+2026-04-28T03:11:00.9989208Z [36;1m# dispatched. release.yml is idempotent on its own GitHub[0m
+2026-04-28T03:11:00.9989626Z [36;1m# Release creation step, but skipping the redundant dispatch[0m
+2026-04-28T03:11:00.9989984Z [36;1m# keeps Actions history readable.[0m
+2026-04-28T03:11:00.9990337Z [36;1mEXISTING=$(gh run list --repo "$REPO" --workflow=release.yml \[0m
+2026-04-28T03:11:00.9990736Z [36;1m  --limit 20 --json headBranch,databaseId \[0m
+2026-04-28T03:11:00.9991136Z [36;1m  -q ".[] | select(.headBranch == \"${TAG}\") | .databaseId" | head -1 || true)[0m
+2026-04-28T03:11:00.9991547Z [36;1mif [ -n "$EXISTING" ]; then[0m
+2026-04-28T03:11:00.9991926Z [36;1m  echo "release.yml run ${EXISTING} already exists for ${TAG}; skipping dispatch."[0m
+2026-04-28T03:11:00.9992319Z [36;1m  exit 0[0m
+2026-04-28T03:11:00.9992492Z [36;1mfi[0m
+2026-04-28T03:11:00.9992751Z [36;1mgh workflow run release.yml --repo "$REPO" --ref "${TAG}"[0m
+2026-04-28T03:11:00.9993112Z [36;1mecho "Dispatched release.yml on ${TAG}"[0m
+2026-04-28T03:11:01.0013789Z shell: /usr/bin/bash -e {0}
+2026-04-28T03:11:01.0014019Z env:
+2026-04-28T03:11:01.0014842Z   GH_TOKEN: ***
+2026-04-28T03:11:01.0015050Z   REPO: akarlin3/prismTask
+2026-04-28T03:11:01.0015265Z   NEW_NAME: 1.7.52
+2026-04-28T03:11:01.0015449Z ##[endgroup]
+2026-04-28T03:11:02.7237954Z could not create workflow dispatch event: HTTP 403: Resource not accessible by personal access token (https://api.github.com/repos/akarlin3/prismTask/actions/workflows/256798383/dispatches)
+2026-04-28T03:11:02.7267327Z ##[error]Process completed with exit code 1.
+2026-04-28T03:11:02.7388691Z Post job cleanup.
+2026-04-28T03:11:02.8324418Z [command]/usr/bin/git version
+2026-04-28T03:11:02.8360227Z git version 2.53.0
+2026-04-28T03:11:02.8409134Z Temporarily overriding HOME='/home/runner/work/_temp/60a0ab48-c77d-4009-a909-de1a0fe73258' before making global git config changes
+2026-04-28T03:11:02.8410125Z Adding repository directory to the temporary git global config as a safe directory
+2026-04-28T03:11:02.8414251Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/prismTask/prismTask
+2026-04-28T03:11:02.8446909Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-04-28T03:11:02.8477669Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-04-28T03:11:02.8697110Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-04-28T03:11:02.8716749Z http.https://github.com/.extraheader
+2026-04-28T03:11:02.8728852Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-04-28T03:11:02.8760439Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-04-28T03:11:02.8977610Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-04-28T03:11:02.9007667Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-04-28T03:11:02.9333301Z Cleaning up orphan processes
+2026-04-28T03:11:02.9707657Z ##[warning]Node.js 20 actions are deprecated. The following actions are running on Node.js 20 and may not work as expected: actions/checkout@v4. Actions will be forced to run with Node.js 24 by default starting June 2nd, 2026. Node.js 20 will be removed from the runner on September 16th, 2026. Please check if updated versions of these actions are available that support Node.js 24. To opt into Node.js 24 now, set the FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true environment variable on the runner or in your workflow file. Once Node.js 24 becomes the default, you can temporarily opt out by setting ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
