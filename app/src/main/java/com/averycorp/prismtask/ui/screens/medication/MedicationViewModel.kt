@@ -481,12 +481,20 @@ constructor(
         // doses — the slot card would still show "Skipped" with every
         // checkbox now ticked. Drop them on the affected slots so
         // auto-compute drives the display.
+        //
+        // Then materialize COMPUTED rows for every (med, slot, date) in
+        // the affected slots. The batch handler only inserts dose rows;
+        // it never writes tier_states. Without this pass `state.loggedAt`
+        // stays null and the slot card drops the "Taken at HH:mm" line —
+        // which looked, from the user's seat, like the tier buttons had
+        // stopped recording a time at all.
         if (tier != AchievedTier.SKIPPED) {
             val affectedSlotIds = rawTargets.map { it.second.id }.toSet()
             val priorStates = slotRepository.getTierStatesForDateOnce(date)
             priorStates
                 .filter { it.slotId in affectedSlotIds && it.tierSource == "user_set" }
                 .forEach { slotRepository.deleteTierState(it) }
+            affectedSlotIds.forEach { slotId -> refreshTierState(slotId) }
         }
 
         return result
