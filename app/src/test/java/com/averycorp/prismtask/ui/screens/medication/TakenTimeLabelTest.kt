@@ -50,12 +50,13 @@ class TakenTimeLabelTest {
         taken: Set<Long> = emptySet(),
         isUserSet: Boolean = false,
         intended: Long? = null,
-        logged: Long? = null
+        logged: Long? = null,
+        achievedTier: AchievedTier = AchievedTier.COMPLETE
     ) = MedicationSlotTodayState(
         slot = slot,
         medications = emptyList(),
         takenMedicationIds = taken,
-        achievedTier = AchievedTier.SKIPPED,
+        achievedTier = achievedTier,
         isUserSet = isUserSet,
         intendedTime = intended,
         loggedAt = logged
@@ -122,5 +123,23 @@ class TakenTimeLabelTest {
             stateWith(taken = emptySet(), isUserSet = true, intended = intended, logged = intended)
         )
         assertEquals("Taken at 8:30 AM", label)
+    }
+
+    @Test
+    fun returnsNullWhenTierIsSkippedEvenIfPriorTimeStored() {
+        // Skip is not a take event. The DB preserves prior intended_time /
+        // logged_at for undo, but the slot card must not render a stale
+        // "Taken at 8:30 AM" alongside the SKIPPED tier indicator.
+        val intended = 1_777_624_200_000L
+        assertNull(
+            takenTimeLabel(
+                stateWith(
+                    isUserSet = true,
+                    intended = intended,
+                    logged = intended,
+                    achievedTier = AchievedTier.SKIPPED
+                )
+            )
+        )
     }
 }

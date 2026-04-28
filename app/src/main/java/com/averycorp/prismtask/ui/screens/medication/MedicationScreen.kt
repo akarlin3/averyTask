@@ -175,18 +175,13 @@ fun MedicationScreen(
                             editMode = editMode,
                             onToggleDose = { med -> viewModel.toggleDose(state.slot, med) },
                             onSelectTier = { tier ->
-                                // Tapping the already-active USER_SET tier clears the override
-                                // (back to auto-compute). Tapping any other tier sets it as
-                                // USER_SET — SKIPPED routes through the synthetic-skip path so
-                                // interval-mode reminders re-anchor; the other 3 tiers go
-                                // through bulkMark's STATE_CHANGE mutation.
-                                if (tier == state.achievedTier && state.isUserSet) {
-                                    viewModel.clearUserOverrideForSlot(state.slot)
-                                } else if (tier == AchievedTier.SKIPPED) {
-                                    viewModel.setSkippedForSlot(state.slot)
-                                } else {
-                                    viewModel.bulkMark(BulkMarkScope.SLOT, state.slot.id, tier)
-                                }
+                                // Every tier click routes through bulkMark, which logs real
+                                // dose rows for meds at or below the clicked tier (or for
+                                // SKIPPED, deletes real doses + writes synthetic skips).
+                                // Achieved-tier display falls out of auto-compute, so there's
+                                // no USER_SET override to "clear" by re-tapping the active
+                                // tier — the click is idempotent.
+                                viewModel.bulkMark(BulkMarkScope.SLOT, state.slot.id, tier)
                             },
                             onLongPressTier = { timeEditingSlotState = state }
                         )
@@ -678,6 +673,10 @@ internal fun takenTimeLabel(state: MedicationSlotTodayState): String? {
     // If nothing's been taken and no user override exists, don't
     // clutter the card with a time line.
     if (state.takenMedicationIds.isEmpty() && !state.isUserSet) return null
+    // Skip is not a take event — preserved prior intended_time / logged_at
+    // would render a stale "Taken at HH:mm" line that contradicts the tier.
+    // The values stay in the DB for undo; we just don't surface them here.
+    if (state.achievedTier == AchievedTier.SKIPPED) return null
     val format = SimpleDateFormat("h:mm a", Locale.getDefault())
     val intended = state.intendedTime
     val logged = state.loggedAt
