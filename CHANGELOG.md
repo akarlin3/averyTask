@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Cross-device Firestore sync for `task_timings`.** P2-E of the analytics
+  C4/C5 implementation (`docs/audits/ANALYTICS_C4_C5_TIME_TRACKING_DESIGN.md`,
+  Path 2). `task_timings` rows now flow through `SyncService` like every other
+  synced entity: initial upload (after tasks so FK cloud IDs resolve), incoming
+  pulls in `pullEverything()`, real-time listener registration, FK-aware
+  `pushCreate()`, collection-name mapping, and remote-deletion reaping.
+  `SyncMapper` gains `taskTimingToMap` / `mapToTaskTiming` round-trip mappers
+  with caller-resolved task FK bindings; 3 new unit tests exercise the manual,
+  pomodoro, and unknown-source-fallback round trips.
+
 - **Pomodoro auto-log into `task_timings`.** P2-D of the analytics C4/C5
   implementation (`docs/audits/ANALYTICS_C4_C5_TIME_TRACKING_DESIGN.md`,
   Path 2). On focus-session timer completion (`onTimerComplete()`),
