@@ -11,6 +11,7 @@ import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.preferences.SortPreferences
+import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.repository.ProjectRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.domain.usecase.AiTimeBlockUseCase
@@ -104,7 +105,8 @@ constructor(
     private val projectRepository: ProjectRepository,
     private val sortPreferences: SortPreferences,
     private val aiTimeBlockUseCase: AiTimeBlockUseCase,
-    private val proFeatureGate: ProFeatureGate
+    private val proFeatureGate: ProFeatureGate,
+    private val taskBehaviorPreferences: TaskBehaviorPreferences
 ) : ViewModel() {
     val userTier: StateFlow<UserTier> = proFeatureGate.userTier
 
@@ -267,7 +269,12 @@ constructor(
             try {
                 val previous = taskRepository.getTaskByIdOnce(taskId)?.dueDate
                 taskRepository.rescheduleTask(taskId, newDueDate)
-                val label = QuickRescheduleFormatter.describe(newDueDate)
+                val sod = taskBehaviorPreferences.getStartOfDay().first()
+                val label = QuickRescheduleFormatter.describe(
+                    newDueDate,
+                    sodHour = sod.hour,
+                    sodMinute = sod.minute
+                )
                 val result = snackbarHostState.showSnackbar(
                     message = "Rescheduled to $label",
                     actionLabel = "UNDO",
