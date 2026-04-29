@@ -100,3 +100,140 @@ Recommended bundling: PR-A (#1 + #2 + #4 — all are "pull-side natural-key dedu
 - `MedicationSlotRepository.addLink` / `removeLink` are public APIs with **no callers** that don't bump the parent medication. Not a current bug, but a footgun for future code. Either delete them or add `@Deprecated("use replaceLinksForMedication via MedicationRepository.update")`. Not worth a PR until someone tries to call them.
 - The medication doc's `slotCloudIds` field rebuilds the junction destructively on every pull (`SyncService.kt:2161-2168`). If a future feature lets a user link a slot from a flow that *doesn't* bump the medication, the link will be silently wiped on next pull. Document this contract in `MedicationSyncMapper.medicationToMap`'s KDoc — it's a load-bearing invariant.
 - `medication_refills` and `medication_tier_states` have no cross-device convergence tests in `MedicationCrossDeviceConvergenceTest`. Adding `medicationTierState_dedupAcrossDevices` and `medicationSlotOverride_dedupAcrossDevices` would catch any regression of items #1+#2 going forward — these are the load-bearing repro tests for the fix PR (per the repro-first memory).
+
+## Phase 3 — Bundle summary
+
+Phase 2 fan-out fired immediately after Phase 1 (audit-first auto-fire,
+not gated). Two PRs landed off `main`:
+
+| Item(s) | PR | Branch | Test fixture |
+|---|---|---|---|
+| #1 + #2 + #4 — pull-side natural-key dedup for tier_states / slot_overrides / slots | [#934](https://github.com/averycorp/prismTask/pull/934) | `fix/medication-pull-dedup` | `MedicationCrossDeviceConvergenceTest` — 3 new tests: `medicationTierState_dedupAcrossDevices`, `medicationSlotOverride_dedupAcrossDevices`, `medicationSlot_dedupByNameAcrossDevices` |
+| #3 — `BuiltInMedicationReconciler` routes dose-reassign + loser-delete through `SyncTracker` | [#936](https://github.com/averycorp/prismTask/pull/936) | `fix/medication-reconciler-sync` | `BuiltInMedicationReconcilerTest` — 2 new unit tests: `duplicates_queueLoserMedicationForCloudDelete`, `duplicates_queueReassignedDosesForCloudUpdate` |
+
+Audit doc PR (Phase 1, this file): [#933](https://github.com/averycorp/prismTask/pull/933) (merged 2026-04-29). Phase 3 + Phase 4 land via a follow-up PR off `main`.
+
+### Bundling validation
+
+PR-A's three items collapsed into one PR cleanly: each pull handler used
+the same `existing-by-natural-key → adopt + bind cloud_id + LWW vs. fresh
+insert` pattern, mirroring the medications-by-name dedup at
+`SyncService.kt:2103–2142`. Slot dedup needed a fresh `getByNameOnce` on
+`MedicationSlotDao` (slot_overrides and tier_states already had
+`getForPairOnce` / `getForTripleOnce`).
+
+PR-B stayed separate per the audit table — the reconciler change touches
+a different file and uses MockK for the SyncTracker assertions, while
+PR-A's tests run against the SyncTestHarness in `androidTest`. Bundling
+would have mixed the two test source sets in one diff for no benefit.
+
+### Measured impact
+
+Pre-merge — measurable impact deferred until the PRs land. The intended
+shape:
+
+- **PR #934**: Eliminates three classes of silent row-drop on pull. The
+  symptom users reported ("meds aren't syncing fully") was downstream
+  of the tier-state collision specifically — every cross-device tier
+  log was hitting the constraint. Post-merge, the dedup tests are the
+  load-bearing repro and any future regression surfaces in the
+  cross-device convergence suite, not in production telemetry.
+- **PR #936**: Closes the loop on cross-device reconciliation —
+  duplicates created during independent v53→v54 migrations no longer
+  reappear on subsequent sign-ins because the cloud doc gets queued for
+  deletion alongside the local row.
+
+### Memory entry candidates
+
+None. Each fix follows existing patterns documented in the codebase
+(`feedback_firestore_doc_iteration_order.md` for the convergence-shape
+testing rule was already applied) — nothing surprising or non-obvious
+about either PR's shape that warrants a new memory entry.
+
+The audit *did* surface a re-validation of an existing memory:
+`feedback_audit_drive_by_migration_fixes.md` — PR-B touches a file
+(`BuiltInMedicationReconciler.kt`) that no in-flight PR was modifying,
+so a `git log -p -S 'reassignMedicationId'` check confirmed no drive-by
+fix existed. Pattern held.
+
+### Schedule for next audit
+
+- Re-sweep medication sync once both PRs have ≥1 week of beta
+  observations; specifically watch for `pull.apply | medication_…
+  status=failed` log lines (which would indicate a remaining
+  silent-drop class we missed).
+- Anti-pattern follow-ups (slot junction `addLink` / `removeLink` dead
+  code, `slotCloudIds`-rebuild-destructive contract documentation) —
+  defer to a future cleanup audit; not load-bearing for the user's
+  current symptom.
+
+## Phase 4 — Claude Chat handoff summary
+
+```markdown
+# Medication sync audit — handoff summary
+
+**Repo:** `Akarlin3/PrismTask` (Android, Kotlin 2.3.20, Compose).
+**Audit doc:** `docs/audits/MEDICATION_SYNC_AUDIT.md`.
+**Date:** 2026-04-29.
+
+## Scope
+Sweep every medication-family entity (medications, doses, slots, slot
+overrides, tier states, refills, junction) for sync drift. User reported
+"meds aren't syncing fully between devices" — premise verified.
+
+## Verdicts
+
+| # | Item | Verdict | One-line finding |
+|---|---|---|---|
+| 1 | Tier-state pull | RED → PROCEED | `Index(med, log_date, slot)` UNIQUE; pull insert blind → `SQLiteConstraintException` swallowed in `pullCollection`, row dropped silently |
+| 2 | Slot-override pull | RED → PROCEED | Same shape — `Index(med, slot)` UNIQUE; same silent drop |
+| 3 | `BuiltInMedicationReconciler` | RED → PROCEED | `reassignMedicationId` + `deleteById` bypass `SyncTracker`; loser cloud doc dangles + dose cloud copies orphan |
+| 4 | Slot pull (name) | YELLOW → PROCEED | `name` not UNIQUE → no exception, but visible duplicate "Morning" slots on each device |
+| 5 | Junction propagation | GREEN | Junction rebuild is correct; `addLink`/`removeLink` dead code flagged but no bug |
+| 6 | `medication_refills` | GREEN | Tier-2 config path — same as habit_template etc.; no gaps |
+| 7 | v53→v54 backfill coverage | GREEN | Backfills exist for medications/doses; slots/overrides/tier_states don't need them |
+
+## Shipped
+- **PR #933** — Phase 1 audit doc (`docs/medication-sync-audit`,
+  merged 2026-04-29). Phase 3 + Phase 4 land via a follow-up doc-only
+  PR off `main`.
+- **PR #934** — `fix(sync): natural-key dedup for med slots/overrides/tier_states pull`
+  (`fix/medication-pull-dedup`). Bundles items #1, #2, #4. Adds 3
+  cross-device convergence tests in
+  `MedicationCrossDeviceConvergenceTest`.
+- **PR #936** — `fix(sync): route reconciler dose-reassign + loser-delete through SyncTracker`
+  (`fix/medication-reconciler-sync`). Item #3. Adds 2 unit tests in
+  `BuiltInMedicationReconcilerTest`.
+
+## Deferred / stopped
+- Anti-pattern: `MedicationSlotRepository.addLink`/`removeLink` are
+  no-caller dead code that don't bump the parent medication. Not a
+  current bug; deferred until someone reaches for them.
+- Anti-pattern: junction rebuild from `slotCloudIds` is destructive on
+  every pull. Future feature could silently wipe a link. Document the
+  invariant in `MedicationSyncMapper.medicationToMap` KDoc — deferred.
+
+## Non-obvious findings
+
+The fix pattern was already in the codebase — the medications-by-name
+dedup at `SyncService.kt:2103–2142` (landed in earlier sync audit
+PR-B). Three subcollections needed the same treatment but were missed.
+The fact that `pullCollection` swallows exceptions silently (each
+collection has its own `try/catch` in the pull loop) is what makes
+these silent-drop bugs hard to detect from production telemetry —
+they look like "no doc was applied" rather than "doc threw."
+
+`feedback_firestore_doc_iteration_order.md` was load-bearing for
+PR-A's test design: dedup tests assert convergence shape (row counts,
+metadata mappings) and never which `cloud_id` "wins" — the SDK's doc
+order flips between CI runs.
+
+## Open questions
+
+None for the receiving Claude. The PRs are all auto-merge enabled;
+expected to land once required CI green is satisfied. If user surfaces
+a residual symptom after both merge, the next audit should look at
+`pull.apply | medication_… status=failed` log lines specifically (to
+catch any drift class we didn't anticipate).
+```
+
