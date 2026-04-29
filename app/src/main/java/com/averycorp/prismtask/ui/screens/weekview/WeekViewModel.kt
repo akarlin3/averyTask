@@ -158,7 +158,12 @@ constructor(
             try {
                 val previous = taskRepository.getTaskByIdOnce(taskId)?.dueDate
                 taskRepository.rescheduleTask(taskId, newDueDate)
-                val label = QuickRescheduleFormatter.describe(newDueDate)
+                val sod = taskBehaviorPreferences.getStartOfDay().first()
+                val label = QuickRescheduleFormatter.describe(
+                    newDueDate,
+                    sodHour = sod.hour,
+                    sodMinute = sod.minute
+                )
                 val result = snackbarHostState.showSnackbar(
                     message = "Rescheduled to $label",
                     actionLabel = "UNDO",

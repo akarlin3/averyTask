@@ -3,10 +3,8 @@ package com.averycorp.prismtask.ui.screens.tasklist.components
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import java.text.SimpleDateFormat
-import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -23,50 +21,23 @@ internal data class DueDateLabel(
 /**
  * Format a task's due date into its card-row label: "Today" for
  * today, "Tomorrow" for tomorrow, formatted date otherwise.
+ *
+ * Reads SoD-anchored day bounds from [LocalDayBounds] so the
+ * Today/Tomorrow split tracks the user's configured Start of Day,
+ * not raw calendar midnight — see
+ * `docs/audits/TODAY_LABEL_SOD_BOUNDARY_AUDIT.md`.
  */
 @Composable
 internal fun formatDueDate(epochMillis: Long): DueDateLabel {
-    val cal = Calendar.getInstance()
-    cal.set(Calendar.HOUR_OF_DAY, 0)
-    cal.set(Calendar.MINUTE, 0)
-    cal.set(Calendar.SECOND, 0)
-    cal.set(Calendar.MILLISECOND, 0)
-    val startOfToday = cal.timeInMillis
-
-    cal.add(Calendar.DAY_OF_YEAR, 1)
-    val startOfTomorrow = cal.timeInMillis
-
-    cal.add(Calendar.DAY_OF_YEAR, 1)
-    val startOfDayAfter = cal.timeInMillis
-
+    val bounds = LocalDayBounds.current
     val normal = MaterialTheme.colorScheme.onSurfaceVariant
     val todayColor = LocalPrismColors.current.warningColor
     val dateFmt = SimpleDateFormat("EEE, MMM d", Locale.getDefault())
 
-    return when {
-        epochMillis < startOfToday -> {
-            val formatted = dateFmt.format(Date(epochMillis))
-            DueDateLabel(formatted, normal)
-        }
-        epochMillis < startOfTomorrow -> DueDateLabel("Today", todayColor)
-        epochMillis < startOfDayAfter -> DueDateLabel("Tomorrow", normal)
-        else -> DueDateLabel(dateFmt.format(Date(epochMillis)), normal)
+    return when (classifyDueDate(epochMillis, bounds)) {
+        DueDateBucket.PAST -> DueDateLabel(dateFmt.format(Date(epochMillis)), normal)
+        DueDateBucket.TODAY -> DueDateLabel("Today", todayColor)
+        DueDateBucket.TOMORROW -> DueDateLabel("Tomorrow", normal)
+        DueDateBucket.FUTURE -> DueDateLabel(dateFmt.format(Date(epochMillis)), normal)
     }
-}
-
-/**
- * Returns true if the task is not yet completed and its due date is
- * strictly before the start of today.
- */
-internal fun isTaskOverdue(task: TaskEntity): Boolean {
-    if (task.isCompleted || task.dueDate == null) return false
-    val startOfToday = Calendar
-        .getInstance()
-        .apply {
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }.timeInMillis
-    return task.dueDate < startOfToday
 }

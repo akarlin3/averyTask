@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,6 +39,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import com.averycorp.prismtask.core.time.LocalDateFlow
 import com.averycorp.prismtask.data.billing.BillingManager
 import com.averycorp.prismtask.data.diagnostics.DiagnosticLogger
 import com.averycorp.prismtask.data.preferences.AppearancePrefs
@@ -54,6 +56,8 @@ import com.averycorp.prismtask.data.remote.sync.BackendSyncService
 import com.averycorp.prismtask.notifications.NotificationHelper
 import com.averycorp.prismtask.ui.navigation.PrismTaskNavGraph
 import com.averycorp.prismtask.ui.navigation.PrismTaskRoute
+import com.averycorp.prismtask.ui.screens.tasklist.components.DayBounds
+import com.averycorp.prismtask.ui.screens.tasklist.components.LocalDayBounds
 import com.averycorp.prismtask.ui.theme.PriorityColors
 import com.averycorp.prismtask.ui.theme.PrismTaskTheme
 import com.averycorp.prismtask.ui.theme.ThemeViewModel
@@ -115,6 +119,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var backendSyncService: BackendSyncService
+
+    @Inject
+    lateinit var localDateFlow: LocalDateFlow
 
     companion object {
         /** Intent extra key set by the QuickAdd widget to route deep-links. */
@@ -554,39 +561,50 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .themeOverlay(currentPrismTheme)
-                    ) {
-                        PrismTaskNavGraph(
-                            modifier = Modifier.fillMaxSize(),
-                            navController = navController,
-                            tabOrder = tabOrder,
-                            hiddenTabs = hiddenTabs,
-                            initialLaunchAction = launchAction,
-                            initialSharedText = initialSharedText,
-                            hasCompletedOnboarding = hasCompletedOnboarding!!
-                        )
+                    // SoD-anchored day bounds for due-date labels. Tracks the
+                    // user's logical date via LocalDateFlow so cards re-key at
+                    // every Start-of-Day boundary crossing — see
+                    // docs/audits/TODAY_LABEL_SOD_BOUNDARY_AUDIT.md.
+                    val logicalDate by localDateFlow
+                        .observe(taskBehaviorPreferences.getStartOfDay())
+                        .collectAsStateWithLifecycle(initialValue = java.time.LocalDate.now())
+                    val dayBounds = remember(logicalDate) { DayBounds.logical(logicalDate) }
 
-                        // Notification permission denial snackbar
-                        androidx.compose.material3.SnackbarHost(
-                            hostState = notificationSnackbarHostState,
+                    CompositionLocalProvider(LocalDayBounds provides dayBounds) {
+                        Box(
                             modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .padding(bottom = 80.dp)
-                        )
-
-                        // Floating feedback button for beta/debug builds
-                        if (BuildConfig.DEBUG) {
-                            com.averycorp.prismtask.ui.components.FeedbackButton(
-                                onClick = {
-                                    navController.navigate(PrismTaskRoute.BugReport.createRoute("FloatingButton"))
-                                },
-                                modifier = Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .padding(end = 16.dp, bottom = 140.dp)
+                                .fillMaxSize()
+                                .themeOverlay(currentPrismTheme)
+                        ) {
+                            PrismTaskNavGraph(
+                                modifier = Modifier.fillMaxSize(),
+                                navController = navController,
+                                tabOrder = tabOrder,
+                                hiddenTabs = hiddenTabs,
+                                initialLaunchAction = launchAction,
+                                initialSharedText = initialSharedText,
+                                hasCompletedOnboarding = hasCompletedOnboarding!!
                             )
+
+                            // Notification permission denial snackbar
+                            androidx.compose.material3.SnackbarHost(
+                                hostState = notificationSnackbarHostState,
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .padding(bottom = 80.dp)
+                            )
+
+                            // Floating feedback button for beta/debug builds
+                            if (BuildConfig.DEBUG) {
+                                com.averycorp.prismtask.ui.components.FeedbackButton(
+                                    onClick = {
+                                        navController.navigate(PrismTaskRoute.BugReport.createRoute("FloatingButton"))
+                                    },
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .padding(end = 16.dp, bottom = 140.dp)
+                                )
+                            }
                         }
                     }
                 }

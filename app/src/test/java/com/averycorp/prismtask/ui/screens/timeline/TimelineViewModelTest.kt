@@ -4,6 +4,7 @@ import com.averycorp.prismtask.data.billing.UserTier
 import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.preferences.SortPreferences
+import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.remote.api.ScheduleBlockResponse
 import com.averycorp.prismtask.data.remote.api.TimeBlockResponse
 import com.averycorp.prismtask.data.remote.api.TimeBlockStatsResponse
@@ -51,6 +52,7 @@ class TimelineViewModelTest {
     private lateinit var sortPreferences: SortPreferences
     private lateinit var aiTimeBlockUseCase: AiTimeBlockUseCase
     private lateinit var proFeatureGate: ProFeatureGate
+    private lateinit var taskBehaviorPreferences: TaskBehaviorPreferences
 
     @Before
     fun setUp() {
@@ -69,6 +71,9 @@ class TimelineViewModelTest {
         proFeatureGate = mockk(relaxed = true)
         every { proFeatureGate.userTier } returns MutableStateFlow(UserTier.PRO)
         every { proFeatureGate.hasAccess(ProFeatureGate.AI_TIME_BLOCK) } returns true
+        taskBehaviorPreferences = mockk(relaxed = true)
+        every { taskBehaviorPreferences.getStartOfDay() } returns
+            flowOf(com.averycorp.prismtask.data.preferences.StartOfDay(0, 0, false))
     }
 
     @After
@@ -82,7 +87,8 @@ class TimelineViewModelTest {
         projectRepository,
         sortPreferences,
         aiTimeBlockUseCase,
-        proFeatureGate
+        proFeatureGate,
+        taskBehaviorPreferences
     )
 
     @Test

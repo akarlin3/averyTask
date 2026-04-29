@@ -5,6 +5,7 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarResult
 import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.ui.components.QuickRescheduleFormatter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -93,7 +94,12 @@ internal fun TaskListViewModel.onBulkReschedule(newDueDate: Long?) {
             }
             taskRepository.batchReschedule(ids, newDueDate)
             onExitMultiSelect()
-            val label = QuickRescheduleFormatter.describe(newDueDate)
+            val sod = taskBehaviorPreferences.getStartOfDay().first()
+            val label = QuickRescheduleFormatter.describe(
+                newDueDate,
+                sodHour = sod.hour,
+                sodMinute = sod.minute
+            )
             val result = snackbarHostState.showSnackbar(
                 message = "Rescheduled ${ids.size} Tasks to $label",
                 actionLabel = "UNDO",
