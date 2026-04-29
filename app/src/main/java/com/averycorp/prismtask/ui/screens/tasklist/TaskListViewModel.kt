@@ -80,7 +80,7 @@ constructor(
     private val tagRepository: TagRepository,
     private val attachmentRepository: AttachmentRepository,
     private val todoListParser: TodoListParser,
-    private val taskBehaviorPreferences: TaskBehaviorPreferences,
+    internal val taskBehaviorPreferences: TaskBehaviorPreferences,
     private val sortPreferences: SortPreferences,
     private val userPreferencesDataStore: com.averycorp.prismtask.data.preferences.UserPreferencesDataStore,
     private val localDateFlow: LocalDateFlow
@@ -782,7 +782,12 @@ constructor(
             try {
                 val previous = taskRepository.getTaskByIdOnce(taskId)?.dueDate
                 taskRepository.rescheduleTask(taskId, newDueDate)
-                val label = QuickRescheduleFormatter.describe(newDueDate)
+                val sod = taskBehaviorPreferences.getStartOfDay().first()
+                val label = QuickRescheduleFormatter.describe(
+                    newDueDate,
+                    sodHour = sod.hour,
+                    sodMinute = sod.minute
+                )
                 val result = snackbarHostState.showSnackbar(
                     message = "Rescheduled to $label",
                     actionLabel = "UNDO",
