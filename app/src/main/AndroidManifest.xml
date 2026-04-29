@@ -162,10 +162,9 @@
             </intent-filter>
         </receiver>
 
-        <!-- Disabled for v1.0 release. Re-enable in v1.2 (Phase G: widget expansion). -->
         <receiver
             android:name=".widget.TodayWidgetReceiver"
-            android:enabled="false"
+            android:enabled="true"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -175,10 +174,9 @@
                 android:resource="@xml/today_widget_info" />
         </receiver>
 
-        <!-- Disabled for v1.0 release. Re-enable in v1.2 (Phase G: widget expansion). -->
         <receiver
             android:name=".widget.HabitStreakWidgetReceiver"
-            android:enabled="false"
+            android:enabled="true"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -188,10 +186,9 @@
                 android:resource="@xml/habit_streak_widget_info" />
         </receiver>
 
-        <!-- Disabled for v1.0 release. Re-enable in v1.2 (Phase G: widget expansion). -->
         <receiver
             android:name=".widget.ProjectWidgetReceiver"
-            android:enabled="false"
+            android:enabled="true"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -210,10 +207,9 @@
             </intent-filter>
         </activity>
 
-        <!-- Disabled for v1.0 release. Re-enable in v1.2 (Phase G: widget expansion). -->
         <receiver
             android:name=".widget.QuickAddWidgetReceiver"
-            android:enabled="false"
+            android:enabled="true"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -223,10 +219,9 @@
                 android:resource="@xml/quick_add_widget_info" />
         </receiver>
 
-        <!-- Disabled for v1.0 release. Re-enable in v1.2 (Phase G: widget expansion). -->
         <receiver
             android:name=".widget.ProductivityWidgetReceiver"
-            android:enabled="false"
+            android:enabled="true"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -236,10 +231,9 @@
                 android:resource="@xml/productivity_widget_info" />
         </receiver>
 
-        <!-- Disabled for v1.0 release. Re-enable in v1.2 (Phase G: widget expansion). -->
         <receiver
             android:name=".widget.UpcomingWidgetReceiver"
-            android:enabled="false"
+            android:enabled="true"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -249,10 +243,9 @@
                 android:resource="@xml/upcoming_widget_info" />
         </receiver>
 
-        <!-- Disabled for v1.0 release. Re-enable in v1.2 (Phase G: widget expansion). -->
         <receiver
             android:name=".widget.TimerWidgetReceiver"
-            android:enabled="false"
+            android:enabled="true"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -262,10 +255,9 @@
                 android:resource="@xml/timer_widget_info" />
         </receiver>
 
-        <!-- Disabled for v1.0 release. Re-enable in v1.2 (Phase G: widget expansion). -->
         <receiver
             android:name=".widget.CalendarWidgetReceiver"
-            android:enabled="false"
+            android:enabled="true"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -273,6 +265,79 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/calendar_widget_info" />
+        </receiver>
+
+        <!-- Eisenhower matrix widget (proposed in Widget Mockups, v1.7+) -->
+        <receiver
+            android:name=".widget.EisenhowerWidgetReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/eisenhower_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.StreakCalendarWidgetReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/streak_calendar_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.FocusWidgetReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/focus_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.MedicationWidgetReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/medication_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.StatsSparklineWidgetReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/stats_sparkline_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.InboxWidgetReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/inbox_widget_info" />
         </receiver>
     </application>
 </manifest>

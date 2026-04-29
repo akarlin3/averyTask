@@ -40,6 +40,10 @@ constructor(
         private val PRIORITY_COLOR_URGENT_KEY = stringPreferencesKey("priority_color_urgent")
         private val RECENT_CUSTOM_COLORS_KEY = stringPreferencesKey("recent_custom_colors")
         private val PRISM_THEME_KEY = stringPreferencesKey("pref_prism_theme")
+        // Optional override that lets home-screen widgets use a different
+        // PrismTheme than the in-app theme. Empty / unset => widgets follow
+        // the app theme. Stored as the enum name (e.g. "CYBERPUNK").
+        private val WIDGET_THEME_OVERRIDE_KEY = stringPreferencesKey("pref_widget_theme_override")
         private val THEME_UPDATED_AT_KEY = longPreferencesKey("theme_updated_at")
         private val THEME_LAST_SYNCED_AT_KEY = longPreferencesKey("theme_last_synced_at")
 
@@ -203,6 +207,33 @@ constructor(
     suspend fun setPrismTheme(themeName: String) {
         context.themePrefsDataStore.edit { prefs ->
             prefs[PRISM_THEME_KEY] = themeName
+            prefs[THEME_UPDATED_AT_KEY] = System.currentTimeMillis()
+        }
+    }
+
+    /**
+     * Returns the user's optional widget-only theme override.
+     *
+     * Emits the empty string when the user hasn't set a separate widget
+     * theme — callers (e.g. [com.averycorp.prismtask.widget.loadWidgetPalette])
+     * should treat empty as "follow the app theme".
+     */
+    fun getWidgetThemeOverride(): Flow<String> = context.themePrefsDataStore.data.map { prefs ->
+        prefs[WIDGET_THEME_OVERRIDE_KEY] ?: ""
+    }
+
+    /**
+     * Persists the widget-only theme override. Pass an empty string (or
+     * `null`) to clear the override and let widgets follow the app theme.
+     */
+    suspend fun setWidgetThemeOverride(themeName: String?) {
+        context.themePrefsDataStore.edit { prefs ->
+            val trimmed = themeName?.trim().orEmpty()
+            if (trimmed.isEmpty()) {
+                prefs.remove(WIDGET_THEME_OVERRIDE_KEY)
+            } else {
+                prefs[WIDGET_THEME_OVERRIDE_KEY] = trimmed
+            }
             prefs[THEME_UPDATED_AT_KEY] = System.currentTimeMillis()
         }
     }

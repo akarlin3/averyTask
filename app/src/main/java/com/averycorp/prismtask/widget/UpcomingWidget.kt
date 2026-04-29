@@ -88,7 +88,7 @@ private fun UpcomingContent(
         modifier = GlanceModifier
             .fillMaxSize()
             .cornerRadius(palette.widgetCornerRadius)
-            .background(palette.surface)
+            .background(palette.surfaceBackground)
             .padding(if (isLarge) 12.dp else 8.dp)
             .clickable(actionStartActivity(mainIntent))
     ) {

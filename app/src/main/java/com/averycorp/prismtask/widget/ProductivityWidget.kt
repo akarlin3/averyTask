@@ -92,7 +92,7 @@ private fun ProductivityContent(data: ProductivityWidgetData, size: DpSize, pale
         modifier = GlanceModifier
             .fillMaxSize()
             .cornerRadius(palette.widgetCornerRadius)
-            .background(palette.surface)
+            .background(palette.surfaceBackground)
             .padding(12.dp)
             .clickable(actionStartActivity<MainActivity>()),
         verticalAlignment = Alignment.CenterVertically,

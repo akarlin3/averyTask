@@ -112,7 +112,7 @@ private fun CalendarContent(
         modifier = GlanceModifier
             .fillMaxSize()
             .cornerRadius(palette.widgetCornerRadius)
-            .background(palette.surface)
+            .background(palette.surfaceBackground)
             .padding(12.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {

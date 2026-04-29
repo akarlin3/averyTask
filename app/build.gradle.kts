@@ -29,8 +29,11 @@ android {
             "WEB_CLIENT_ID",
             "\"${System.getenv("WEB_CLIENT_ID") ?: "403186103462-j09m2o9781jgnpb2eqotn65jdcg7qgqj.apps.googleusercontent.com"}\""
         )
-        // Widgets disabled for v1.0 — re-enable in v1.2 (Phase G).
-        buildConfigField("boolean", "WIDGETS_ENABLED", "false")
+        // Widgets shipped — full Glance lineup with PrismTheme atmospherics
+        // (Cyberpunk scanlines, Synthwave sunset, Matrix phosphor, Void
+        // editorial). Toggle this flag back to false to disable every
+        // GlanceAppWidget receiver in one place.
+        buildConfigField("boolean", "WIDGETS_ENABLED", "true")
     }
 
     val keystorePath = System.getenv("KEYSTORE_PATH")

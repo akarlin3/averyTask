@@ -9,4 +9,10 @@
     <string name="timer_widget_description">Live Pomodoro timer with play, pause, and skip controls</string>
     <string name="calendar_widget_description">Today\'s schedule \u2014 tasks and calendar events merged in one view</string>
     <string name="project_widget_description">Follow one project\'s progress \u2014 milestones, streak, and upcoming work</string>
+    <string name="eisenhower_widget_description">Eisenhower matrix at a glance \u2014 Do, Schedule, Delegate, Drop counts</string>
+    <string name="streak_calendar_widget_description">8\u201312 weeks of habit completion as a GitHub-style heatmap</string>
+    <string name="focus_widget_description">Single hero \u201cfocus on this\u201d card with a one-tap timer start</string>
+    <string name="medication_widget_description">Today\'s medication slots, doses taken, and the next due dose</string>
+    <string name="stats_sparkline_widget_description">Weekly tasks completed trend with delta vs. last week</string>
+    <string name="inbox_widget_description">Recently captured items waiting to be triaged into a project</string>
 </resources>

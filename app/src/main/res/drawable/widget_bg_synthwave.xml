@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Synthwave widget surface — sunset gradient anchored at the bottom-centre,
+  fading from hot pink primary into the deep purple surface. Layered so
+  the radial highlight rides on top of the surface base.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#130820" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="radial"
+                android:gradientRadius="240dp"
+                android:centerX="0.5"
+                android:centerY="1.05"
+                android:startColor="#4DFF2D87"
+                android:endColor="#00FF2D87" />
+        </shape>
+    </item>
+</layer-list>

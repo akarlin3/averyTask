@@ -228,6 +228,8 @@ fun SettingsScreen(
                 item {
                     // Theme picker — ALL tiers
                     PrismThemeSection()
+                    // Widget-only theme override (Glance home-screen widgets)
+                    com.averycorp.prismtask.ui.screens.settings.sections.WidgetThemeSection()
                     // Advanced Appearance — STANDARD+ (card corner radius, compact mode, borders)
                     if (uiTier.isAtLeast(UiComplexityTier.STANDARD)) {
                         SettingsNavRow(
