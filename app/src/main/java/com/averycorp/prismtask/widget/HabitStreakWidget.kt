@@ -80,7 +80,7 @@ private fun HabitStreakContent(
         modifier = GlanceModifier
             .fillMaxSize()
             .cornerRadius(palette.widgetCornerRadius)
-            .background(palette.surface)
+            .background(palette.surfaceBackground)
             .padding(if (isLarge) 12.dp else 8.dp)
     ) {
         Row(

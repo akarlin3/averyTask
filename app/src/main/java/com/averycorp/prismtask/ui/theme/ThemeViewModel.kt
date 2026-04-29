@@ -38,6 +38,20 @@ constructor(
         )
 
     /**
+     * The optional widget-only theme override. `null` means widgets follow
+     * the app theme; a non-null value pins widgets to that [PrismTheme]
+     * regardless of the in-app selection.
+     */
+    val widgetThemeOverride: StateFlow<PrismTheme?> = themePreferences
+        .getWidgetThemeOverride()
+        .map { name -> if (name.isBlank()) null else parsePrismThemeOrNull(name) }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = null
+        )
+
+    /**
      * Persist [theme] as the user's new selection. The backing flow will emit
      * the new value and drive the CompositionLocal update in MainActivity.
      */
@@ -47,12 +61,25 @@ constructor(
         }
     }
 
+    /**
+     * Sets the widget-only theme override. Pass `null` to clear the override
+     * and let widgets fall back to the app theme.
+     */
+    fun setWidgetThemeOverride(theme: PrismTheme?) {
+        viewModelScope.launch {
+            themePreferences.setWidgetThemeOverride(theme?.name)
+        }
+    }
+
     companion object {
         private fun parsePrismThemeOrDefault(name: String): PrismTheme =
+            parsePrismThemeOrNull(name) ?: PrismTheme.VOID
+
+        private fun parsePrismThemeOrNull(name: String): PrismTheme? =
             try {
                 PrismTheme.valueOf(name)
             } catch (_: IllegalArgumentException) {
-                PrismTheme.VOID
+                null
             }
     }
 }

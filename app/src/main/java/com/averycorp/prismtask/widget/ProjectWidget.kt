@@ -93,7 +93,7 @@ private fun ProjectWidgetContent(
         modifier = GlanceModifier
             .fillMaxSize()
             .cornerRadius(palette.widgetCornerRadius)
-            .background(palette.surface)
+            .background(palette.surfaceBackground)
             .clickable(actionStartActivity(openApp))
     ) {
         val stripeColor = parseStripeColor(data?.themeColorHex, palette)

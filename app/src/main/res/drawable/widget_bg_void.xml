@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Void widget surface — editorial minimal. Just the surface color; no
+  scanlines, no gradient. Kept as a drawable so every PrismTheme exposes
+  a uniform surfaceBackground ImageProvider.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#161618" />
+</shape>

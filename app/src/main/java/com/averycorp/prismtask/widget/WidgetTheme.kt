@@ -4,7 +4,9 @@ import android.content.Context
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.glance.ImageProvider
 import androidx.glance.unit.ColorProvider
+import com.averycorp.prismtask.R
 import com.averycorp.prismtask.data.preferences.ThemePreferences
 import com.averycorp.prismtask.ui.theme.PrismTheme
 import com.averycorp.prismtask.ui.theme.PrismThemeColors
@@ -20,14 +22,15 @@ import kotlinx.coroutines.flow.first
  * priority stripes, streak accents, etc. — and expose every entry as a
  * Glance [ColorProvider].
  *
- * Each widget reads the user's selected [PrismTheme] from
- * [ThemePreferences] inside `provideGlance`, builds the palette via
- * [widgetThemePalette], then passes it down to its content composables
- * so a single instance renders coherently in one frame.
+ * Each widget reads the active widget theme inside `provideGlance`
+ * (see [loadWidgetPalette]), builds the palette via [widgetThemePalette],
+ * then passes it down to its content composables so a single instance
+ * renders coherently in one frame.
  *
- * Visual atmospherics (Cyberpunk scanlines, Synthwave sunset, Matrix
- * rain, Void hairlines) come from the in-app theme overlays and don't
- * have direct Glance analogues — the palette captures color intent only.
+ * Atmospherics — Cyberpunk scanlines, Synthwave radial sunset, Matrix
+ * phosphor scanlines — ride along on [surfaceBackground] as a layered
+ * Android drawable, applied via `background(ImageProvider(...))` on the
+ * widget root. Void uses a flat surface drawable so the API is uniform.
  */
 data class WidgetThemePalette(
     val theme: PrismTheme,
@@ -36,6 +39,7 @@ data class WidgetThemePalette(
     val surface: ColorProvider,
     val surfaceVariant: ColorProvider,
     val border: ColorProvider,
+    val surfaceBackground: ImageProvider,
     // Text
     val onBackground: ColorProvider,
     val onSurface: ColorProvider,
@@ -77,6 +81,15 @@ data class WidgetThemePalette(
     val timerStop: ColorProvider,
     // Calendar
     val calendarEvent: ColorProvider,
+    // Eisenhower quadrants
+    val quadrantQ1: ColorProvider,
+    val quadrantQ2: ColorProvider,
+    val quadrantQ3: ColorProvider,
+    val quadrantQ4: ColorProvider,
+    // Semantic accents (used by Inbox / Medication / Sparkline widgets)
+    val infoColor: ColorProvider,
+    val warningColor: ColorProvider,
+    val successColor: ColorProvider,
     // Misc
     val onColored: ColorProvider,
     // Shape
@@ -88,6 +101,13 @@ private val DEFAULT_PRISM_THEME = PrismTheme.VOID
 
 /** Glance widget surface radius (Android 12+ system widget radius). */
 private val WIDGET_RADIUS = 22.dp
+
+private fun atmosphericBackground(theme: PrismTheme): Int = when (theme) {
+    PrismTheme.CYBERPUNK -> R.drawable.widget_bg_cyberpunk
+    PrismTheme.SYNTHWAVE -> R.drawable.widget_bg_synthwave
+    PrismTheme.MATRIX -> R.drawable.widget_bg_matrix
+    PrismTheme.VOID -> R.drawable.widget_bg_void
+}
 
 /**
  * Build a [WidgetThemePalette] from the [PrismTheme] palette tokens.
@@ -104,6 +124,7 @@ fun widgetThemePalette(theme: PrismTheme): WidgetThemePalette {
         surface = ColorProvider(c.surface),
         surfaceVariant = ColorProvider(c.surfaceVariant),
         border = ColorProvider(c.border),
+        surfaceBackground = ImageProvider(atmosphericBackground(theme)),
         onBackground = ColorProvider(c.onBackground),
         onSurface = ColorProvider(c.onBackground),
         onSurfaceVariant = ColorProvider(c.onSurface),
@@ -137,21 +158,36 @@ fun widgetThemePalette(theme: PrismTheme): WidgetThemePalette {
         timerBreak = ColorProvider(c.successColor),
         timerStop = ColorProvider(c.destructiveColor),
         calendarEvent = ColorProvider(c.infoColor),
+        quadrantQ1 = ColorProvider(c.quadrantQ1),
+        quadrantQ2 = ColorProvider(c.quadrantQ2),
+        quadrantQ3 = ColorProvider(c.quadrantQ3),
+        quadrantQ4 = ColorProvider(c.quadrantQ4),
+        infoColor = ColorProvider(c.infoColor),
+        warningColor = ColorProvider(c.warningColor),
+        successColor = ColorProvider(c.successColor),
         onColored = ColorProvider(contrastOn(c.primary)),
         widgetCornerRadius = WIDGET_RADIUS
     )
 }
 
 /**
- * Reads the user's selected [PrismTheme] from [ThemePreferences] and
- * returns the matching [WidgetThemePalette]. Falls back to [DEFAULT_PRISM_THEME]
- * when the preference is unset or cannot be parsed (e.g., during the
- * initial widget placement before app launch).
+ * Reads the active widget theme and returns the matching [WidgetThemePalette].
+ *
+ * Resolution order:
+ * 1. The widget-specific override stored under
+ *    [ThemePreferences.getWidgetThemeOverride] — non-null when the user
+ *    has explicitly picked a widget theme distinct from the app theme.
+ * 2. The user's app-wide [PrismTheme] from [ThemePreferences.getPrismTheme].
+ * 3. [DEFAULT_PRISM_THEME] (`VOID`) on any read failure.
+ *
+ * The override is per-app (not per-widget) — every Glance widget shares
+ * the same theme. Per-instance overrides could be layered on later via
+ * [WidgetConfigDataStore] without changing this signature.
  */
 suspend fun loadWidgetPalette(context: Context): WidgetThemePalette {
-    val themeName = runCatching {
-        ThemePreferences(context.applicationContext).getPrismTheme().first()
-    }.getOrNull()
+    val prefs = ThemePreferences(context.applicationContext)
+    val override = runCatching { prefs.getWidgetThemeOverride().first() }.getOrNull()?.takeIf { it.isNotBlank() }
+    val themeName = override ?: runCatching { prefs.getPrismTheme().first() }.getOrNull()
     val theme = runCatching { PrismTheme.valueOf(themeName ?: "") }.getOrDefault(DEFAULT_PRISM_THEME)
     return widgetThemePalette(theme)
 }

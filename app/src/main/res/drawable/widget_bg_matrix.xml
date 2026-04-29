@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Matrix widget surface — terminal black + faint phosphor-green scanlines.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#010F04" />
+        </shape>
+    </item>
+    <item>
+        <bitmap
+            android:src="@drawable/scanline_green"
+            android:tileMode="repeat" />
+    </item>
+</layer-list>

@@ -14,7 +14,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Orchestrates Glance widget refreshes across all 7 widget types.
+ * Orchestrates Glance widget refreshes across every registered widget.
  *
  * Each `update*()` method is debounced: when called multiple times within
  * [DEBOUNCE_MILLIS] (e.g. during batch task operations) the actual refresh
@@ -49,6 +49,12 @@ constructor(
             safeUpdate { TimerWidget().updateAll(context) }
             safeUpdate { UpcomingWidget().updateAll(context) }
             safeUpdate { ProjectWidget().updateAll(context) }
+            safeUpdate { EisenhowerWidget().updateAll(context) }
+            safeUpdate { StreakCalendarWidget().updateAll(context) }
+            safeUpdate { FocusWidget().updateAll(context) }
+            safeUpdate { MedicationWidget().updateAll(context) }
+            safeUpdate { StatsSparklineWidget().updateAll(context) }
+            safeUpdate { InboxWidget().updateAll(context) }
         }
     }
 

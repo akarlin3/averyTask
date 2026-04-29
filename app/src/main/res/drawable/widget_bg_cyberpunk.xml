@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cyberpunk widget surface — surface color + faint cyan CRT scanlines
+  tiled vertically (1x4 transparent tile with one ~7% alpha cyan row).
+
+  The Glance widget composable still applies cornerRadius() so the system
+  clips this drawable; we keep the layer-list itself as flat rectangles.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#0D0D18" />
+        </shape>
+    </item>
+    <item>
+        <bitmap
+            android:src="@drawable/scanline_cyan"
+            android:tileMode="repeat" />
+    </item>
+</layer-list>
