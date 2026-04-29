@@ -110,8 +110,12 @@ private fun MedicationContent(context: Context, size: DpSize, palette: WidgetThe
     }
 }
 
+// Receiver bound to ColumnScope so `GlanceModifier.defaultWeight()` (which
+// is declared as a ColumnScope/RowScope extension) resolves when this
+// widget body is emitted directly into the parent Column in
+// [MedicationContent].
 @Composable
-private fun CompactNextDose(
+private fun androidx.glance.layout.ColumnScope.CompactNextDose(
     palette: WidgetThemePalette,
     nextSlot: MedSlot,
     takenDoses: Int,
