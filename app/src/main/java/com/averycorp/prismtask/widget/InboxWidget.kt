@@ -68,12 +68,12 @@ private fun InboxContent(context: Context, size: DpSize, palette: WidgetThemePal
     val isMed = size.width < 350.dp
 
     val items = listOf(
-        InboxItem("Call dentist re: cleaning",        "12m", "Errands",   palette.warningColor),
-        InboxItem("Look up M3 expressive guidelines", "38m", "Apollo",    palette.primary),
-        InboxItem("Restock olive oil",                "2h",  "Groceries", palette.successColor),
-        InboxItem("Reply to Sam about Q4 plan",       "4h",  "Inbox",     palette.infoColor),
-        InboxItem("Cancel old domain renewal",        "Yday", "Bills",    palette.error),
-        InboxItem("Find a 6-string set for the Strat","Yday", "Music",    palette.secondary)
+        InboxItem("Call dentist re: cleaning", "12m", "Errands", palette.warningColor),
+        InboxItem("Look up M3 expressive guidelines", "38m", "Apollo", palette.primary),
+        InboxItem("Restock olive oil", "2h", "Groceries", palette.successColor),
+        InboxItem("Reply to Sam about Q4 plan", "4h", "Inbox", palette.infoColor),
+        InboxItem("Cancel old domain renewal", "Yday", "Bills", palette.error),
+        InboxItem("Find a 6-string set for the Strat", "Yday", "Music", palette.secondary)
     )
     val visible = if (isMed) items.take(3) else items.take(5)
 

@@ -40,6 +40,7 @@ constructor(
         private val PRIORITY_COLOR_URGENT_KEY = stringPreferencesKey("priority_color_urgent")
         private val RECENT_CUSTOM_COLORS_KEY = stringPreferencesKey("recent_custom_colors")
         private val PRISM_THEME_KEY = stringPreferencesKey("pref_prism_theme")
+
         // Optional override that lets home-screen widgets use a different
         // PrismTheme than the in-app theme. Empty / unset => widgets follow
         // the app theme. Stored as the enum name (e.g. "CYBERPUNK").

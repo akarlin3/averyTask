@@ -105,8 +105,8 @@ private val WIDGET_RADIUS = 22.dp
 private fun atmosphericBackground(theme: PrismTheme): Int = when (theme) {
     PrismTheme.CYBERPUNK -> R.drawable.widget_bg_cyberpunk
     PrismTheme.SYNTHWAVE -> R.drawable.widget_bg_synthwave
-    PrismTheme.MATRIX    -> R.drawable.widget_bg_matrix
-    PrismTheme.VOID      -> R.drawable.widget_bg_void
+    PrismTheme.MATRIX -> R.drawable.widget_bg_matrix
+    PrismTheme.VOID -> R.drawable.widget_bg_void
 }
 
 /**

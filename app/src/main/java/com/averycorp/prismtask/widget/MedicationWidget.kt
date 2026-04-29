@@ -85,10 +85,10 @@ private fun MedicationContent(context: Context, size: DpSize, palette: WidgetThe
 
     // Sample state — wiring to MedicationRefillRepository is a follow-up.
     val slots = listOf(
-        MedSlot("Morning",   "8:00 AM",  MedTier.COMPLETE,     3, 3, active = true),
-        MedSlot("Afternoon", "1:00 PM",  MedTier.PRESCRIPTION, 1, 2, active = true),
-        MedSlot("Evening",   "7:00 PM",  MedTier.ESSENTIAL,    0, 3, active = true, isNext = true),
-        MedSlot("Night",     "10:30 PM", MedTier.SKIPPED,      0, 1, active = false)
+        MedSlot("Morning", "8:00 AM", MedTier.COMPLETE, 3, 3, active = true),
+        MedSlot("Afternoon", "1:00 PM", MedTier.PRESCRIPTION, 1, 2, active = true),
+        MedSlot("Evening", "7:00 PM", MedTier.ESSENTIAL, 0, 3, active = true, isNext = true),
+        MedSlot("Night", "10:30 PM", MedTier.SKIPPED, 0, 1, active = false)
     )
     val totalDoses = slots.sumOf { it.total }
     val takenDoses = slots.sumOf { it.taken }
@@ -224,10 +224,10 @@ private fun SlotRow(slot: MedSlot, palette: WidgetThemePalette, highlight: Boole
 }
 
 private fun tierColor(tier: MedTier, palette: WidgetThemePalette): ColorProvider = when (tier) {
-    MedTier.ESSENTIAL    -> palette.primary
+    MedTier.ESSENTIAL -> palette.primary
     MedTier.PRESCRIPTION -> palette.infoColor
-    MedTier.COMPLETE     -> palette.successColor
-    MedTier.SKIPPED      -> palette.onSurfaceVariant
+    MedTier.COMPLETE -> palette.successColor
+    MedTier.SKIPPED -> palette.onSurfaceVariant
 }
 
 class MedicationWidgetReceiver : GlanceAppWidgetReceiver() {

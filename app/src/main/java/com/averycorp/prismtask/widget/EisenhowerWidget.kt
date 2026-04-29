@@ -72,10 +72,10 @@ private fun EisenhowerContent(context: Context, size: DpSize, palette: WidgetThe
     // follow-up. Headlines mirror the design mockup so the widget renders
     // recognizably even before data is plumbed.
     val quads = listOf(
-        Quad("Q1", "Do",       3, palette.quadrantQ1, "Pay parking ticket"),
+        Quad("Q1", "Do", 3, palette.quadrantQ1, "Pay parking ticket"),
         Quad("Q2", "Schedule", 5, palette.quadrantQ2, "Sketch onboarding flow"),
         Quad("Q3", "Delegate", 2, palette.quadrantQ3, "Reply to design crit"),
-        Quad("Q4", "Drop",     4, palette.quadrantQ4, "News scroll session")
+        Quad("Q4", "Drop", 4, palette.quadrantQ4, "News scroll session")
     )
     val total = quads.sumOf { it.count }
     val openMatrix = Intent(context, MainActivity::class.java).apply {
