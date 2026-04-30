@@ -50,6 +50,7 @@ class AddEditTaskViewModelTest {
     private lateinit var notificationPreferences: NotificationPreferences
     private lateinit var userPreferencesDataStore: UserPreferencesDataStore
     private lateinit var taskBehaviorPreferences: TaskBehaviorPreferences
+    private lateinit var advancedTuningPreferences: com.averycorp.prismtask.data.preferences.AdvancedTuningPreferences
     private lateinit var savedStateHandle: SavedStateHandle
 
     @Before
@@ -69,6 +70,9 @@ class AddEditTaskViewModelTest {
         coEvery { taskBehaviorPreferences.getReminderPresets() } returns flowOf(
             listOf(0L, 900_000L, 1_800_000L, 3_600_000L, 86_400_000L)
         )
+        advancedTuningPreferences = mockk(relaxed = true)
+        coEvery { advancedTuningPreferences.getEditorFieldRows() } returns
+            flowOf(com.averycorp.prismtask.data.preferences.EditorFieldRows())
         savedStateHandle = SavedStateHandle()
 
         // Default StateFlow seeds so the VM init doesn't crash on relaxed mocks.
@@ -97,6 +101,7 @@ class AddEditTaskViewModelTest {
         notificationPreferences,
         userPreferencesDataStore,
         taskBehaviorPreferences,
+        advancedTuningPreferences,
         savedStateHandle
     )
 

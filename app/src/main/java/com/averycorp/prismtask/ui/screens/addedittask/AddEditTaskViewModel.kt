@@ -74,6 +74,7 @@ constructor(
     private val notificationPreferences: NotificationPreferences,
     private val userPreferencesDataStore: com.averycorp.prismtask.data.preferences.UserPreferencesDataStore,
     taskBehaviorPreferences: TaskBehaviorPreferences,
+    private val advancedTuningPreferences: com.averycorp.prismtask.data.preferences.AdvancedTuningPreferences,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     private val boundaryEnforcer = BoundaryEnforcer()
@@ -91,6 +92,14 @@ constructor(
             SharingStarted.WhileSubscribed(5000),
             listOf(0L, 900_000L, 1_800_000L, 3_600_000L, 86_400_000L)
         )
+
+    val editorFieldRows: StateFlow<com.averycorp.prismtask.data.preferences.EditorFieldRows> =
+        advancedTuningPreferences.getEditorFieldRows()
+            .stateIn(
+                viewModelScope,
+                SharingStarted.WhileSubscribed(5000),
+                com.averycorp.prismtask.data.preferences.EditorFieldRows()
+            )
 
     private val _errorMessages = MutableSharedFlow<String>()
     val errorMessages: SharedFlow<String> = _errorMessages.asSharedFlow()
