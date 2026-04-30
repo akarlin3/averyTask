@@ -197,6 +197,21 @@ data class SearchPreview(
     val previewLines: Int = 2
 )
 
+/**
+ * First-display tier per Self-Care routine, applied when no log exists for
+ * today. Stored values are validated against the routine's tier order at
+ * read time by [SelfCareViewModel.getSelectedTier]; an unknown tier id
+ * (e.g. one retired in a future build) falls back to the routine's
+ * penultimate-of-order default the ViewModel already used implicitly.
+ * Defaults below match that historical behaviour.
+ */
+data class SelfCareTierDefaults(
+    val morning: String = "solid",
+    val bedtime: String = "solid",
+    val medication: String = "prescription",
+    val housework: String = "regular"
+)
+
 @Singleton
 class AdvancedTuningPreferences
 @Inject
@@ -328,6 +343,12 @@ constructor(
 
         // E5 — search preview lines
         private val SEARCH_PREVIEW_LINES = intPreferencesKey("search_preview_lines")
+
+        // Self-care default tiers (one per routine)
+        private val SC_DEFAULT_MORNING = stringPreferencesKey("selfcare_default_tier_morning")
+        private val SC_DEFAULT_BEDTIME = stringPreferencesKey("selfcare_default_tier_bedtime")
+        private val SC_DEFAULT_MEDICATION = stringPreferencesKey("selfcare_default_tier_medication")
+        private val SC_DEFAULT_HOUSEWORK = stringPreferencesKey("selfcare_default_tier_housework")
     }
 
     fun getUrgencyBands(): Flow<UrgencyBands> = context.advancedTuningDataStore.data.map {
@@ -712,6 +733,25 @@ constructor(
     suspend fun setSearchPreview(c: SearchPreview) {
         context.advancedTuningDataStore.edit {
             it[SEARCH_PREVIEW_LINES] = c.previewLines.coerceIn(1, 10)
+        }
+    }
+
+    fun getSelfCareTierDefaults(): Flow<SelfCareTierDefaults> =
+        context.advancedTuningDataStore.data.map {
+            SelfCareTierDefaults(
+                morning = it[SC_DEFAULT_MORNING] ?: "solid",
+                bedtime = it[SC_DEFAULT_BEDTIME] ?: "solid",
+                medication = it[SC_DEFAULT_MEDICATION] ?: "prescription",
+                housework = it[SC_DEFAULT_HOUSEWORK] ?: "regular"
+            )
+        }
+
+    suspend fun setSelfCareTierDefaults(d: SelfCareTierDefaults) {
+        context.advancedTuningDataStore.edit {
+            it[SC_DEFAULT_MORNING] = d.morning
+            it[SC_DEFAULT_BEDTIME] = d.bedtime
+            it[SC_DEFAULT_MEDICATION] = d.medication
+            it[SC_DEFAULT_HOUSEWORK] = d.housework
         }
     }
 }

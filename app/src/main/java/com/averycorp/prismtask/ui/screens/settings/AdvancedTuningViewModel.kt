@@ -21,6 +21,7 @@ import com.averycorp.prismtask.data.preferences.QuickAddRows
 import com.averycorp.prismtask.data.preferences.ReengagementConfig
 import com.averycorp.prismtask.data.preferences.RefillUrgencyConfig
 import com.averycorp.prismtask.data.preferences.SearchPreview
+import com.averycorp.prismtask.data.preferences.SelfCareTierDefaults
 import com.averycorp.prismtask.data.preferences.SmartDefaultsConfig
 import com.averycorp.prismtask.data.preferences.SuggestionConfig
 import com.averycorp.prismtask.data.preferences.UrgencyBands
@@ -139,6 +140,10 @@ constructor(
         prefs.getSearchPreview()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SearchPreview())
 
+    val selfCareTierDefaults: StateFlow<SelfCareTierDefaults> =
+        prefs.getSelfCareTierDefaults()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SelfCareTierDefaults())
+
     fun setUrgencyBands(value: UrgencyBands) = launchSet { prefs.setUrgencyBands(value) }
     fun setUrgencyWindows(value: UrgencyWindows) = launchSet { prefs.setUrgencyWindows(value) }
     fun setBurnoutWeights(value: BurnoutWeights) = launchSet { prefs.setBurnoutWeights(value) }
@@ -163,6 +168,7 @@ constructor(
     fun setEditorFieldRows(value: EditorFieldRows) = launchSet { prefs.setEditorFieldRows(value) }
     fun setQuickAddRows(value: QuickAddRows) = launchSet { prefs.setQuickAddRows(value) }
     fun setSearchPreview(value: SearchPreview) = launchSet { prefs.setSearchPreview(value) }
+    fun setSelfCareTierDefaults(value: SelfCareTierDefaults) = launchSet { prefs.setSelfCareTierDefaults(value) }
 
     private inline fun launchSet(crossinline block: suspend () -> Unit) {
         viewModelScope.launch { block() }
