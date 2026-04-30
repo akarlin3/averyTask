@@ -128,6 +128,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Recurring tasks no longer duplicate on Undo + redo.**
+  `TaskRepository.completeTask` now reads the row fresh inside its
+  transaction and bails out when `is_completed = 1`, so a rapid
+  double-tap or any other re-invocation cannot spawn a second
+  next-instance. Snackbar Undo callers (Today swipe, TaskList swipe,
+  bulk complete) capture the spawned next-instance id and pass it back
+  to a new `uncompleteTask(id, spawnedRecurrenceId)` overload that
+  deletes the spawned child before flipping the parent incomplete —
+  matching audit
+  `docs/audits/RECURRING_TASKS_DUPLICATE_DAILY_AUDIT.md`. Three new
+  connected tests gate the idempotence guard, the snackbar Undo +
+  redo flow, and the legacy toggle-uncomplete behavior.
+
 - **`HiltTestRunner.isAndroidEmulator()` now detects modern AVDs.** The
   test-runner heuristic copied from `PrismTaskApplication` (around the
   PR #791 era) had drifted out of sync — production picked up

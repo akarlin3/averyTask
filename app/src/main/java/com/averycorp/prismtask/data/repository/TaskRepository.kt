@@ -296,10 +296,25 @@ constructor(
         widgetUpdateManager.updateTaskWidgets()
     }
 
-    suspend fun completeTask(id: Long) {
+    /**
+     * Marks [id] complete and, for recurring tasks, spawns the next occurrence.
+     *
+     * Returns the id of the spawned next-instance (or null when none was
+     * spawned — non-recurring task, max-occurrences hit, or the row is
+     * already completed). Callers that drive an Undo snackbar should pass
+     * this id back to [uncompleteTask] so the spawned child gets rolled
+     * back atomically with the parent.
+     *
+     * Idempotence: re-invoking on an already-completed row is a no-op.
+     * The spawn predicate is checked against a *fresh* read inside the
+     * transaction, so a rapid double-tap that races two coroutines into
+     * this function will see the post-commit `is_completed = 1` from the
+     * winning call and bail out — no duplicate next-instance.
+     */
+    suspend fun completeTask(id: Long): Long? {
         val now = System.currentTimeMillis()
-        val task = taskDao.getTaskById(id).firstOrNull()
-        val tags = if (task != null) tagDao.getTagsForTask(id).first() else emptyList()
+        val task = taskDao.getTaskById(id).firstOrNull() ?: return null
+        val tags = tagDao.getTagsForTask(id).first()
 
         // Cancel the scheduled reminder for the task we're marking complete
         // so a stale alarm doesn't fire for a finished task. The PendingIntent
@@ -310,15 +325,21 @@ constructor(
         reminderScheduler.cancelReminder(id)
 
         val nextRecurrenceId = transactionRunner.withTransaction {
-            if (task != null) {
-                taskCompletionRepository.recordCompletion(task, tags)
-            }
-            val nextId = if (task?.recurrenceRule != null && task.dueDate != null) {
-                val rule = RecurrenceConverter.fromJson(task.recurrenceRule)
-                val nextDueDate = rule?.let { RecurrenceEngine.calculateNextDueDate(task.dueDate, it) }
+            // Re-read fresh inside the transaction. A concurrent completeTask
+            // (rapid double-tap) reaches this point after the winning call
+            // commits — it must observe is_completed = 1 and bail out before
+            // spawning a duplicate next-instance.
+            val fresh = taskDao.getTaskByIdOnce(id) ?: return@withTransaction null
+            if (fresh.isCompleted) return@withTransaction null
+
+            taskCompletionRepository.recordCompletion(fresh, tags)
+
+            val nextId = if (fresh.recurrenceRule != null && fresh.dueDate != null) {
+                val rule = RecurrenceConverter.fromJson(fresh.recurrenceRule)
+                val nextDueDate = rule?.let { RecurrenceEngine.calculateNextDueDate(fresh.dueDate, it) }
                 if (rule != null && nextDueDate != null) {
                     val updatedRule = rule.copy(occurrenceCount = rule.occurrenceCount + 1)
-                    val nextDraft = task.copy(
+                    val nextDraft = fresh.copy(
                         id = 0,
                         isCompleted = false,
                         dueDate = nextDueDate,
@@ -362,9 +383,24 @@ constructor(
         syncTracker.trackUpdate(id, "task")
         calendarPushDispatcher.enqueueDeleteTaskEvent(id)
         widgetUpdateManager.updateTaskWidgets()
+        return nextRecurrenceId
     }
 
-    suspend fun uncompleteTask(id: Long) {
+    /**
+     * Reverts a [completeTask] call.
+     *
+     * When [spawnedRecurrenceId] is non-null, the spawned next-instance
+     * created by the matching completeTask is deleted before the parent
+     * is flipped back to incomplete — this is the Undo-snackbar path
+     * (Today swipe, TaskList swipe, bulk complete) where letting the
+     * spawn linger after Undo + redo would duplicate the next-day row.
+     * For toggle-style un-completion (no Undo snackbar) callers pass null
+     * and the historical, partial-reverse behavior is preserved.
+     */
+    suspend fun uncompleteTask(id: Long, spawnedRecurrenceId: Long? = null) {
+        if (spawnedRecurrenceId != null) {
+            deleteTask(spawnedRecurrenceId)
+        }
         taskDao.markIncomplete(id, System.currentTimeMillis())
         syncTracker.trackUpdate(id, "task")
         calendarPushDispatcher.enqueuePushTask(id)

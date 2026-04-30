@@ -163,4 +163,92 @@ class RecurrenceIntegrationTest {
         val newTask = allTasks.find { !it.isCompleted }!!
         assertEquals(LocalDate.of(2025, 1, 8).toMillis(), newTask.dueDate) // Wednesday
     }
+
+    // Audit: docs/audits/RECURRING_TASKS_DUPLICATE_DAILY_AUDIT.md (Item 1).
+    @Test
+    fun test_completeRecurringTask_isIdempotent() = runTest {
+        val rule = RecurrenceRule(type = RecurrenceType.DAILY)
+        val ruleJson = RecurrenceConverter.toJson(rule)
+        val taskId = database.taskDao().insert(
+            TaskEntity(
+                title = "Daily idempotent",
+                dueDate = LocalDate.of(2025, 1, 6).toMillis(),
+                recurrenceRule = ruleJson
+            )
+        )
+
+        val firstSpawn = repository.completeTask(taskId)
+        val secondSpawn = repository.completeTask(taskId)
+
+        assertTrue("first call must spawn", firstSpawn != null)
+        assertEquals("second call must be a no-op", null, secondSpawn)
+
+        val allTasks = database.taskDao().getAllTasks().first()
+        assertEquals(
+            "double-complete must NOT produce two next-day rows",
+            2,
+            allTasks.size
+        )
+    }
+
+    // Audit: docs/audits/RECURRING_TASKS_DUPLICATE_DAILY_AUDIT.md (Item 2).
+    @Test
+    fun test_undoCompletion_rollsBackSpawnedRecurrence() = runTest {
+        val rule = RecurrenceRule(type = RecurrenceType.DAILY)
+        val ruleJson = RecurrenceConverter.toJson(rule)
+        val taskId = database.taskDao().insert(
+            TaskEntity(
+                title = "Daily undo-redo",
+                dueDate = LocalDate.of(2025, 1, 6).toMillis(),
+                recurrenceRule = ruleJson
+            )
+        )
+
+        // Complete → undo → re-complete (snackbar UNDO + redo flow).
+        val firstSpawn = repository.completeTask(taskId)
+        repository.uncompleteTask(taskId, firstSpawn)
+        val secondSpawn = repository.completeTask(taskId)
+
+        assertTrue("first complete must spawn", firstSpawn != null)
+        assertTrue("second complete must spawn after undo", secondSpawn != null)
+        assertFalse(
+            "the spawn ids must differ — undo deleted the first child",
+            firstSpawn == secondSpawn
+        )
+
+        val allTasks = database.taskDao().getAllTasks().first()
+        assertEquals(
+            "undo + redo must NOT leave a stale spawned child behind",
+            2,
+            allTasks.size
+        )
+        val original = allTasks.single { it.id == taskId }
+        val onlyChild = allTasks.single { it.id != taskId }
+        assertTrue(original.isCompleted)
+        assertEquals(secondSpawn, onlyChild.id)
+    }
+
+    // Audit: docs/audits/RECURRING_TASKS_DUPLICATE_DAILY_AUDIT.md (Item 2).
+    // Toggle-style uncomplete (no Undo snackbar) preserves the spawn — the
+    // user explicitly opted into "today done, tomorrow scheduled" before
+    // changing their mind about the parent.
+    @Test
+    fun test_uncompleteWithoutSpawnedId_leavesChildIntact() = runTest {
+        val rule = RecurrenceRule(type = RecurrenceType.DAILY)
+        val ruleJson = RecurrenceConverter.toJson(rule)
+        val taskId = database.taskDao().insert(
+            TaskEntity(
+                title = "Daily toggle",
+                dueDate = LocalDate.of(2025, 1, 6).toMillis(),
+                recurrenceRule = ruleJson
+            )
+        )
+
+        repository.completeTask(taskId)
+        repository.uncompleteTask(taskId)
+
+        val allTasks = database.taskDao().getAllTasks().first()
+        assertEquals(2, allTasks.size)
+        assertFalse(allTasks.single { it.id == taskId }.isCompleted)
+    }
 }
