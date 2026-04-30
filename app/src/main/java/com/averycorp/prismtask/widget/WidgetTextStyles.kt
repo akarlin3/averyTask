@@ -8,16 +8,26 @@ import androidx.glance.unit.ColorProvider
 /**
  * Standardized typography scale for PrismTask Glance widgets.
  *
- * Sizes follow a consistent scale:
- * - Header/title: 16sp
- * - Body/task name: 13sp
- * - Caption/metadata: 11sp
- * - Badge/count: 10sp
+ * Sizes mirror the JSX widget mockup tokens (T.header / T.body / T.caption /
+ * T.badge / T.timerLarge / T.scoreLarge) so on-device rendering matches the
+ * design source of truth.
+ *
+ * Palette-aware variants ([headerThemed], [scoreLargeThemed], [timerLargeThemed],
+ * [timerSmallThemed]) pull the per-theme display font family from
+ * [WidgetThemePalette] so widgets adopt the theme's typographic character
+ * automatically. Plain variants stay color-only for backward compatibility.
  */
 object WidgetTextStyles {
     fun header(color: ColorProvider) = TextStyle(
         fontWeight = FontWeight.Bold,
-        fontSize = 16.sp,
+        fontSize = 15.sp,
+        color = color
+    )
+
+    fun headerThemed(palette: WidgetThemePalette, color: ColorProvider) = TextStyle(
+        fontWeight = FontWeight.Bold,
+        fontSize = 15.sp,
+        fontFamily = palette.displayFontFamily,
         color = color
     )
 
@@ -55,20 +65,45 @@ object WidgetTextStyles {
     )
 
     fun scoreLarge(color: ColorProvider) = TextStyle(
-        fontSize = 28.sp,
+        fontSize = 32.sp,
         fontWeight = FontWeight.Bold,
+        color = color
+    )
+
+    fun scoreLargeThemed(palette: WidgetThemePalette, color: ColorProvider) = TextStyle(
+        fontSize = 32.sp,
+        fontWeight = FontWeight.Bold,
+        fontFamily = palette.displayFontFamily,
         color = color
     )
 
     fun timerLarge(color: ColorProvider) = TextStyle(
+        fontSize = 38.sp,
+        fontWeight = FontWeight.Bold,
+        color = color
+    )
+
+    fun timerLargeThemed(palette: WidgetThemePalette, color: ColorProvider) = TextStyle(
+        fontSize = 38.sp,
+        fontWeight = FontWeight.Bold,
+        fontFamily = palette.displayFontFamily,
+        color = color
+    )
+
+    fun timerSmall(color: ColorProvider) = TextStyle(
         fontSize = 28.sp,
         fontWeight = FontWeight.Bold,
         color = color
     )
 
-    fun timerSmall(color: ColorProvider) = TextStyle(
-        fontSize = 24.sp,
+    fun timerSmallThemed(palette: WidgetThemePalette, color: ColorProvider) = TextStyle(
+        fontSize = 28.sp,
         fontWeight = FontWeight.Bold,
+        fontFamily = palette.displayFontFamily,
         color = color
     )
+
+    /** Apply the per-theme uppercase rule to a widget header label. */
+    fun headerLabel(palette: WidgetThemePalette, raw: String): String =
+        if (palette.displayUpper) raw.uppercase() else raw
 }
