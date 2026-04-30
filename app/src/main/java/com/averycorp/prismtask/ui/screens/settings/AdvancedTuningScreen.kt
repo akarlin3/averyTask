@@ -57,12 +57,14 @@ import com.averycorp.prismtask.data.preferences.QuickAddRows
 import com.averycorp.prismtask.data.preferences.ReengagementConfig
 import com.averycorp.prismtask.data.preferences.RefillUrgencyConfig
 import com.averycorp.prismtask.data.preferences.SearchPreview
+import com.averycorp.prismtask.data.preferences.SelfCareTierDefaults
 import com.averycorp.prismtask.data.preferences.SmartDefaultsConfig
 import com.averycorp.prismtask.data.preferences.SuggestionConfig
 import com.averycorp.prismtask.data.preferences.UrgencyBands
 import com.averycorp.prismtask.data.preferences.UrgencyWindows
 import com.averycorp.prismtask.data.preferences.WeeklySummarySchedule
 import com.averycorp.prismtask.data.preferences.WidgetRefreshConfig
+import com.averycorp.prismtask.domain.model.SelfCareRoutines
 import com.averycorp.prismtask.ui.theme.ThemedSubScreenTitle
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -113,6 +115,7 @@ fun AdvancedTuningScreen(
             EnergyPomodoroGroup(viewModel)
             GoodEnoughTimerGroup(viewModel)
             MorningCheckInGroup(viewModel)
+            SelfCareTierDefaultsGroup(viewModel)
 
             // ---------- Schedules ----------
             WeeklySummaryGroup(viewModel)
@@ -823,6 +826,67 @@ private fun SearchPreviewGroup(vm: AdvancedTuningViewModel) {
         IntSliderRow("Preview lines", state.previewLines, 1..10) {
             vm.setSearchPreview(state.copy(previewLines = it))
         }
+    }
+}
+
+@Composable
+private fun SelfCareTierDefaultsGroup(vm: AdvancedTuningViewModel) {
+    val state by vm.selfCareTierDefaults.collectAsStateWithLifecycle()
+    ExpandableGroup(
+        title = "Self-Care Default Tier",
+        subtitle = "Tier shown first each day for each routine"
+    ) {
+        TierCycleRow(
+            label = "Morning",
+            routineType = "morning",
+            current = state.morning
+        ) { vm.setSelfCareTierDefaults(state.copy(morning = it)) }
+        TierCycleRow(
+            label = "Bedtime",
+            routineType = "bedtime",
+            current = state.bedtime
+        ) { vm.setSelfCareTierDefaults(state.copy(bedtime = it)) }
+        TierCycleRow(
+            label = "Medication",
+            routineType = "medication",
+            current = state.medication
+        ) { vm.setSelfCareTierDefaults(state.copy(medication = it)) }
+        TierCycleRow(
+            label = "Housework",
+            routineType = "housework",
+            current = state.housework
+        ) { vm.setSelfCareTierDefaults(state.copy(housework = it)) }
+    }
+}
+
+@Composable
+private fun TierCycleRow(
+    label: String,
+    routineType: String,
+    current: String,
+    onChange: (String) -> Unit
+) {
+    val order = SelfCareRoutines.getTierOrder(routineType)
+    val tiers = SelfCareRoutines.getTiers(routineType)
+    val safeCurrent = if (current in order) current else order.last()
+    val displayLabel = tiers.firstOrNull { it.id == safeCurrent }?.label ?: safeCurrent
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                val idx = order.indexOf(safeCurrent).coerceAtLeast(0)
+                onChange(order[(idx + 1) % order.size])
+            }
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium)
+        Text(
+            text = displayLabel,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary
+        )
     }
 }
 
