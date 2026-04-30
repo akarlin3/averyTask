@@ -125,6 +125,47 @@ data class LifeCategoryCustomKeywords(
     val health: String = ""
 )
 
+/** Day-of-week (1=Mon..7=Sun) and clock time for weekly summary workers. */
+data class WeeklySummarySchedule(
+    val dayOfWeek: Int = 7, // Sunday
+    val taskSummaryHour: Int = 19,
+    val taskSummaryMinute: Int = 30,
+    val habitSummaryHour: Int = 19,
+    val habitSummaryMinute: Int = 0,
+    val reviewHour: Int = 20,
+    val reviewMinute: Int = 0,
+    val eveningSummaryHour: Int = 20
+)
+
+/** Re-engagement nudge thresholds. */
+data class ReengagementConfig(
+    val absenceDays: Int = 2,
+    val maxNudges: Int = 1
+)
+
+/** Hour of day (0..23) the OverloadCheckWorker fires its periodic check. */
+data class OverloadCheckSchedule(
+    val hourOfDay: Int = 16,
+    val minute: Int = 0
+)
+
+/** Days a soft-deleted batch (undo tail) lingers before sweep. */
+data class BatchUndoConfig(
+    val tailDays: Int = 7
+)
+
+/** Fallback hour-of-day applied when a habit's reminderTime CSV is malformed. */
+data class HabitReminderFallback(
+    val hour: Int = 8,
+    val minute: Int = 0
+)
+
+/** OkHttp + token-refresh retry knobs for power users on flaky networks. */
+data class ApiNetworkConfig(
+    val timeoutSeconds: Int = 30,
+    val retryAttempts: Int = 2
+)
+
 @Singleton
 class AdvancedTuningPreferences
 @Inject
@@ -210,6 +251,35 @@ constructor(
         private val CK_PERSONAL = stringPreferencesKey("custom_keywords_personal")
         private val CK_SELFCARE = stringPreferencesKey("custom_keywords_selfcare")
         private val CK_HEALTH = stringPreferencesKey("custom_keywords_health")
+
+        // C1 — weekly summary schedule
+        private val WS_DAY = intPreferencesKey("weekly_summary_day_of_week")
+        private val WS_TASK_HR = intPreferencesKey("weekly_summary_task_hour")
+        private val WS_TASK_MIN = intPreferencesKey("weekly_summary_task_minute")
+        private val WS_HABIT_HR = intPreferencesKey("weekly_summary_habit_hour")
+        private val WS_HABIT_MIN = intPreferencesKey("weekly_summary_habit_minute")
+        private val WS_REVIEW_HR = intPreferencesKey("weekly_summary_review_hour")
+        private val WS_REVIEW_MIN = intPreferencesKey("weekly_summary_review_minute")
+        private val WS_EVENING_HR = intPreferencesKey("weekly_summary_evening_hour")
+
+        // C2 — re-engagement
+        private val RE_ABSENCE_DAYS = intPreferencesKey("reengagement_absence_days")
+        private val RE_MAX_NUDGES = intPreferencesKey("reengagement_max_nudges")
+
+        // C3 — overload check schedule
+        private val OC_HOUR = intPreferencesKey("overload_check_hour")
+        private val OC_MINUTE = intPreferencesKey("overload_check_minute")
+
+        // C4 — batch undo tail
+        private val BU_TAIL_DAYS = intPreferencesKey("batch_undo_tail_days")
+
+        // C7 — habit reminder fallback
+        private val HRF_HOUR = intPreferencesKey("habit_reminder_fallback_hour")
+        private val HRF_MINUTE = intPreferencesKey("habit_reminder_fallback_minute")
+
+        // C9 — API network
+        private val API_TIMEOUT = intPreferencesKey("api_network_timeout_seconds")
+        private val API_RETRIES = intPreferencesKey("api_network_retry_attempts")
     }
 
     fun getUrgencyBands(): Flow<UrgencyBands> = context.advancedTuningDataStore.data.map {
@@ -435,6 +505,100 @@ constructor(
             it[CK_PERSONAL] = k.personal
             it[CK_SELFCARE] = k.selfCare
             it[CK_HEALTH] = k.health
+        }
+    }
+
+    fun getWeeklySummarySchedule(): Flow<WeeklySummarySchedule> = context.advancedTuningDataStore.data.map {
+        WeeklySummarySchedule(
+            dayOfWeek = (it[WS_DAY] ?: 7).coerceIn(1, 7),
+            taskSummaryHour = (it[WS_TASK_HR] ?: 19).coerceIn(0, 23),
+            taskSummaryMinute = (it[WS_TASK_MIN] ?: 30).coerceIn(0, 59),
+            habitSummaryHour = (it[WS_HABIT_HR] ?: 19).coerceIn(0, 23),
+            habitSummaryMinute = (it[WS_HABIT_MIN] ?: 0).coerceIn(0, 59),
+            reviewHour = (it[WS_REVIEW_HR] ?: 20).coerceIn(0, 23),
+            reviewMinute = (it[WS_REVIEW_MIN] ?: 0).coerceIn(0, 59),
+            eveningSummaryHour = (it[WS_EVENING_HR] ?: 20).coerceIn(0, 23)
+        )
+    }
+
+    fun getReengagementConfig(): Flow<ReengagementConfig> = context.advancedTuningDataStore.data.map {
+        ReengagementConfig(
+            absenceDays = (it[RE_ABSENCE_DAYS] ?: 2).coerceAtLeast(1),
+            maxNudges = (it[RE_MAX_NUDGES] ?: 1).coerceAtLeast(1)
+        )
+    }
+
+    fun getOverloadCheckSchedule(): Flow<OverloadCheckSchedule> = context.advancedTuningDataStore.data.map {
+        OverloadCheckSchedule(
+            hourOfDay = (it[OC_HOUR] ?: 16).coerceIn(0, 23),
+            minute = (it[OC_MINUTE] ?: 0).coerceIn(0, 59)
+        )
+    }
+
+    fun getBatchUndoConfig(): Flow<BatchUndoConfig> = context.advancedTuningDataStore.data.map {
+        BatchUndoConfig(
+            tailDays = (it[BU_TAIL_DAYS] ?: 7).coerceAtLeast(1)
+        )
+    }
+
+    fun getHabitReminderFallback(): Flow<HabitReminderFallback> = context.advancedTuningDataStore.data.map {
+        HabitReminderFallback(
+            hour = (it[HRF_HOUR] ?: 8).coerceIn(0, 23),
+            minute = (it[HRF_MINUTE] ?: 0).coerceIn(0, 59)
+        )
+    }
+
+    fun getApiNetworkConfig(): Flow<ApiNetworkConfig> = context.advancedTuningDataStore.data.map {
+        ApiNetworkConfig(
+            timeoutSeconds = (it[API_TIMEOUT] ?: 30).coerceAtLeast(5),
+            retryAttempts = (it[API_RETRIES] ?: 2).coerceAtLeast(0)
+        )
+    }
+
+    suspend fun setWeeklySummarySchedule(s: WeeklySummarySchedule) {
+        context.advancedTuningDataStore.edit {
+            it[WS_DAY] = s.dayOfWeek
+            it[WS_TASK_HR] = s.taskSummaryHour
+            it[WS_TASK_MIN] = s.taskSummaryMinute
+            it[WS_HABIT_HR] = s.habitSummaryHour
+            it[WS_HABIT_MIN] = s.habitSummaryMinute
+            it[WS_REVIEW_HR] = s.reviewHour
+            it[WS_REVIEW_MIN] = s.reviewMinute
+            it[WS_EVENING_HR] = s.eveningSummaryHour
+        }
+    }
+
+    suspend fun setReengagementConfig(c: ReengagementConfig) {
+        context.advancedTuningDataStore.edit {
+            it[RE_ABSENCE_DAYS] = c.absenceDays
+            it[RE_MAX_NUDGES] = c.maxNudges
+        }
+    }
+
+    suspend fun setOverloadCheckSchedule(s: OverloadCheckSchedule) {
+        context.advancedTuningDataStore.edit {
+            it[OC_HOUR] = s.hourOfDay
+            it[OC_MINUTE] = s.minute
+        }
+    }
+
+    suspend fun setBatchUndoConfig(c: BatchUndoConfig) {
+        context.advancedTuningDataStore.edit {
+            it[BU_TAIL_DAYS] = c.tailDays
+        }
+    }
+
+    suspend fun setHabitReminderFallback(c: HabitReminderFallback) {
+        context.advancedTuningDataStore.edit {
+            it[HRF_HOUR] = c.hour
+            it[HRF_MINUTE] = c.minute
+        }
+    }
+
+    suspend fun setApiNetworkConfig(c: ApiNetworkConfig) {
+        context.advancedTuningDataStore.edit {
+            it[API_TIMEOUT] = c.timeoutSeconds
+            it[API_RETRIES] = c.retryAttempts
         }
     }
 }

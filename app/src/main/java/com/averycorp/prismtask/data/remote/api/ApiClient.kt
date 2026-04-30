@@ -1,7 +1,10 @@
 package com.averycorp.prismtask.data.remote.api
 
+import com.averycorp.prismtask.data.preferences.AdvancedTuningPreferences
 import com.averycorp.prismtask.data.preferences.AuthTokenPreferences
 import com.google.gson.Gson
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import okhttp3.Authenticator
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
@@ -66,22 +69,29 @@ class TokenAuthenticator
 @Inject
 constructor(
     private val tokenPreferences: AuthTokenPreferences,
-    private val gson: Gson
+    private val gson: Gson,
+    private val advancedTuningPreferences: AdvancedTuningPreferences
 ) : Authenticator {
+    private val networkConfig by lazy {
+        runBlocking { advancedTuningPreferences.getApiNetworkConfig().first() }
+    }
+
     // Reuse a single OkHttpClient for all refresh calls. Previously a new
     // client was created per 401, which spins up a fresh connection pool
     // each time — a slow leak under refresh storms.
     private val refreshClient: OkHttpClient by lazy {
+        val timeout = networkConfig.timeoutSeconds.toLong()
         OkHttpClient
             .Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
+            .connectTimeout(timeout, TimeUnit.SECONDS)
+            .readTimeout(timeout, TimeUnit.SECONDS)
             .build()
     }
 
     override fun authenticate(route: Route?, response: Response): Request? {
-        // Avoid infinite retry loops: only attempt refresh once.
-        if (responseCount(response) >= 2) return null
+        // Avoid infinite retry loops: cap refresh attempts at the
+        // user-configured count (default 2 — the original behavior).
+        if (responseCount(response) >= networkConfig.retryAttempts) return null
 
         val refreshToken = tokenPreferences.getRefreshTokenBlocking()
         if (refreshToken.isNullOrBlank()) return null

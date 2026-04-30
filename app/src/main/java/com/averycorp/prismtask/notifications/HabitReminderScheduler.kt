@@ -9,6 +9,7 @@ import com.averycorp.prismtask.data.calendar.CalendarManager
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
 import com.averycorp.prismtask.data.local.entity.HabitEntity
+import com.averycorp.prismtask.data.preferences.AdvancedTuningPreferences
 import com.averycorp.prismtask.data.preferences.MedicationPreferences
 import com.averycorp.prismtask.data.preferences.MedicationScheduleMode
 import com.averycorp.prismtask.data.preferences.NotificationPreferences
@@ -50,7 +51,8 @@ constructor(
     private val taskBehaviorPreferences: TaskBehaviorPreferences,
     private val notificationPreferences: NotificationPreferences,
     private val calendarManager: CalendarManager,
-    private val calendarSyncRepository: CalendarSyncRepository
+    private val calendarSyncRepository: CalendarSyncRepository,
+    private val advancedTuningPreferences: AdvancedTuningPreferences
 ) {
     private val alarmManager: AlarmManager?
         get() = context.getSystemService(AlarmManager::class.java)
@@ -208,9 +210,15 @@ constructor(
         val times = medicationPreferences.getSpecificTimesOnce()
         val now = System.currentTimeMillis()
         val sortedTimes = times.sorted().toList()
+        val fallback = advancedTuningPreferences.getHabitReminderFallback().first()
 
         sortedTimes.forEachIndexed { index, timeStr ->
-            val triggerMillis = timeStringToNextTrigger(timeStr, now)
+            val triggerMillis = timeStringToNextTrigger(
+                timeStr = timeStr,
+                now = now,
+                fallbackHour = fallback.hour,
+                fallbackMinute = fallback.minute
+            )
             scheduleAtSpecificTime(index, triggerMillis, "Medication Reminder")
         }
         // Cancel any leftover slots beyond current count
@@ -396,11 +404,22 @@ constructor(
         /** Echo of [HabitEntity.reminderTime] for re-registration on fire. */
         const val EXTRA_REMINDER_TIME_MS = "reminderTimeMs"
 
-        /** Convert "HH:mm" to next trigger timestamp (today if not passed, tomorrow if passed). */
-        fun timeStringToNextTrigger(timeStr: String, now: Long): Long {
+        /**
+         * Convert "HH:mm" to next trigger timestamp (today if not passed,
+         * tomorrow if passed). When the input is malformed,
+         * [fallbackHour]/[fallbackMinute] are substituted (defaults 8:00,
+         * matching prior behavior; user-tunable via
+         * [com.averycorp.prismtask.data.preferences.HabitReminderFallback]).
+         */
+        fun timeStringToNextTrigger(
+            timeStr: String,
+            now: Long,
+            fallbackHour: Int = 8,
+            fallbackMinute: Int = 0
+        ): Long {
             val parts = timeStr.split(":")
-            val hour = parts.getOrNull(0)?.toIntOrNull() ?: 8
-            val minute = parts.getOrNull(1)?.toIntOrNull() ?: 0
+            val hour = parts.getOrNull(0)?.toIntOrNull() ?: fallbackHour
+            val minute = parts.getOrNull(1)?.toIntOrNull() ?: fallbackMinute
 
             val cal = Calendar.getInstance().apply {
                 timeInMillis = now

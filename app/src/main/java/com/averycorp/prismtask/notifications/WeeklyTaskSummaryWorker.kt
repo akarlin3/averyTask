@@ -117,21 +117,22 @@ constructor(
          */
         const val WORK_NAME = "weekly_task_summary"
 
-        /** Sunday 19:30 local — 30 minutes after the habit summary. */
-        private const val FIRE_HOUR = 19
-        private const val FIRE_MINUTE = 30
-
         internal fun formatBody(data: WeeklyTaskSummaryData): String =
             "You finished ${data.completedCount} tasks this week, " +
                 "${data.overdueClearedCount} overdue cleared, " +
                 "${data.stillOpenCount} still open"
 
-        fun schedule(context: Context) {
+        fun schedule(
+            context: Context,
+            dayOfWeek: Int = Calendar.SUNDAY,
+            hourOfDay: Int = 19,
+            minute: Int = 30
+        ) {
             val now = Calendar.getInstance()
             val target = Calendar.getInstance().apply {
-                set(Calendar.DAY_OF_WEEK, Calendar.SUNDAY)
-                set(Calendar.HOUR_OF_DAY, FIRE_HOUR)
-                set(Calendar.MINUTE, FIRE_MINUTE)
+                set(Calendar.DAY_OF_WEEK, dayOfWeek)
+                set(Calendar.HOUR_OF_DAY, hourOfDay)
+                set(Calendar.MINUTE, minute)
                 set(Calendar.SECOND, 0)
                 if (before(now)) add(Calendar.WEEK_OF_YEAR, 1)
             }
