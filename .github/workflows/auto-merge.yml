@@ -180,7 +180,7 @@ jobs:
         # checks that report neutral (rare but possible for skipped
         # workflows under path filters) don't block auto-merge forever.
         # Pinned to v1.3.4 SHA for supply-chain safety.
-        uses: lewagon/wait-on-check-action@ccfb013c15c8afb7bf2b7c028fb74dc5a068cccc
+        uses: lewagon/wait-on-check-action@9312864dfbc9fd208e9c0417843430751c042800
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           running-workflow-name: Auto-merge
