@@ -119,7 +119,7 @@ class PomodoroTimerService : Service() {
         manager?.notify(NOTIFICATION_ID_COMPLETE, completion)
 
         if (buzzUntilDismissed) {
-            NotificationHelper.startContinuousBuzz(this)
+            runBlocking { NotificationHelper.startContinuousBuzz(this@PomodoroTimerService) }
         }
 
         sendBroadcast(
