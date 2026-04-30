@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.averycorp.prismtask.data.local.entity.SelfCareLogEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareStepEntity
+import com.averycorp.prismtask.data.preferences.AdvancedTuningPreferences
+import com.averycorp.prismtask.data.preferences.SelfCareTierDefaults
 import com.averycorp.prismtask.data.repository.SelfCareRepository
 import com.averycorp.prismtask.domain.model.SelfCareRoutines
 import com.google.gson.Gson
@@ -25,7 +27,8 @@ class SelfCareViewModel
 constructor(
     private val repository: SelfCareRepository,
     savedStateHandle: SavedStateHandle,
-    private val gson: Gson
+    private val gson: Gson,
+    advancedTuningPreferences: AdvancedTuningPreferences
 ) : ViewModel() {
     private val _routineType = MutableStateFlow(
         savedStateHandle.get<String>("routineType") ?: "morning"
@@ -46,6 +49,10 @@ constructor(
         .flatMapLatest { type ->
             repository.getSteps(type)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val tierDefaults: StateFlow<SelfCareTierDefaults> =
+        advancedTuningPreferences.getSelfCareTierDefaults()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SelfCareTierDefaults())
 
     fun switchRoutine(type: String) {
         _routineType.value = type
@@ -142,7 +149,18 @@ constructor(
         }
     }
 
-    fun getSelectedTier(log: SelfCareLogEntity?): String = log?.selectedTier ?: SelfCareRoutines.getTierOrder(_routineType.value).let {
-        if (it.size >= 2) it[it.size - 2] else it.first()
+    fun getSelectedTier(log: SelfCareLogEntity?): String {
+        val routineType = _routineType.value
+        val order = SelfCareRoutines.getTierOrder(routineType)
+        log?.selectedTier?.takeIf { it in order }?.let { return it }
+        val preferred = when (routineType) {
+            "morning" -> tierDefaults.value.morning
+            "bedtime" -> tierDefaults.value.bedtime
+            "medication" -> tierDefaults.value.medication
+            "housework" -> tierDefaults.value.housework
+            else -> null
+        }
+        if (preferred != null && preferred in order) return preferred
+        return if (order.size >= 2) order[order.size - 2] else order.first()
     }
 }
