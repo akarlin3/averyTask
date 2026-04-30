@@ -78,14 +78,6 @@ constructor(
 ) : ViewModel() {
     private val boundaryEnforcer = BoundaryEnforcer()
 
-    val uiTier: StateFlow<com.averycorp.prismtask.domain.model.UiComplexityTier> =
-        userPreferencesDataStore.uiComplexityTier
-            .stateIn(
-                viewModelScope,
-                SharingStarted.WhileSubscribed(5000),
-                com.averycorp.prismtask.domain.model.UiComplexityTier.STANDARD
-            )
-
     /**
      * User-configurable reminder offsets (millis-before-due). Falls back to the
      * factory list `0,15m,30m,1h,1d` when the user hasn't customized presets.

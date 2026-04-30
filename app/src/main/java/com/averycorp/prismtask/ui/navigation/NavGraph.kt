@@ -47,7 +47,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -519,25 +518,6 @@ fun PrismTaskNavGraph(
                 popEnterTransition = { fadeIn(animationSpec = tween(NAV_ANIM_DURATION)) },
                 popExitTransition = { fadeOut(animationSpec = tween(NAV_ANIM_DURATION)) }
             ) {
-                // Tier onboarding sheet — shows once on first launch
-                val tierOnboardingVm: com.averycorp.prismtask.ui.screens.settings.SettingsViewModel = hiltViewModel()
-                val tierOnboardingShown by tierOnboardingVm.tierOnboardingShown.collectAsStateWithLifecycle()
-                val isDeepLink = initialLaunchAction != null
-                var tierSheetDismissed by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
-                if (!tierOnboardingShown && !isDeepLink && !tierSheetDismissed) {
-                    com.averycorp.prismtask.ui.screens.onboarding.TierOnboardingSheet(
-                        onComplete = { tier ->
-                            tierOnboardingVm.setUiComplexityTier(tier)
-                            tierOnboardingVm.markTierOnboardingShown()
-                            tierSheetDismissed = true
-                        },
-                        onDismiss = {
-                            tierOnboardingVm.markTierOnboardingShown()
-                            tierSheetDismissed = true
-                        }
-                    )
-                }
-
                 HorizontalPager(
                     state = pagerState,
                     beyondViewportPageCount = 1,
