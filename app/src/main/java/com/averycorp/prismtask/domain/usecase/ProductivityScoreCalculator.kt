@@ -33,7 +33,9 @@ class ProductivityScoreCalculator @Inject constructor() {
         zone: ZoneId,
         tasks: List<TaskEntity>,
         activeHabitsCount: Int,
-        habitCompletions: List<HabitCompletionEntity>
+        habitCompletions: List<HabitCompletionEntity>,
+        weights: com.averycorp.prismtask.data.preferences.ProductivityWeights =
+            com.averycorp.prismtask.data.preferences.ProductivityWeights()
     ): ProductivityScoreResponse {
         require(!startDate.isAfter(endDate)) {
             "startDate ($startDate) must be on or before endDate ($endDate)"
@@ -61,10 +63,10 @@ class ProductivityScoreCalculator @Inject constructor() {
             val estimationAccuracy = DEFAULT_ESTIMATION_ACCURACY
 
             val score = (
-                taskCompletionRate * WEIGHT_TASK_COMPLETION +
-                    onTimeRate * WEIGHT_ON_TIME +
-                    habitRate * WEIGHT_HABIT_COMPLETION +
-                    estimationAccuracy * WEIGHT_ESTIMATION_ACCURACY
+                taskCompletionRate * weights.taskWeight +
+                    onTimeRate * weights.onTimeWeight +
+                    habitRate * weights.habitWeight +
+                    estimationAccuracy * weights.estimationWeight
                 ).coerceIn(0.0, 100.0)
 
             scores.add(
@@ -94,7 +96,7 @@ class ProductivityScoreCalculator @Inject constructor() {
         return ProductivityScoreResponse(
             scores = scores,
             averageScore = average.round1(),
-            trend = determineTrend(scores.map { it.score }),
+            trend = determineTrend(scores.map { it.score }, weights.trendThreshold.toDouble()),
             bestDay = best,
             worstDay = worst
         )
@@ -147,7 +149,7 @@ class ProductivityScoreCalculator @Inject constructor() {
         const val DEFAULT_RATE = 100.0
         const val DEFAULT_ESTIMATION_ACCURACY = 100.0
 
-        fun determineTrend(scores: List<Double>): ProductivityTrend {
+        fun determineTrend(scores: List<Double>, threshold: Double = TREND_THRESHOLD): ProductivityTrend {
             if (scores.size < 2) return ProductivityTrend.STABLE
             val mid = scores.size / 2
             val firstHalf = scores.take(mid)
@@ -156,8 +158,8 @@ class ProductivityScoreCalculator @Inject constructor() {
             val secondAvg = secondHalf.average()
             val diff = secondAvg - firstAvg
             return when {
-                diff > TREND_THRESHOLD -> ProductivityTrend.IMPROVING
-                diff < -TREND_THRESHOLD -> ProductivityTrend.DECLINING
+                diff > threshold -> ProductivityTrend.IMPROVING
+                diff < -threshold -> ProductivityTrend.DECLINING
                 else -> ProductivityTrend.STABLE
             }
         }

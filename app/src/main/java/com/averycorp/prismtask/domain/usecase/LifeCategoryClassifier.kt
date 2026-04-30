@@ -1,5 +1,6 @@
 package com.averycorp.prismtask.domain.usecase
 
+import com.averycorp.prismtask.data.preferences.LifeCategoryCustomKeywords
 import com.averycorp.prismtask.domain.model.LifeCategory
 
 /**
@@ -148,5 +149,24 @@ class LifeCategoryClassifier(
                 "therapist"
             )
         )
+
+        /**
+         * Build a [LifeCategoryClassifier] whose keyword lists are
+         * [DEFAULT_KEYWORDS] augmented by user-supplied CSV strings. CSV is
+         * trimmed and lowercased; blank entries are dropped.
+         */
+        fun withCustomKeywords(custom: LifeCategoryCustomKeywords): LifeCategoryClassifier {
+            fun split(csv: String): List<String> = csv
+                .split(",")
+                .map { it.trim().lowercase() }
+                .filter { it.isNotBlank() }
+            val merged = mapOf(
+                LifeCategory.WORK to (DEFAULT_KEYWORDS[LifeCategory.WORK].orEmpty() + split(custom.work)),
+                LifeCategory.PERSONAL to (DEFAULT_KEYWORDS[LifeCategory.PERSONAL].orEmpty() + split(custom.personal)),
+                LifeCategory.SELF_CARE to (DEFAULT_KEYWORDS[LifeCategory.SELF_CARE].orEmpty() + split(custom.selfCare)),
+                LifeCategory.HEALTH to (DEFAULT_KEYWORDS[LifeCategory.HEALTH].orEmpty() + split(custom.health))
+            )
+            return LifeCategoryClassifier(merged)
+        }
     }
 }

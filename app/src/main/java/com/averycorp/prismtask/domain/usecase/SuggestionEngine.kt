@@ -68,7 +68,9 @@ constructor(
     fun getSuggestions(
         title: String,
         currentTagIds: List<Long>,
-        currentProjectId: Long?
+        currentProjectId: Long?,
+        config: com.averycorp.prismtask.data.preferences.SuggestionConfig =
+            com.averycorp.prismtask.data.preferences.SuggestionConfig()
     ): Flow<TaskSuggestions> {
         val keywords = extractKeywords(title)
         if (keywords.isEmpty()) return flowOf(TaskSuggestions())
@@ -96,14 +98,14 @@ constructor(
                 .map { (tagId, count) ->
                     val tag = tags.find { it.id == tagId }
                     val confidence = count.toFloat() / totalTagLogs
-                    if (tag != null && confidence > 0.2f) {
+                    if (tag != null && confidence > config.tagThreshold) {
                         SuggestedTag(tag, confidence, "Used in $count similar tasks")
                     } else {
                         null
                     }
                 }.filterNotNull()
                 .sortedByDescending { it.confidence }
-                .take(3)
+                .take(config.maxResults)
 
             // Merge project frequencies
             val projectCounts = projectFreqs
@@ -117,7 +119,7 @@ constructor(
                     val project = projects.find { it.id == projId }
                     val totalProjLogs = projectFreqs.sumOf { it.count }.coerceAtLeast(1)
                     val confidence = count.toFloat() / totalProjLogs
-                    if (project != null && confidence > 0.3f) {
+                    if (project != null && confidence > config.projectThreshold) {
                         SuggestedProject(project, confidence, "Used in $count similar tasks")
                     } else {
                         null

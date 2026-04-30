@@ -2,6 +2,7 @@ package com.averycorp.prismtask.domain.usecase
 
 import com.averycorp.prismtask.data.local.entity.MedicationEntity
 import com.averycorp.prismtask.data.local.entity.MedicationRefillEntity
+import com.averycorp.prismtask.data.preferences.RefillUrgencyConfig
 import kotlin.math.max
 
 /**
@@ -43,13 +44,17 @@ data class RefillForecast(
 object RefillCalculator {
     private const val MILLIS_PER_DAY: Long = 24L * 60 * 60 * 1000
 
-    fun forecast(refill: MedicationRefillEntity, now: Long = System.currentTimeMillis()): RefillForecast {
+    fun forecast(
+        refill: MedicationRefillEntity,
+        now: Long = System.currentTimeMillis(),
+        urgencyConfig: RefillUrgencyConfig = RefillUrgencyConfig()
+    ): RefillForecast {
         val dailyUsage = max(1, refill.pillsPerDose * refill.dosesPerDay)
         val daysRemaining = (refill.pillCount / dailyUsage).coerceAtLeast(0)
         val anchor = refill.lastRefillDate ?: now
         val refillDate = anchor + daysRemaining.toLong() * MILLIS_PER_DAY
         val reminderDate = refillDate - refill.reminderDaysBefore.toLong() * MILLIS_PER_DAY
-        val urgency = urgencyFor(daysRemaining, refill.pillCount)
+        val urgency = urgencyFor(daysRemaining, refill.pillCount, urgencyConfig)
         return RefillForecast(
             daysRemaining = daysRemaining,
             refillDateMillis = refillDate,
@@ -99,10 +104,14 @@ object RefillCalculator {
         return (dosesTaken.toFloat() / expected.toFloat()).coerceIn(0f, 1f)
     }
 
-    private fun urgencyFor(daysRemaining: Int, pillCount: Int): RefillUrgency = when {
+    private fun urgencyFor(
+        daysRemaining: Int,
+        pillCount: Int,
+        config: RefillUrgencyConfig = RefillUrgencyConfig()
+    ): RefillUrgency = when {
         pillCount <= 0 -> RefillUrgency.OUT_OF_STOCK
-        daysRemaining < 3 -> RefillUrgency.URGENT
-        daysRemaining <= 7 -> RefillUrgency.UPCOMING
+        daysRemaining < config.urgentDays -> RefillUrgency.URGENT
+        daysRemaining <= config.upcomingDays -> RefillUrgency.UPCOMING
         else -> RefillUrgency.HEALTHY
     }
 
@@ -120,7 +129,8 @@ object RefillCalculator {
      */
     fun forecast(
         med: MedicationEntity,
-        now: Long = System.currentTimeMillis()
+        now: Long = System.currentTimeMillis(),
+        urgencyConfig: RefillUrgencyConfig = RefillUrgencyConfig()
     ): RefillForecast? {
         val pillCount = med.pillCount ?: return null
         val dailyUsage = max(1, med.pillsPerDose * med.dosesPerDay)
@@ -128,7 +138,7 @@ object RefillCalculator {
         val anchor = med.lastRefillDate ?: now
         val refillDate = anchor + daysRemaining.toLong() * MILLIS_PER_DAY
         val reminderDate = refillDate - med.reminderDaysBefore.toLong() * MILLIS_PER_DAY
-        val urgency = urgencyFor(daysRemaining, pillCount)
+        val urgency = urgencyFor(daysRemaining, pillCount, urgencyConfig)
         return RefillForecast(
             daysRemaining = daysRemaining,
             refillDateMillis = refillDate,

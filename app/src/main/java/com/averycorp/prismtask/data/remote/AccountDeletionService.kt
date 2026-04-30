@@ -325,7 +325,8 @@ constructor(
             "notification_prefs",
             "medication_migration_prefs",
             "reengagement_prefs",
-            "sync_device_prefs"
+            "sync_device_prefs",
+            "advanced_tuning_prefs"
         )
     }
 }

@@ -43,8 +43,12 @@ object SmartDefaultsEngine {
      *
      * Returns an empty [ComputedDefaults] when there is insufficient history.
      */
-    fun compute(completedTasks: List<TaskEntity>): ComputedDefaults {
-        if (completedTasks.size < MIN_HISTORY) {
+    fun compute(
+        completedTasks: List<TaskEntity>,
+        config: com.averycorp.prismtask.data.preferences.SmartDefaultsConfig =
+            com.averycorp.prismtask.data.preferences.SmartDefaultsConfig()
+    ): ComputedDefaults {
+        if (completedTasks.size < config.minHistory) {
             return ComputedDefaults(null, null, null, null, null)
         }
         val slice = completedTasks.take(MAX_HISTORY)
@@ -53,10 +57,11 @@ object SmartDefaultsEngine {
         val projectId = slice.mapNotNull { it.projectId }.modeIfRepeated()
         val reminderOffset = slice.mapNotNull { it.reminderOffset }.mode()
 
+        val granularity = config.durationGranularityMinutes.coerceAtLeast(1).toDouble()
         val averageDuration = slice
             .mapNotNull { it.estimatedDuration }
             .takeIf { it.isNotEmpty() }
-            ?.let { list -> (list.average() / 15.0).let { Math.round(it).toInt() * 15 } }
+            ?.let { list -> (list.average() / granularity).let { Math.round(it).toInt() * granularity.toInt() } }
             ?.takeIf { it > 0 }
 
         val offsetDaysList = slice.mapNotNull { task ->

@@ -1,30 +1,33 @@
 package com.averycorp.prismtask.domain.usecase
 
 import com.averycorp.prismtask.data.preferences.GoodEnoughEscalation
+import com.averycorp.prismtask.data.preferences.GoodEnoughTimerConfig
 import com.averycorp.prismtask.data.preferences.NdPreferences
 
 /**
  * Manages Good Enough Timer state for a single task editing session.
  * Tracks cumulative editing time and determines when/how to escalate.
  */
-class GoodEnoughTimerManager {
+class GoodEnoughTimerManager(
+    timerConfig: GoodEnoughTimerConfig = GoodEnoughTimerConfig()
+) {
     private var sessionStartTimeMs: Long = 0L
     private var isPaused: Boolean = true
     private var accumulatedMs: Long = 0L
     private var lastNudgeAtMs: Long = 0L
     private var extensionGrantedMs: Long = 0L
 
-    /** Grace period — no nudge in the first 2 minutes of editing. */
-    private val gracePeriodMs = 2 * 60 * 1000L
+    /** Grace period — no nudge in the first N minutes of editing. */
+    private val gracePeriodMs = timerConfig.gracePeriodMinutes * 60 * 1000L
 
     /** Re-nudge cooldown after dismissing a NUDGE-level snackbar. */
-    private val nudgeCooldownMs = 10 * 60 * 1000L
+    private val nudgeCooldownMs = timerConfig.nudgeCooldownMinutes * 60 * 1000L
 
     /** Re-nudge cooldown after dismissing a DIALOG-level dialog. */
-    private val dialogCooldownMs = 15 * 60 * 1000L
+    private val dialogCooldownMs = timerConfig.dialogCooldownMinutes * 60 * 1000L
 
-    /** Extension time granted by "10 more minutes" buttons. */
-    private val extensionMs = 10 * 60 * 1000L
+    /** Extension time granted by the "more minutes" buttons. */
+    private val extensionMs = timerConfig.extensionMinutes * 60 * 1000L
 
     fun startTracking(previousCumulativeMinutes: Int) {
         accumulatedMs = previousCumulativeMinutes * 60 * 1000L

@@ -1,6 +1,7 @@
 package com.averycorp.prismtask.domain.usecase
 
 import com.averycorp.prismtask.data.local.entity.MoodEnergyLogEntity
+import com.averycorp.prismtask.data.preferences.MoodCorrelationConfig
 import kotlin.math.sqrt
 
 /**
@@ -70,13 +71,15 @@ enum class CorrelationStrength { WEAK, MODERATE, STRONG }
  * [CorrelationResult]s. The caller is responsible for stitching mood logs
  * together with task/habit/med stats into observations.
  */
-class MoodCorrelationEngine {
+class MoodCorrelationEngine(
+    private val config: MoodCorrelationConfig = MoodCorrelationConfig()
+) {
     /**
      * Correlate mood against every supported factor. Returns a list sorted
      * by absolute coefficient (strongest first).
      */
     fun correlateMood(observations: List<DailyObservation>): List<CorrelationResult> {
-        if (observations.size < MIN_OBSERVATIONS) return emptyList()
+        if (observations.size < config.minObservations) return emptyList()
         val moods = observations.map { it.mood.toFloat() }
         return CorrelationFactor
             .values()
@@ -94,7 +97,7 @@ class MoodCorrelationEngine {
 
     /** Same as [correlateMood] but for energy. */
     fun correlateEnergy(observations: List<DailyObservation>): List<CorrelationResult> {
-        if (observations.size < MIN_OBSERVATIONS) return emptyList()
+        if (observations.size < config.minObservations) return emptyList()
         val energies = observations.map { it.energy.toFloat() }
         return CorrelationFactor
             .values()
@@ -162,8 +165,8 @@ class MoodCorrelationEngine {
     private fun bucket(coef: Float): CorrelationStrength {
         val abs = kotlin.math.abs(coef)
         return when {
-            abs >= 0.5f -> CorrelationStrength.STRONG
-            abs >= 0.3f -> CorrelationStrength.MODERATE
+            abs >= config.strongThreshold -> CorrelationStrength.STRONG
+            abs >= config.moderateThreshold -> CorrelationStrength.MODERATE
             else -> CorrelationStrength.WEAK
         }
     }
