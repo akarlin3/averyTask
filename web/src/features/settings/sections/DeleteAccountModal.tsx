@@ -75,7 +75,6 @@ export function DeleteAccountModal({ isOpen, onClose }: Props) {
             deletion_initiated_from: 'web',
           });
         } catch (e) {
-          // eslint-disable-next-line no-console
           console.warn('Failed to mirror deletion to Firestore (non-fatal):', e);
         }
       }

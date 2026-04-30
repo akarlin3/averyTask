@@ -387,7 +387,7 @@ async function applyMedicationMutation(
   // collection — every medication mutation collapses onto the slot's
   // tier-state row. Multiple mutations on the same (date, slot) are
   // therefore idempotent at write time.
-  let nextTier: MedicationTier | null = null;
+  let nextTier: MedicationTier | null;
   switch (mutationType) {
     case 'COMPLETE':
       nextTier = 'complete';
