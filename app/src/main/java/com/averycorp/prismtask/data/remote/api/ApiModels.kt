@@ -163,10 +163,9 @@ data class PomodoroRequest(
 )
 
 data class SessionTaskResponse(
-    // TODO(weekly-followup): backend now sends Firestore doc IDs (strings).
-    // Flip to String when the full Long -> String audit lands alongside a
-    // firestoreId lookup on TaskEntity.
-    @SerializedName("task_id") val taskId: Long,
+    // Firestore document ID (alphanumeric). Resolved to a local Long task id
+    // via TaskDao.getIdByCloudId at the ViewModel boundary.
+    @SerializedName("task_id") val taskId: String,
     val title: String,
     @SerializedName("allocated_minutes") val allocatedMinutes: Int
 )
@@ -178,9 +177,7 @@ data class PomodoroSessionResponse(
 )
 
 data class SkippedTaskResponse(
-    // TODO(weekly-followup): flip to String once Pomodoro response ships with
-    // Firestore doc IDs end-to-end.
-    @SerializedName("task_id") val taskId: Long,
+    @SerializedName("task_id") val taskId: String,
     val reason: String
 )
 
@@ -226,15 +223,17 @@ data class DailyBriefingRequest(
 )
 
 data class BriefingPriorityResponse(
-    // TODO(weekly-followup): flip to String when briefing response is audited.
-    @SerializedName("task_id") val taskId: Long,
+    // Firestore document ID (alphanumeric). Resolved to a local Long task id
+    // via TaskDao.getIdByCloudId at the ViewModel boundary.
+    @SerializedName("task_id") val taskId: String,
     val title: String,
     val reason: String
 )
 
 data class SuggestedTaskResponse(
-    // TODO(weekly-followup): flip to String when briefing response is audited.
-    @SerializedName("task_id") val taskId: Long,
+    // Firestore document ID (alphanumeric). Resolved to a local Long task id
+    // via TaskDao.getIdByCloudId at the ViewModel boundary.
+    @SerializedName("task_id") val taskId: String,
     val title: String,
     @SerializedName("suggested_time") val suggestedTime: String,
     val reason: String
@@ -265,8 +264,9 @@ data class WeeklyPlanRequest(
 )
 
 data class PlannedTaskResponse(
-    // TODO(weekly-followup): flip to String when weekly-plan response is audited.
-    @SerializedName("task_id") val taskId: Long,
+    // Firestore document ID (alphanumeric). Resolved to a local Long task id
+    // via TaskDao.getIdByCloudId at the ViewModel boundary.
+    @SerializedName("task_id") val taskId: String,
     val title: String,
     @SerializedName("suggested_time") val suggestedTime: String,
     @SerializedName("duration_minutes") val durationMinutes: Int,
@@ -282,8 +282,10 @@ data class DayPlanResponse(
 )
 
 data class UnscheduledTaskResponse(
-    // TODO(weekly-followup): flip to String when weekly-plan/time-block are audited.
-    @SerializedName("task_id") val taskId: Long,
+    // Firestore document ID (alphanumeric). Resolved to a local Long task id
+    // via TaskDao.getIdByCloudId at the ViewModel / use-case boundary. Shared
+    // by Weekly Plan and Time-Block responses.
+    @SerializedName("task_id") val taskId: String,
     val title: String,
     val reason: String
 )
@@ -381,8 +383,10 @@ data class ScheduleBlockResponse(
     val start: String,
     val end: String,
     val type: String,
-    // TODO(weekly-followup): flip to String when time-block response is audited.
-    @SerializedName("task_id") val taskId: Long?,
+    // Firestore document ID (alphanumeric). Resolved to a local Long task id
+    // via TaskDao.getIdByCloudId in AiTimeBlockUseCase. Null for non-task
+    // blocks (events, breaks).
+    @SerializedName("task_id") val taskId: String?,
     val title: String,
     val reason: String,
     // v1.4.40: ISO date of the day this block belongs to. Null on legacy

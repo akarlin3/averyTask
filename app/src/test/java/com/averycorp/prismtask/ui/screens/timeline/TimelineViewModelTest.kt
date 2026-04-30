@@ -60,6 +60,9 @@ class TimelineViewModelTest {
         taskDao = mockk(relaxed = true)
         every { taskDao.getIncompleteRootTasks() } returns flowOf(emptyList())
         every { taskDao.getTasksDueOnDate(any(), any()) } returns flowOf(emptyList())
+        // Default cloud-id resolution for the canonical fixtures.
+        coEvery { taskDao.getIdByCloudId("cloud-7") } returns 7L
+        coEvery { taskDao.getIdByCloudId("cloud-42") } returns 42L
         taskRepository = mockk(relaxed = true)
         projectRepository = mockk(relaxed = true)
         every { projectRepository.getAllProjects() } returns flowOf(emptyList())
@@ -116,7 +119,7 @@ class TimelineViewModelTest {
                     start = "09:00",
                     end = "09:30",
                     type = "task",
-                    taskId = 42L,
+                    taskId = "cloud-42",
                     title = "Write design doc",
                     reason = "Q2 morning slot",
                     date = "2026-04-22"
@@ -152,7 +155,7 @@ class TimelineViewModelTest {
                     start = "09:00",
                     end = "10:00",
                     type = "task",
-                    taskId = 7L,
+                    taskId = "cloud-7",
                     title = "Deep work",
                     reason = "Morning focus",
                     date = "2026-04-22"
@@ -206,7 +209,7 @@ class TimelineViewModelTest {
                     start = "09:00",
                     end = "09:30",
                     type = "task",
-                    taskId = 42L,
+                    taskId = "cloud-42",
                     title = "Write",
                     reason = "...",
                     date = "2026-04-22"
@@ -251,6 +254,54 @@ class TimelineViewModelTest {
 
         assertTrue(vm.scheduleUiState.value is AiScheduleUiState.Empty)
         assertFalse(vm.showPreviewSheet.value)
+    }
+
+    @Test
+    fun runAutoBlockMyDay_unresolvedCloudId_demotesIntoUnscheduled() = runTest(dispatcher) {
+        // "cloud-99" is not in the dao mocks → returns null → demote.
+        coEvery { taskDao.getIdByCloudId("cloud-99") } returns null
+        val response = TimeBlockResponse(
+            schedule = listOf(
+                ScheduleBlockResponse(
+                    start = "09:00",
+                    end = "09:30",
+                    type = "task",
+                    taskId = "cloud-7",
+                    title = "Resolved task",
+                    reason = "Local row exists",
+                    date = "2026-04-22"
+                ),
+                ScheduleBlockResponse(
+                    start = "09:30",
+                    end = "10:00",
+                    type = "task",
+                    taskId = "cloud-99",
+                    title = "Cross-device task",
+                    reason = "Created on phone",
+                    date = "2026-04-22"
+                )
+            ),
+            unscheduledTasks = emptyList(),
+            stats = TimeBlockStatsResponse(60, 0, 480, 2, 0),
+            proposed = true,
+            horizonDays = 1
+        )
+        coEvery {
+            aiTimeBlockUseCase(any(), any(), any(), any(), any(), any(), any(), any(), any())
+        } returns response
+
+        val vm = newViewModel()
+        vm.runAutoBlockMyDay()
+        advanceUntilIdle()
+
+        val success = vm.scheduleUiState.value as AiScheduleUiState.Success
+        // Resolved block lands in schedule with the local Long id.
+        assertEquals(1, success.schedule.blocks.size)
+        assertEquals(7L, success.schedule.blocks[0].taskId)
+        // Unresolved block demoted into unscheduled with null taskId.
+        assertEquals(1, success.schedule.unscheduledTasks.size)
+        assertEquals(null, success.schedule.unscheduledTasks[0].first)
+        assertEquals("Cross-device task", success.schedule.unscheduledTasks[0].second)
     }
 
     @Test

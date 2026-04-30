@@ -13,18 +13,26 @@ import org.junit.Test
 class DailyBriefingTest {
     @Test
     fun briefing_parsesFromApiResponse() {
+        // Backend now emits Firestore document IDs (strings); the
+        // ViewModel's resolution layer maps them to local Long ids.
+        // This test simulates that mapping with a fixed lookup.
+        val cloudToLocal = mapOf(
+            "cloud-1" to 1L,
+            "cloud-2" to 2L,
+            "cloud-3" to 3L
+        )
         val apiResponse = DailyBriefingResponse(
             greeting = "Good morning! Moderate day with 5 tasks.",
             topPriorities = listOf(
-                BriefingPriorityResponse(1L, "Fix bug", "Due today, high priority"),
-                BriefingPriorityResponse(2L, "Write report", "Blocks other work"),
-                BriefingPriorityResponse(3L, "Reply to emails", "Quick win")
+                BriefingPriorityResponse("cloud-1", "Fix bug", "Due today, high priority"),
+                BriefingPriorityResponse("cloud-2", "Write report", "Blocks other work"),
+                BriefingPriorityResponse("cloud-3", "Reply to emails", "Quick win")
             ),
             headsUp = listOf("2 overdue tasks from yesterday"),
             suggestedOrder = listOf(
-                SuggestedTaskResponse(1L, "Fix bug", "9:00 AM", "Hardest first"),
-                SuggestedTaskResponse(2L, "Write report", "10:30 AM", "Focus time"),
-                SuggestedTaskResponse(3L, "Reply to emails", "12:00 PM", "After break")
+                SuggestedTaskResponse("cloud-1", "Fix bug", "9:00 AM", "Hardest first"),
+                SuggestedTaskResponse("cloud-2", "Write report", "10:30 AM", "Focus time"),
+                SuggestedTaskResponse("cloud-3", "Reply to emails", "12:00 PM", "After break")
             ),
             habitReminders = listOf("Exercise", "Read 20 pages"),
             dayType = "moderate"
@@ -34,11 +42,11 @@ class DailyBriefingTest {
             greeting = apiResponse.greeting,
             dayType = apiResponse.dayType,
             topPriorities = apiResponse.topPriorities.map {
-                BriefingPriority(it.taskId, it.title, it.reason)
+                BriefingPriority(cloudToLocal.getValue(it.taskId), it.title, it.reason)
             },
             headsUp = apiResponse.headsUp,
             suggestedOrder = apiResponse.suggestedOrder.map {
-                SuggestedTask(it.taskId, it.title, it.suggestedTime, it.reason)
+                SuggestedTask(cloudToLocal.getValue(it.taskId), it.title, it.suggestedTime, it.reason)
             },
             habitReminders = apiResponse.habitReminders
         )

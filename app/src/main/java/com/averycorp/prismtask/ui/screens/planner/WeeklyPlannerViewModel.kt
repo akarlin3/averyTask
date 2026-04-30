@@ -44,7 +44,10 @@ data class DayPlan(
 )
 
 data class UnscheduledTask(
-    val taskId: Long,
+    // Null when the AI returned a Firestore doc id that couldn't be resolved
+    // to a local row (cross-device task not yet synced). Title + reason
+    // still surface so the user knows the task exists.
+    val taskId: Long?,
     val title: String,
     val reason: String
 )
@@ -155,15 +158,28 @@ constructor(
                     )
                 )
 
+                // Resolve Firestore doc IDs to local Long task ids. Tasks
+                // not present locally (e.g. created on another device and
+                // not yet synced down) are demoted into the unscheduled
+                // list with a "Not synced to this device" reason so the
+                // rest of the plan still renders.
+                val demoted = mutableListOf<UnscheduledTask>()
                 val dayOrder = listOf("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
                 val days = dayOrder.mapNotNull { dayName ->
                     response.plan[dayName]?.let { dayPlan ->
+                        val resolvedTasks = dayPlan.tasks.mapNotNull { t ->
+                            val localId = taskDao.getIdByCloudId(t.taskId)
+                            if (localId == null) {
+                                demoted += UnscheduledTask(null, t.title, "Not synced to this device")
+                                null
+                            } else {
+                                PlannedTask(localId, t.title, t.suggestedTime, t.durationMinutes, t.reason)
+                            }
+                        }
                         DayPlan(
                             date = dayPlan.date,
                             dayName = dayName,
-                            tasks = dayPlan.tasks.map { t ->
-                                PlannedTask(t.taskId, t.title, t.suggestedTime, t.durationMinutes, t.reason)
-                            },
+                            tasks = resolvedTasks,
                             totalHours = dayPlan.totalHours,
                             calendarEvents = dayPlan.calendarEvents,
                             habits = dayPlan.habits
@@ -171,11 +187,13 @@ constructor(
                     }
                 }
 
+                val resolvedUnscheduled = response.unscheduled.map {
+                    UnscheduledTask(taskDao.getIdByCloudId(it.taskId), it.title, it.reason)
+                } + demoted
+
                 _plan.value = WeeklyPlan(
                     days = days,
-                    unscheduled = response.unscheduled.map {
-                        UnscheduledTask(it.taskId, it.title, it.reason)
-                    },
+                    unscheduled = resolvedUnscheduled,
                     weekSummary = response.weekSummary,
                     tips = response.tips
                 )
@@ -204,12 +222,13 @@ constructor(
             }
         }
 
-        // Also check unscheduled
+        // Also check unscheduled. Unresolved cross-device entries
+        // (taskId == null) aren't movable — they're informational.
         val unscheduled = currentPlan.unscheduled.toMutableList()
         if (movedTask == null) {
             val fromUnscheduled = unscheduled.find { it.taskId == taskId }
             if (fromUnscheduled != null) {
-                movedTask = PlannedTask(fromUnscheduled.taskId, fromUnscheduled.title, "TBD", 30, "Manually scheduled")
+                movedTask = PlannedTask(taskId, fromUnscheduled.title, "TBD", 30, "Manually scheduled")
                 unscheduled.removeAll { it.taskId == taskId }
             }
         }

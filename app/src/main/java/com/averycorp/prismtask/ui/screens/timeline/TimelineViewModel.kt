@@ -76,7 +76,10 @@ data class AiTimeBlockStats(
 
 data class AiSchedule(
     val blocks: List<AiScheduleBlock>,
-    val unscheduledTasks: List<Pair<Long, String>>,
+    // (Long?, String): taskId is null for unresolved cross-device tasks
+    // (Firestore doc ID returned by the AI but not yet synced down to this
+    // device); the title is shown in the deferred footer either way.
+    val unscheduledTasks: List<Pair<Long?, String>>,
     val stats: AiTimeBlockStats,
     // v1.4.40: how many days the proposed schedule covers (1 / 2 / 7).
     val horizonDays: Int = 1
@@ -467,19 +470,35 @@ constructor(
                     breakDurationMinutes = cfg.breakDurationMinutes
                 )
                 val anchorIso = anchor.format(DateTimeFormatter.ISO_LOCAL_DATE)
+                // Resolve Firestore doc IDs to local Long task ids. Schedule
+                // blocks whose task id can't be resolved (created on another
+                // device, not yet synced down) get demoted into the
+                // unscheduled list so the rest of the plan still renders.
+                val resolvedBlocks = mutableListOf<AiScheduleBlock>()
+                val resolvedUnscheduled = mutableListOf<Pair<Long?, String>>()
+                for (block in response.schedule) {
+                    val cloudId = block.taskId
+                    val localId = cloudId?.let { taskDao.getIdByCloudId(it) }
+                    if (cloudId != null && localId == null) {
+                        resolvedUnscheduled += null to block.title
+                        continue
+                    }
+                    resolvedBlocks += AiScheduleBlock(
+                        start = block.start,
+                        end = block.end,
+                        type = block.type,
+                        taskId = localId,
+                        title = block.title,
+                        reason = block.reason,
+                        date = block.date ?: anchorIso
+                    )
+                }
+                for (u in response.unscheduledTasks) {
+                    resolvedUnscheduled += taskDao.getIdByCloudId(u.taskId) to u.title
+                }
                 val schedule = AiSchedule(
-                    blocks = response.schedule.map { block ->
-                        AiScheduleBlock(
-                            start = block.start,
-                            end = block.end,
-                            type = block.type,
-                            taskId = block.taskId,
-                            title = block.title,
-                            reason = block.reason,
-                            date = block.date ?: anchorIso
-                        )
-                    },
-                    unscheduledTasks = response.unscheduledTasks.map { it.taskId to it.title },
+                    blocks = resolvedBlocks,
+                    unscheduledTasks = resolvedUnscheduled,
                     stats = AiTimeBlockStats(
                         totalWorkMinutes = response.stats.totalWorkMinutes,
                         totalBreakMinutes = response.stats.totalBreakMinutes,

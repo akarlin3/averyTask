@@ -16,6 +16,9 @@ interface TaskDao {
     @Query("SELECT * FROM tasks ORDER BY due_date ASC, priority DESC")
     fun getAllTasks(): Flow<List<TaskEntity>>
 
+    @Query("SELECT id FROM tasks WHERE cloud_id = :cloudId LIMIT 1")
+    suspend fun getIdByCloudId(cloudId: String): Long?
+
     @Query("SELECT * FROM tasks ORDER BY sort_order ASC, id ASC")
     fun getAllTasksByCustomOrder(): Flow<List<TaskEntity>>
 
