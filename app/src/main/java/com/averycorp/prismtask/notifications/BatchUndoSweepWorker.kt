@@ -8,8 +8,10 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.averycorp.prismtask.data.local.dao.BatchUndoLogDao
+import com.averycorp.prismtask.data.preferences.AdvancedTuningPreferences
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.flow.first
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
@@ -35,11 +37,13 @@ class BatchUndoSweepWorker
 constructor(
     @Assisted context: Context,
     @Assisted params: WorkerParameters,
-    private val batchUndoLogDao: BatchUndoLogDao
+    private val batchUndoLogDao: BatchUndoLogDao,
+    private val advancedTuningPreferences: AdvancedTuningPreferences
 ) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val now = System.currentTimeMillis()
-        val undoneCutoff = now - UNDO_TAIL_MILLIS
+        val tailDays = advancedTuningPreferences.getBatchUndoConfig().first().tailDays
+        val undoneCutoff = now - tailDays * MILLIS_PER_DAY
         return try {
             batchUndoLogDao.sweep(now = now, undoneCutoff = undoneCutoff)
             Result.success()
@@ -53,9 +57,7 @@ constructor(
         const val UNIQUE_WORK_NAME = "batch_undo_log_sweep_daily"
         const val TAG = "BatchUndoSweepWorker"
 
-        /** Already-undone rows linger for 7 days so the Settings history
-         *  can show "undone X minutes/hours/days ago" before they vanish. */
-        const val UNDO_TAIL_MILLIS = 7L * 24 * 60 * 60 * 1000
+        private const val MILLIS_PER_DAY = 24L * 60 * 60 * 1000
 
         /**
          * Schedules the sweep to run daily at the given hour (default 03:00

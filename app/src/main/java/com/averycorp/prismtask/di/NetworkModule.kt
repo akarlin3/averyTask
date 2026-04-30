@@ -1,6 +1,7 @@
 package com.averycorp.prismtask.di
 
 import com.averycorp.prismtask.BuildConfig
+import com.averycorp.prismtask.data.preferences.AdvancedTuningPreferences
 import com.averycorp.prismtask.data.remote.api.AiFeatureGateInterceptor
 import com.averycorp.prismtask.data.remote.api.AuthInterceptor
 import com.averycorp.prismtask.data.remote.api.CalendarBackendApi
@@ -11,6 +12,8 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -38,7 +41,11 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
-    private const val CONNECT_TIMEOUT_SECONDS = 30L
+    /**
+     * Read timeout floor — kept above the user-configurable connect
+     * timeout because read can legitimately wait longer for a slow
+     * backend response than for an initial socket open.
+     */
     private const val READ_TIMEOUT_SECONDS = 60L
     private const val WRITE_TIMEOUT_SECONDS = 60L
 
@@ -60,19 +67,26 @@ object NetworkModule {
         loggingInterceptor: HttpLoggingInterceptor,
         authInterceptor: AuthInterceptor,
         aiFeatureGateInterceptor: AiFeatureGateInterceptor,
-        tokenAuthenticator: TokenAuthenticator
-    ): OkHttpClient = OkHttpClient
-        .Builder()
-        .connectTimeout(CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-        .readTimeout(READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-        .writeTimeout(WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-        // Order matters: gate first so we don't waste an auth-token
-        // refresh on a request that's about to be short-circuited.
-        .addInterceptor(aiFeatureGateInterceptor)
-        .addInterceptor(authInterceptor)
-        .addInterceptor(loggingInterceptor)
-        .authenticator(tokenAuthenticator)
-        .build()
+        tokenAuthenticator: TokenAuthenticator,
+        advancedTuningPreferences: AdvancedTuningPreferences
+    ): OkHttpClient {
+        // Read once at provision time — OkHttpClient is a process-singleton.
+        // Live updates would require a per-call interceptor; restart-to-apply
+        // is acceptable for an advanced power-user knob.
+        val config = runBlocking { advancedTuningPreferences.getApiNetworkConfig().first() }
+        return OkHttpClient
+            .Builder()
+            .connectTimeout(config.timeoutSeconds.toLong(), TimeUnit.SECONDS)
+            .readTimeout(maxOf(READ_TIMEOUT_SECONDS, config.timeoutSeconds.toLong()), TimeUnit.SECONDS)
+            .writeTimeout(WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            // Order matters: gate first so we don't waste an auth-token
+            // refresh on a request that's about to be short-circuited.
+            .addInterceptor(aiFeatureGateInterceptor)
+            .addInterceptor(authInterceptor)
+            .addInterceptor(loggingInterceptor)
+            .authenticator(tokenAuthenticator)
+            .build()
+    }
 
     @Provides
     @Singleton

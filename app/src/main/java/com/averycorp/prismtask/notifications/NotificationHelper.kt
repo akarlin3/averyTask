@@ -10,6 +10,7 @@ import android.media.RingtoneManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.averycorp.prismtask.MainActivity
+import com.averycorp.prismtask.data.local.dao.NotificationProfileDao
 import com.averycorp.prismtask.data.preferences.NotificationPreferences
 import com.averycorp.prismtask.data.preferences.TimerPreferences
 import com.averycorp.prismtask.domain.model.notifications.EscalationStepAction
@@ -18,7 +19,27 @@ import com.averycorp.prismtask.domain.model.notifications.NotificationDisplayMod
 import com.averycorp.prismtask.domain.model.notifications.NotificationProfile
 import com.averycorp.prismtask.domain.model.notifications.UrgencyTier
 import com.averycorp.prismtask.domain.model.notifications.VibrationIntensity
+import com.averycorp.prismtask.domain.usecase.NotificationProfileResolver
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.flow.first
+
+/**
+ * Hilt entry point exposing the data needed to resolve the user's
+ * currently-active [NotificationProfile] from the static
+ * [NotificationHelper] object. The legacy reminder paths are not
+ * profile-aware; this lets them fall back to the active profile's
+ * vibration pattern when one is configured, satisfying the C6 fix
+ * without rewriting every call site to be profile-aware.
+ */
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+internal interface NotificationHelperEntryPoint {
+    fun notificationProfileDao(): NotificationProfileDao
+    fun notificationPreferences(): NotificationPreferences
+}
 
 object NotificationHelper {
     private const val BASE_CHANNEL_ID = "prismtask_reminders"
@@ -168,7 +189,8 @@ object NotificationHelper {
         }
     }
 
-    private fun buildChannel(
+    private suspend fun buildChannel(
+        context: Context,
         id: String,
         name: String,
         description: String,
@@ -191,8 +213,30 @@ object NotificationHelper {
         }
         if (style.repeatingVibration) {
             enableVibration(true)
-            vibrationPattern = REPEATING_VIBRATION_PATTERN
+            vibrationPattern = activeProfileVibrationPattern(context)
+                ?: REPEATING_VIBRATION_PATTERN
         }
+    }
+
+    /**
+     * Returns the vibration pattern associated with the user's currently-
+     * active [NotificationProfile], or null if none is set or the profile
+     * disables vibration. Used by the legacy non-profile-aware notification
+     * paths to honor the active profile's haptics setting (C6).
+     */
+    private suspend fun activeProfileVibrationPattern(context: Context): LongArray? {
+        val entryPoint = runCatching {
+            EntryPointAccessors.fromApplication(
+                context.applicationContext,
+                NotificationHelperEntryPoint::class.java
+            )
+        }.getOrNull() ?: return null
+        val activeId = entryPoint.notificationPreferences().getActiveProfileIdOnce()
+        if (activeId <= 0L) return null
+        val entity = runCatching { entryPoint.notificationProfileDao().getById(activeId) }
+            .getOrNull() ?: return null
+        val profile = NotificationProfileResolver().resolve(entity)
+        return VibrationAdapter.patternFor(profile)
     }
 
     suspend fun createNotificationChannel(context: Context) {
@@ -201,6 +245,7 @@ object NotificationHelper {
         val style = currentStyle(context)
         deleteStaleChannels(context, BASE_CHANNEL_ID, style)
         val channel = buildChannel(
+            context = context,
             id = channelIdFor(BASE_CHANNEL_ID, style),
             name = CHANNEL_NAME,
             description = "Reminders for upcoming tasks",
@@ -300,6 +345,7 @@ object NotificationHelper {
         val style = currentStyle(context)
         deleteStaleChannels(context, BASE_MED_CHANNEL_ID, style)
         val channel = buildChannel(
+            context = context,
             id = channelIdFor(BASE_MED_CHANNEL_ID, style),
             name = MED_CHANNEL_NAME,
             description = "Reminders for medication and timed habits",
@@ -506,6 +552,7 @@ object NotificationHelper {
         val style = currentStyle(context)
         deleteStaleChannels(context, BASE_TIMER_CHANNEL_ID, style)
         val channel = buildChannel(
+            context = context,
             id = channelIdFor(BASE_TIMER_CHANNEL_ID, style),
             name = TIMER_CHANNEL_NAME,
             description = "Alerts when a Timer countdown completes",
@@ -586,11 +633,16 @@ object NotificationHelper {
      * [TimerBuzzerDismissReceiver] cancels it. Intentionally separate from
      * the channel-level vibration, since channel patterns only fire once
      * per notification post.
+     *
+     * If the user has an active [NotificationProfile] with a custom
+     * vibration pattern, that pattern is used; otherwise the default
+     * [CONTINUOUS_BUZZ_PATTERN] is played (C6).
      */
-    internal fun startContinuousBuzz(context: Context) {
+    internal suspend fun startContinuousBuzz(context: Context) {
+        val pattern = activeProfileVibrationPattern(context) ?: CONTINUOUS_BUZZ_PATTERN
         VibrationAdapter.playNow(
             context = context,
-            pattern = CONTINUOUS_BUZZ_PATTERN,
+            pattern = pattern,
             intensity = VibrationIntensity.STRONG,
             continuous = true
         )

@@ -144,12 +144,17 @@ constructor(
          */
         const val WORK_NAME = "weekly_habit_summary"
 
-        fun schedule(context: Context) {
+        fun schedule(
+            context: Context,
+            dayOfWeek: Int = Calendar.SUNDAY,
+            hourOfDay: Int = 19,
+            minute: Int = 0
+        ) {
             val now = Calendar.getInstance()
             val target = Calendar.getInstance().apply {
-                set(Calendar.DAY_OF_WEEK, Calendar.SUNDAY)
-                set(Calendar.HOUR_OF_DAY, 19)
-                set(Calendar.MINUTE, 0)
+                set(Calendar.DAY_OF_WEEK, dayOfWeek)
+                set(Calendar.HOUR_OF_DAY, hourOfDay)
+                set(Calendar.MINUTE, minute)
                 set(Calendar.SECOND, 0)
                 if (before(now)) add(Calendar.WEEK_OF_YEAR, 1)
             }

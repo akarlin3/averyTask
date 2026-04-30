@@ -2,9 +2,11 @@ package com.averycorp.prismtask.notifications
 
 import android.content.Context
 import androidx.work.WorkManager
+import com.averycorp.prismtask.data.preferences.AdvancedTuningPreferences
 import com.averycorp.prismtask.data.preferences.NotificationPreferences
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first
+import java.util.Calendar
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -37,8 +39,18 @@ class NotificationWorkerScheduler
 @Inject
 constructor(
     @ApplicationContext private val context: Context,
-    private val notificationPreferences: NotificationPreferences
+    private val notificationPreferences: NotificationPreferences,
+    private val advancedTuningPreferences: AdvancedTuningPreferences
 ) {
+    /**
+     * Maps the user-facing weekly schedule day-of-week (1=Mon..7=Sun)
+     * onto the [Calendar] convention (SUNDAY=1..SATURDAY=7).
+     */
+    private fun toCalendarDayOfWeek(isoDay: Int): Int = when (isoDay.coerceIn(1, 7)) {
+        7 -> Calendar.SUNDAY
+        else -> isoDay + 1
+    }
+
     suspend fun applyAll() {
         // Defensive one-time cleanup for the WeeklySummaryWorker ->
         // WeeklyHabitSummaryWorker rename: cancel the pre-rename unique
@@ -81,38 +93,59 @@ constructor(
 
     suspend fun applyEveningSummary(enabled: Boolean) {
         if (enabled) {
-            val hour = notificationPreferences.briefingEveningHour.first()
-            EveningSummaryWorker.schedule(context, hourOfDay = hour, minute = 0)
+            val schedule = advancedTuningPreferences.getWeeklySummarySchedule().first()
+            EveningSummaryWorker.schedule(
+                context,
+                hourOfDay = schedule.eveningSummaryHour,
+                minute = 0
+            )
         } else {
             EveningSummaryWorker.cancel(context)
         }
     }
 
-    fun applyWeeklyHabitSummary(enabled: Boolean) {
+    suspend fun applyWeeklyHabitSummary(enabled: Boolean) {
         if (enabled) {
-            WeeklyHabitSummaryWorker.schedule(context)
+            val schedule = advancedTuningPreferences.getWeeklySummarySchedule().first()
+            WeeklyHabitSummaryWorker.schedule(
+                context,
+                dayOfWeek = toCalendarDayOfWeek(schedule.dayOfWeek),
+                hourOfDay = schedule.habitSummaryHour,
+                minute = schedule.habitSummaryMinute
+            )
         } else {
             WeeklyHabitSummaryWorker.cancel(context)
         }
     }
 
-    fun applyWeeklyTaskSummary(enabled: Boolean) {
+    suspend fun applyWeeklyTaskSummary(enabled: Boolean) {
         if (enabled) {
-            WeeklyTaskSummaryWorker.schedule(context)
+            val schedule = advancedTuningPreferences.getWeeklySummarySchedule().first()
+            WeeklyTaskSummaryWorker.schedule(
+                context,
+                dayOfWeek = toCalendarDayOfWeek(schedule.dayOfWeek),
+                hourOfDay = schedule.taskSummaryHour,
+                minute = schedule.taskSummaryMinute
+            )
         } else {
             WeeklyTaskSummaryWorker.cancel(context)
         }
     }
 
-    fun applyOverloadCheck(enabled: Boolean) {
+    suspend fun applyOverloadCheck(enabled: Boolean) {
         if (enabled) {
-            OverloadCheckWorker.schedule(context)
+            val schedule = advancedTuningPreferences.getOverloadCheckSchedule().first()
+            OverloadCheckWorker.schedule(
+                context,
+                hourOfDay = schedule.hourOfDay,
+                minute = schedule.minute
+            )
         } else {
             OverloadCheckWorker.cancel(context)
         }
     }
 
-    fun applyReengagement(enabled: Boolean) {
+    suspend fun applyReengagement(enabled: Boolean) {
         if (enabled) {
             ReengagementWorker.schedule(context)
         } else {
@@ -120,9 +153,15 @@ constructor(
         }
     }
 
-    fun applyWeeklyReview(enabled: Boolean) {
+    suspend fun applyWeeklyReview(enabled: Boolean) {
         if (enabled) {
-            WeeklyReviewWorker.schedule(context)
+            val schedule = advancedTuningPreferences.getWeeklySummarySchedule().first()
+            WeeklyReviewWorker.schedule(
+                context,
+                dayOfWeek = toCalendarDayOfWeek(schedule.dayOfWeek),
+                hourOfDay = schedule.reviewHour,
+                minute = schedule.reviewMinute
+            )
         } else {
             WeeklyReviewWorker.cancel(context)
         }

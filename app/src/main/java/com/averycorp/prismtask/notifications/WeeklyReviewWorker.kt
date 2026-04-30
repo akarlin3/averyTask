@@ -124,14 +124,17 @@ constructor(
          *  network hiccups. */
         private const val MAX_ATTEMPTS = 3
 
-        private const val TARGET_HOUR_OF_DAY = 20
-
-        fun schedule(context: Context) {
+        fun schedule(
+            context: Context,
+            dayOfWeek: Int = Calendar.SUNDAY,
+            hourOfDay: Int = 20,
+            minute: Int = 0
+        ) {
             val now = Calendar.getInstance()
             val target = Calendar.getInstance().apply {
-                set(Calendar.DAY_OF_WEEK, Calendar.SUNDAY)
-                set(Calendar.HOUR_OF_DAY, TARGET_HOUR_OF_DAY)
-                set(Calendar.MINUTE, 0)
+                set(Calendar.DAY_OF_WEEK, dayOfWeek)
+                set(Calendar.HOUR_OF_DAY, hourOfDay)
+                set(Calendar.MINUTE, minute)
                 set(Calendar.SECOND, 0)
                 set(Calendar.MILLISECOND, 0)
                 if (before(now)) add(Calendar.WEEK_OF_YEAR, 1)

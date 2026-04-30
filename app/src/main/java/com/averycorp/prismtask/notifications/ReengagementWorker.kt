@@ -6,8 +6,8 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
-import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.hilt.work.HiltWorker
@@ -19,6 +19,7 @@ import androidx.work.WorkerParameters
 import com.averycorp.prismtask.MainActivity
 import com.averycorp.prismtask.R
 import com.averycorp.prismtask.data.local.dao.TaskDao
+import com.averycorp.prismtask.data.preferences.AdvancedTuningPreferences
 import com.averycorp.prismtask.data.preferences.NotificationPreferences
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.data.remote.api.ReengagementRequest
@@ -31,9 +32,12 @@ import java.util.concurrent.TimeUnit
 private val Context.reengagementStore by preferencesDataStore(name = "reengagement_prefs")
 
 /**
- * Fires as a push notification when the user hasn't opened the app in 2 days.
- * Maximum ONE notification per absence period — if they don't open after the
- * first nudge, do NOT send another. Ever. This is critical.
+ * Fires as a push notification when the user has been absent for at least
+ * [com.averycorp.prismtask.data.preferences.ReengagementConfig.absenceDays]
+ * days (default 2). Sends at most
+ * [com.averycorp.prismtask.data.preferences.ReengagementConfig.maxNudges]
+ * notifications per absence period (default 1) — once the cap is reached,
+ * no more nudges fire until the user opens the app and the count resets.
  *
  * Tier: Premium (AI_REENGAGEMENT)
  */
@@ -46,18 +50,20 @@ constructor(
     private val api: PrismTaskApi,
     private val taskDao: TaskDao,
     private val proFeatureGate: ProFeatureGate,
-    private val notificationPreferences: NotificationPreferences
+    private val notificationPreferences: NotificationPreferences,
+    private val advancedTuningPreferences: AdvancedTuningPreferences
 ) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         if (!proFeatureGate.hasAccess(ProFeatureGate.AI_REENGAGEMENT)) return Result.success()
         if (!notificationPreferences.reengagementEnabled.first()) return Result.success()
 
+        val config = advancedTuningPreferences.getReengagementConfig().first()
+
         val store = applicationContext.reengagementStore
         val prefs = store.data.first()
 
-        // Check if we already sent a nudge and user hasn't opened the app since
-        val alreadySent = prefs[KEY_REENGAGEMENT_SENT] ?: false
-        if (alreadySent) return Result.success() // Silence is better than nagging
+        val nudgeCount = prefs[KEY_REENGAGEMENT_SENT_COUNT] ?: 0
+        if (nudgeCount >= config.maxNudges) return Result.success()
 
         val lastOpenTime = prefs[KEY_LAST_OPEN_TIME] ?: System.currentTimeMillis()
         val daysSinceOpen = TimeUnit.MILLISECONDS
@@ -65,8 +71,7 @@ constructor(
                 System.currentTimeMillis() - lastOpenTime
             ).toInt()
 
-        // Only nudge if absent for 2+ days
-        if (daysSinceOpen < 2) return Result.success()
+        if (daysSinceOpen < config.absenceDays) return Result.success()
 
         return try {
             // Get last completed task title
@@ -86,8 +91,9 @@ constructor(
 
             showNotification(applicationContext, response.nudge)
 
-            // Mark as sent — won't send again until user opens app
-            store.edit { it[KEY_REENGAGEMENT_SENT] = true }
+            store.edit {
+                it[KEY_REENGAGEMENT_SENT_COUNT] = nudgeCount + 1
+            }
 
             Result.success()
         } catch (_: Exception) {
@@ -136,7 +142,7 @@ constructor(
         private const val CHANNEL_ID = "prismtask_reengagement"
         private const val NOTIFICATION_ID = 9003
 
-        private val KEY_REENGAGEMENT_SENT = booleanPreferencesKey("reengagement_sent")
+        private val KEY_REENGAGEMENT_SENT_COUNT = intPreferencesKey("reengagement_sent_count")
         private val KEY_LAST_OPEN_TIME = longPreferencesKey("last_open_time")
 
         fun schedule(context: Context) {
@@ -159,7 +165,7 @@ constructor(
          */
         suspend fun onAppOpened(context: Context) {
             context.reengagementStore.edit {
-                it[KEY_REENGAGEMENT_SENT] = false
+                it[KEY_REENGAGEMENT_SENT_COUNT] = 0
                 it[KEY_LAST_OPEN_TIME] = System.currentTimeMillis()
             }
         }

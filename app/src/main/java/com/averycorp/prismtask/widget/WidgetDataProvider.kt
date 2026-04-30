@@ -5,6 +5,9 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.averycorp.prismtask.data.local.database.PrismTaskDatabase
 import com.averycorp.prismtask.data.local.entity.TaskEntity
+import com.averycorp.prismtask.data.preferences.AdvancedTuningPreferences
+import com.averycorp.prismtask.data.preferences.NdPreferencesDataStore
+import com.averycorp.prismtask.data.preferences.ProductivityWidgetThresholds
 import com.averycorp.prismtask.data.preferences.taskBehaviorDataStore
 import com.averycorp.prismtask.data.preferences.themePrefsDataStore
 import com.averycorp.prismtask.util.DayBoundary
@@ -119,6 +122,8 @@ object WidgetDataProvider {
     @InstallIn(SingletonComponent::class)
     interface WidgetDatabaseEntryPoint {
         fun database(): PrismTaskDatabase
+        fun advancedTuningPreferences(): AdvancedTuningPreferences
+        fun ndPreferencesDataStore(): NdPreferencesDataStore
     }
 
     // Reuse the Hilt-provided singleton DB so we share the same
@@ -126,9 +131,32 @@ object WidgetDataProvider {
     // widget refresh (which races with the app's singleton on close()
     // and can fail during migration windows).
     private fun getDb(context: Context): PrismTaskDatabase =
+        entryPoint(context).database()
+
+    private fun entryPoint(context: Context): WidgetDatabaseEntryPoint =
         EntryPointAccessors
             .fromApplication(context.applicationContext, WidgetDatabaseEntryPoint::class.java)
-            .database()
+
+    /** Reads the user's productivity widget thresholds from advanced tuning prefs. */
+    suspend fun getProductivityWidgetThresholds(context: Context): ProductivityWidgetThresholds =
+        entryPoint(context).advancedTuningPreferences()
+            .getProductivityWidgetThresholds()
+            .first()
+
+    /**
+     * Reads the user's NdPreferences.quietMode flag. Used by widget
+     * empty-state rendering (E4) to decide whether to show a celebratory
+     * emoji or fall back to a neutral glyph.
+     */
+    suspend fun getQuietMode(context: Context): Boolean =
+        try {
+            entryPoint(context).ndPreferencesDataStore()
+                .ndPreferencesFlow
+                .first()
+                .quietMode
+        } catch (_: Exception) {
+            false
+        }
 
     private fun TaskEntity.toRow(startOfDay: Long): WidgetTaskRow = WidgetTaskRow(
         id = id,

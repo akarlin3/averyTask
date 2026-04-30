@@ -183,6 +183,8 @@ internal fun AddEditTaskFormFields(
     val projects by viewModel.projects.collectAsStateWithLifecycle()
     val allTags by viewModel.allTags.collectAsStateWithLifecycle()
     val attachments by viewModel.attachments.collectAsStateWithLifecycle()
+    val uiTier by viewModel.uiTier.collectAsStateWithLifecycle()
+    val editorRows by viewModel.editorFieldRows.collectAsStateWithLifecycle()
 
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
@@ -222,8 +224,8 @@ internal fun AddEditTaskFormFields(
             value = viewModel.description,
             onValueChange = viewModel::onDescriptionChange,
             label = { Text("Description") },
-            minLines = 3,
-            maxLines = 5,
+            minLines = minOf(3, editorRows.descriptionRows),
+            maxLines = editorRows.descriptionRows,
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -413,8 +415,8 @@ internal fun AddEditTaskFormFields(
                 value = viewModel.notes,
                 onValueChange = viewModel::onNotesChange,
                 label = { Text("Notes") },
-                minLines = 4,
-                maxLines = 8,
+                minLines = minOf(4, editorRows.notesRows),
+                maxLines = editorRows.notesRows,
                 modifier = Modifier.fillMaxWidth()
             )
         }
