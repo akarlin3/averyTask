@@ -394,6 +394,19 @@ constructor(
             LeisureViewModel.DEFAULT_FLEX_OPTIONS.map { it.id },
             selections.flexIds
         )
+        applyLeisureSelection(
+            LeisureSlotId.LANGUAGE,
+            LeisureViewModel.DEFAULT_LANGUAGE_OPTIONS.map { it.id },
+            selections.languageIds
+        )
+        // LANGUAGE defaults to disabled (see LeisureSlotConfig.defaultFor) so
+        // existing installs keep their meta-habit completion definition
+        // unchanged. Enable the slot only when the user actually picked a
+        // language in onboarding — otherwise leave it off and let the user
+        // opt in later via the leisure-settings screen.
+        if (selections.languageIds.isNotEmpty()) {
+            leisurePreferences.updateSlotConfig(LeisureSlotId.LANGUAGE, enabled = true)
+        }
         applyRoutineSelection("morning", selections)
         applyRoutineSelection("bedtime", selections)
         applyRoutineSelection("housework", selections)

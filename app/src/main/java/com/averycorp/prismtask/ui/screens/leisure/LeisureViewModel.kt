@@ -55,6 +55,7 @@ constructor(
 
     val musicSlot: StateFlow<LeisureSlotState> = builtInSlotFlow(LeisureSlotId.MUSIC)
     val flexSlot: StateFlow<LeisureSlotState> = builtInSlotFlow(LeisureSlotId.FLEX)
+    val languageSlot: StateFlow<LeisureSlotState> = builtInSlotFlow(LeisureSlotId.LANGUAGE)
 
     val customSlots: StateFlow<List<LeisureSlotState>> = combine(
         leisurePreferences.getCustomSections(),
@@ -74,8 +75,16 @@ constructor(
             key = LeisureSectionKey.BuiltIn(slot),
             config = config,
             options = defaults + customs,
-            picked = if (slot == LeisureSlotId.MUSIC) log?.musicPick else log?.flexPick,
-            done = if (slot == LeisureSlotId.MUSIC) log?.musicDone == true else log?.flexDone == true
+            picked = when (slot) {
+                LeisureSlotId.MUSIC -> log?.musicPick
+                LeisureSlotId.FLEX -> log?.flexPick
+                LeisureSlotId.LANGUAGE -> log?.languagePick
+            },
+            done = when (slot) {
+                LeisureSlotId.MUSIC -> log?.musicDone == true
+                LeisureSlotId.FLEX -> log?.flexDone == true
+                LeisureSlotId.LANGUAGE -> log?.languageDone == true
+            }
         )
     }.stateIn(
         viewModelScope,
@@ -95,6 +104,7 @@ constructor(
                 is LeisureSectionKey.BuiltIn -> when (key.slot) {
                     LeisureSlotId.MUSIC -> repository.setMusicPick(activityId)
                     LeisureSlotId.FLEX -> repository.setFlexPick(activityId)
+                    LeisureSlotId.LANGUAGE -> repository.setLanguagePick(activityId)
                 }
                 is LeisureSectionKey.Custom -> repository.setCustomSectionPick(key.id, activityId)
             }
@@ -107,6 +117,7 @@ constructor(
                 is LeisureSectionKey.BuiltIn -> when (key.slot) {
                     LeisureSlotId.MUSIC -> repository.toggleMusicDone(done)
                     LeisureSlotId.FLEX -> repository.toggleFlexDone(done)
+                    LeisureSlotId.LANGUAGE -> repository.toggleLanguageDone(done)
                 }
                 is LeisureSectionKey.Custom -> repository.toggleCustomSectionDone(key.id, done)
             }
@@ -119,6 +130,7 @@ constructor(
                 is LeisureSectionKey.BuiltIn -> when (key.slot) {
                     LeisureSlotId.MUSIC -> repository.clearMusicPick()
                     LeisureSlotId.FLEX -> repository.clearFlexPick()
+                    LeisureSlotId.LANGUAGE -> repository.clearLanguagePick()
                 }
                 is LeisureSectionKey.Custom -> repository.clearCustomSectionPick(key.id)
             }
@@ -185,9 +197,18 @@ constructor(
             LeisureOption("boardgame", "Board game / puzzle", "\uD83E\uDDE9")
         )
 
+        val DEFAULT_LANGUAGE_OPTIONS = listOf(
+            LeisureOption("italian", "Italian", "\uD83C\uDDEE\uD83C\uDDF9"),
+            LeisureOption("french", "French", "\uD83C\uDDEB\uD83C\uDDF7"),
+            LeisureOption("spanish", "Spanish", "\uD83C\uDDEA\uD83C\uDDF8"),
+            LeisureOption("german", "German", "\uD83C\uDDE9\uD83C\uDDEA"),
+            LeisureOption("chinese", "Chinese", "\uD83C\uDDE8\uD83C\uDDF3")
+        )
+
         fun defaultsFor(slot: LeisureSlotId): List<LeisureOption> = when (slot) {
             LeisureSlotId.MUSIC -> DEFAULT_INSTRUMENTS
             LeisureSlotId.FLEX -> DEFAULT_FLEX_OPTIONS
+            LeisureSlotId.LANGUAGE -> DEFAULT_LANGUAGE_OPTIONS
         }
     }
 }

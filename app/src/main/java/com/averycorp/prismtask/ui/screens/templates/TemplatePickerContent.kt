@@ -78,6 +78,15 @@ fun TemplatePickerContent(
                 onToggle = { id -> onChange(state.withFlexToggled(id)) },
                 initiallyExpanded = false
             )
+            LeisureSectionCard(
+                emoji = "\uD83D\uDDE3\uFE0F",
+                title = "Language",
+                subtitle = "Languages to practice each day",
+                options = LeisureViewModel.DEFAULT_LANGUAGE_OPTIONS,
+                selected = state.languageIds,
+                onToggle = { id -> onChange(state.withLanguageToggled(id)) },
+                initiallyExpanded = false
+            )
         }
         if (showSelfCare) {
             RoutineSectionCard(

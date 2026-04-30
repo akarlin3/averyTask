@@ -1955,6 +1955,22 @@ val MIGRATION_66_67 = object : Migration(66, 67) {
 }
 
 /**
+ * v67 → v68 — Adds `language_pick` / `language_done` columns to
+ * `leisure_logs` for the new LANGUAGE built-in slot. Both columns are
+ * additive and backfill from their declared defaults (NULL / 0), so
+ * pre-existing rows simply read as "no language pick yet today" without
+ * a separate UPDATE pass.
+ */
+val MIGRATION_67_68 = object : Migration(67, 68) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `leisure_logs` ADD COLUMN `language_pick` TEXT")
+        db.execSQL(
+            "ALTER TABLE `leisure_logs` ADD COLUMN `language_done` INTEGER NOT NULL DEFAULT 0"
+        )
+    }
+}
+
+/**
  * Single source of truth for the Room schema version. Referenced by both
  * `@Database(version = CURRENT_DB_VERSION)` on [PrismTaskDatabase] and by
  * `StartupCrashDiagnosticTest`. Bumping the schema means:
@@ -1966,7 +1982,7 @@ val MIGRATION_66_67 = object : Migration(66, 67) {
  * The diagnostic test will fail until all three are done, preventing the
  * "forgot to add migration" class of startup crash from reaching main.
  */
-const val CURRENT_DB_VERSION = 67
+const val CURRENT_DB_VERSION = 68
 
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
@@ -2034,5 +2050,6 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_63_64,
     MIGRATION_64_65,
     MIGRATION_65_66,
-    MIGRATION_66_67
+    MIGRATION_66_67,
+    MIGRATION_67_68
 )

@@ -36,6 +36,7 @@ constructor(
 
     val musicState: StateFlow<LeisureSlotEditState> = editStateFlow(LeisureSlotId.MUSIC)
     val flexState: StateFlow<LeisureSlotEditState> = editStateFlow(LeisureSlotId.FLEX)
+    val languageState: StateFlow<LeisureSlotEditState> = editStateFlow(LeisureSlotId.LANGUAGE)
     val customSections: StateFlow<List<CustomLeisureSection>> =
         preferences.getCustomSections().stateIn(
             viewModelScope,

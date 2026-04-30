@@ -50,6 +50,32 @@ class LeisurePreferencesTest {
     }
 
     @Test
+    fun language_slot_defaults_to_disabled_so_existing_meta_habit_unaffected() = runTest {
+        // LANGUAGE is opt-in; defaulting it to disabled keeps the shared
+        // "Leisure" meta-habit completion definition unchanged for users
+        // upgrading from a build that only had MUSIC + FLEX.
+        val config = prefs.getSlotConfig(LeisureSlotId.LANGUAGE).first()
+        assertFalse(config.enabled)
+        assertEquals("Language Practice", config.label)
+        assertEquals(15, config.durationMinutes)
+        assertEquals(3, config.gridColumns)
+    }
+
+    @Test
+    fun setBuiltInHidden_isolates_language_slot_from_other_slots() = runTest {
+        prefs.setBuiltInHidden(LeisureSlotId.LANGUAGE, "italian", hidden = true)
+        prefs.setBuiltInHidden(LeisureSlotId.MUSIC, "bass", hidden = true)
+        assertEquals(
+            listOf("italian"),
+            prefs.getSlotConfig(LeisureSlotId.LANGUAGE).first().hiddenBuiltInIds
+        )
+        assertEquals(
+            listOf("bass"),
+            prefs.getSlotConfig(LeisureSlotId.MUSIC).first().hiddenBuiltInIds
+        )
+    }
+
+    @Test
     fun updateSlotConfig_persists_each_field_independently() = runTest {
         prefs.updateSlotConfig(
             LeisureSlotId.MUSIC,

@@ -16,6 +16,7 @@ import com.averycorp.prismtask.domain.model.SelfCareRoutines
 data class TemplateSelections(
     val musicIds: Set<String> = emptySet(),
     val flexIds: Set<String> = emptySet(),
+    val languageIds: Set<String> = emptySet(),
     val morningTier: String? = null,
     val morningCustomStepIds: Set<String>? = null,
     val bedtimeTier: String? = null,
@@ -60,6 +61,9 @@ data class TemplateSelections(
 
     fun withFlexToggled(id: String): TemplateSelections =
         copy(flexIds = if (id in flexIds) flexIds - id else flexIds + id)
+
+    fun withLanguageToggled(id: String): TemplateSelections =
+        copy(languageIds = if (id in languageIds) languageIds - id else languageIds + id)
 
     /**
      * Sets the tier for [routineType]. Passing `null` clears the tier. Either
