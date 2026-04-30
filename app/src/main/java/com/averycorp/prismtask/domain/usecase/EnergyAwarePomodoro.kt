@@ -1,6 +1,7 @@
 package com.averycorp.prismtask.domain.usecase
 
 import com.averycorp.prismtask.data.local.entity.MoodEnergyLogEntity
+import com.averycorp.prismtask.data.preferences.EnergyPomodoroConfig
 
 /**
  * A single Pomodoro session configuration — work length, short break, long
@@ -31,7 +32,9 @@ data class PomodoroSessionConfig(
  * feature roll out safely — users who haven't opted into mood/energy
  * tracking see no change.
  */
-class EnergyAwarePomodoro {
+class EnergyAwarePomodoro(
+    private val energyConfig: EnergyPomodoroConfig = EnergyPomodoroConfig()
+) {
     fun plan(
         latestEnergy: Int?,
         defaults: DefaultPomodoroConfig = DefaultPomodoroConfig()
@@ -45,28 +48,34 @@ class EnergyAwarePomodoro {
             )
         }
         return when (latestEnergy.coerceIn(1, 5)) {
-            1, 2 -> PomodoroSessionConfig(
-                workMinutes = 15,
-                breakMinutes = 10,
-                longBreakMinutes = 20,
+            1 -> PomodoroSessionConfig(
+                workMinutes = energyConfig.veryLowWork,
+                breakMinutes = energyConfig.veryLowBreak,
+                longBreakMinutes = energyConfig.veryLowLong,
+                rationale = "Shorter sessions and longer breaks for a low-energy day"
+            )
+            2 -> PomodoroSessionConfig(
+                workMinutes = energyConfig.lowWork,
+                breakMinutes = energyConfig.lowBreak,
+                longBreakMinutes = energyConfig.lowLong,
                 rationale = "Shorter sessions and longer breaks for a low-energy day"
             )
             3 -> PomodoroSessionConfig(
-                workMinutes = 25,
-                breakMinutes = 5,
-                longBreakMinutes = 15,
+                workMinutes = energyConfig.mediumWork,
+                breakMinutes = energyConfig.mediumBreak,
+                longBreakMinutes = energyConfig.mediumLong,
                 rationale = "Classic Pomodoro — you're in the groove"
             )
             4 -> PomodoroSessionConfig(
-                workMinutes = 35,
-                breakMinutes = 4,
-                longBreakMinutes = 12,
+                workMinutes = energyConfig.highWork,
+                breakMinutes = energyConfig.highBreak,
+                longBreakMinutes = energyConfig.highLong,
                 rationale = "Longer deep-work blocks for a high-energy day"
             )
             else -> PomodoroSessionConfig(
-                workMinutes = 45,
-                breakMinutes = 3,
-                longBreakMinutes = 10,
+                workMinutes = energyConfig.veryHighWork,
+                breakMinutes = energyConfig.veryHighBreak,
+                longBreakMinutes = energyConfig.veryHighLong,
                 rationale = "Peak-energy sprint sessions"
             )
         }

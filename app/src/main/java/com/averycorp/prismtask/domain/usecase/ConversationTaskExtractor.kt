@@ -42,7 +42,10 @@ data class ExtractedTask(
  * and title-cased (first letter capitalized). Titles shorter than 3 chars
  * or longer than 120 chars are dropped.
  */
-class ConversationTaskExtractor {
+class ConversationTaskExtractor(
+    private val config: com.averycorp.prismtask.data.preferences.ExtractorConfig =
+        com.averycorp.prismtask.data.preferences.ExtractorConfig()
+) {
     data class Pattern(
         val regex: Regex,
         val confidence: Float
@@ -70,7 +73,7 @@ class ConversationTaskExtractor {
     )
 
     fun extract(text: String, source: String? = null): List<ExtractedTask> {
-        if (text.isBlank() || text.length > MAX_INPUT_SIZE) return emptyList()
+        if (text.isBlank() || text.length > config.maxInputChars) return emptyList()
         val results = mutableListOf<ExtractedTask>()
         val seen = mutableSetOf<String>()
         for (pattern in patterns) {
@@ -94,7 +97,7 @@ class ConversationTaskExtractor {
 
     private fun clean(raw: String): String? {
         var s = raw.trim().trimEnd('.', '!', '?', ',', ';', ':')
-        if (s.length < 3 || s.length > MAX_TITLE_LENGTH) return null
+        if (s.length < 3 || s.length > config.maxTitleChars) return null
         // Title-case the first letter, leave the rest alone.
         s = s[0].uppercaseChar() + s.substring(1)
         return s

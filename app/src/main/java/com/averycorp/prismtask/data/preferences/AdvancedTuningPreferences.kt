@@ -1,0 +1,440 @@
+package com.averycorp.prismtask.data.preferences
+
+import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import javax.inject.Inject
+import javax.inject.Singleton
+
+internal val Context.advancedTuningDataStore: DataStore<Preferences> by
+    preferencesDataStore(name = "advanced_tuning_prefs")
+
+/**
+ * Bands the urgency score is bucketed into. Sliders in Settings → Task Defaults
+ * → Urgency. Defaults match the values shipped through v1.6.
+ */
+data class UrgencyBands(
+    val critical: Float = 0.7f,
+    val high: Float = 0.5f,
+    val medium: Float = 0.3f
+)
+
+/** Day windows that bend the score curve in [UrgencyScorer.calculateScore]. */
+data class UrgencyWindows(
+    val overdueCeilingDays: Int = 7,
+    val imminentWindowDays: Int = 7
+)
+
+/** Maximum-points caps for each component of the burnout score (sum to 100). */
+data class BurnoutWeights(
+    val workMax: Int = 25,
+    val overdueMax: Int = 20,
+    val selfCareMax: Int = 20,
+    val medicationMax: Int = 15,
+    val streakMax: Int = 10,
+    val restDeficitMax: Int = 10,
+    val restDeficitDays: Int = 2
+)
+
+/** Productivity score component weights — must sum to 1.0. */
+data class ProductivityWeights(
+    val taskWeight: Float = 0.40f,
+    val onTimeWeight: Float = 0.25f,
+    val habitWeight: Float = 0.20f,
+    val estimationWeight: Float = 0.15f,
+    val trendThreshold: Float = 3.0f
+)
+
+/** Mood correlation gating: minimum samples and label cutoffs. */
+data class MoodCorrelationConfig(
+    val minObservations: Int = 7,
+    val strongThreshold: Float = 0.5f,
+    val moderateThreshold: Float = 0.3f
+)
+
+/** Days-of-supply thresholds that drive medication refill urgency labels. */
+data class RefillUrgencyConfig(
+    val urgentDays: Int = 3,
+    val upcomingDays: Int = 7
+)
+
+/** Per-energy-band Pomodoro session timing (minutes). */
+data class EnergyPomodoroConfig(
+    val veryLowWork: Int = 15,
+    val veryLowBreak: Int = 10,
+    val veryLowLong: Int = 20,
+    val lowWork: Int = 15,
+    val lowBreak: Int = 10,
+    val lowLong: Int = 20,
+    val mediumWork: Int = 25,
+    val mediumBreak: Int = 5,
+    val mediumLong: Int = 15,
+    val highWork: Int = 35,
+    val highBreak: Int = 4,
+    val highLong: Int = 12,
+    val veryHighWork: Int = 45,
+    val veryHighBreak: Int = 3,
+    val veryHighLong: Int = 10
+)
+
+/** Good-Enough Timer (ND focus release) timings, in minutes. */
+data class GoodEnoughTimerConfig(
+    val gracePeriodMinutes: Int = 2,
+    val nudgeCooldownMinutes: Int = 10,
+    val dialogCooldownMinutes: Int = 15,
+    val extensionMinutes: Int = 10
+)
+
+/** Smart-suggestion confidence cutoffs and result count. */
+data class SuggestionConfig(
+    val tagThreshold: Float = 0.2f,
+    val projectThreshold: Float = 0.3f,
+    val maxResults: Int = 3
+)
+
+/** Conversation extractor input/title caps. */
+data class ExtractorConfig(
+    val maxInputChars: Int = 10_000,
+    val maxTitleChars: Int = 120
+)
+
+/** Sample-size + duration granularity gates for SmartDefaultsEngine. */
+data class SmartDefaultsConfig(
+    val minHistory: Int = 5,
+    val durationGranularityMinutes: Int = 15
+)
+
+/** Hard cutoff hour (0..23) for the morning check-in prompt. */
+data class MorningCheckInPromptCutoff(
+    val latestHour: Int = 11
+)
+
+/** Per-category extra keywords (CSV) appended to the built-in classifier list. */
+data class LifeCategoryCustomKeywords(
+    val work: String = "",
+    val personal: String = "",
+    val selfCare: String = "",
+    val health: String = ""
+)
+
+@Singleton
+class AdvancedTuningPreferences
+@Inject
+constructor(
+    @ApplicationContext private val context: Context
+) {
+    companion object {
+        // B1 — urgency bands
+        private val URGENCY_BAND_CRITICAL = floatPreferencesKey("urgency_band_critical")
+        private val URGENCY_BAND_HIGH = floatPreferencesKey("urgency_band_high")
+        private val URGENCY_BAND_MEDIUM = floatPreferencesKey("urgency_band_medium")
+
+        // B2 — urgency day windows
+        private val URGENCY_OVERDUE_CEIL = intPreferencesKey("urgency_overdue_ceiling_days")
+        private val URGENCY_IMMINENT_WIN = intPreferencesKey("urgency_imminent_window_days")
+
+        // B3, B4 — burnout
+        private val BURNOUT_WORK_MAX = intPreferencesKey("burnout_work_max")
+        private val BURNOUT_OVERDUE_MAX = intPreferencesKey("burnout_overdue_max")
+        private val BURNOUT_SELFCARE_MAX = intPreferencesKey("burnout_selfcare_max")
+        private val BURNOUT_MEDICATION_MAX = intPreferencesKey("burnout_medication_max")
+        private val BURNOUT_STREAK_MAX = intPreferencesKey("burnout_streak_max")
+        private val BURNOUT_REST_MAX = intPreferencesKey("burnout_rest_deficit_max")
+        private val BURNOUT_REST_DAYS = intPreferencesKey("burnout_rest_deficit_days")
+
+        // B11 — productivity score weights
+        private val PROD_TASK = floatPreferencesKey("productivity_task_weight")
+        private val PROD_ONTIME = floatPreferencesKey("productivity_ontime_weight")
+        private val PROD_HABIT = floatPreferencesKey("productivity_habit_weight")
+        private val PROD_ESTIMATION = floatPreferencesKey("productivity_estimation_weight")
+        private val PROD_TREND_THRESHOLD = floatPreferencesKey("productivity_trend_threshold")
+
+        // B5 — mood correlation
+        private val MOOD_MIN_OBS = intPreferencesKey("mood_min_observations")
+        private val MOOD_STRONG = floatPreferencesKey("mood_strong_threshold")
+        private val MOOD_MODERATE = floatPreferencesKey("mood_moderate_threshold")
+
+        // B6 — refill urgency
+        private val REFILL_URGENT = intPreferencesKey("refill_urgent_days")
+        private val REFILL_UPCOMING = intPreferencesKey("refill_upcoming_days")
+
+        // B7 — energy pomodoro (5 bands × 3 fields)
+        private val POM_VL_W = intPreferencesKey("pom_very_low_work")
+        private val POM_VL_B = intPreferencesKey("pom_very_low_break")
+        private val POM_VL_L = intPreferencesKey("pom_very_low_long")
+        private val POM_L_W = intPreferencesKey("pom_low_work")
+        private val POM_L_B = intPreferencesKey("pom_low_break")
+        private val POM_L_L = intPreferencesKey("pom_low_long")
+        private val POM_M_W = intPreferencesKey("pom_medium_work")
+        private val POM_M_B = intPreferencesKey("pom_medium_break")
+        private val POM_M_L = intPreferencesKey("pom_medium_long")
+        private val POM_H_W = intPreferencesKey("pom_high_work")
+        private val POM_H_B = intPreferencesKey("pom_high_break")
+        private val POM_H_L = intPreferencesKey("pom_high_long")
+        private val POM_VH_W = intPreferencesKey("pom_very_high_work")
+        private val POM_VH_B = intPreferencesKey("pom_very_high_break")
+        private val POM_VH_L = intPreferencesKey("pom_very_high_long")
+
+        // B8 — good-enough timer
+        private val GE_GRACE = intPreferencesKey("ge_timer_grace_min")
+        private val GE_NUDGE = intPreferencesKey("ge_timer_nudge_min")
+        private val GE_DIALOG = intPreferencesKey("ge_timer_dialog_min")
+        private val GE_EXTEND = intPreferencesKey("ge_timer_extend_min")
+
+        // B9 — suggestion engine
+        private val SUG_TAG_THRESH = floatPreferencesKey("suggestion_tag_threshold")
+        private val SUG_PROJ_THRESH = floatPreferencesKey("suggestion_project_threshold")
+        private val SUG_MAX_RESULTS = intPreferencesKey("suggestion_max_results")
+
+        // B10 — extractor caps
+        private val EXTRACT_MAX_INPUT = intPreferencesKey("extract_max_input_chars")
+        private val EXTRACT_MAX_TITLE = intPreferencesKey("extract_max_title_chars")
+
+        // B12 — smart defaults
+        private val SD_MIN_HISTORY = intPreferencesKey("smart_defaults_min_history")
+        private val SD_GRANULARITY = intPreferencesKey("smart_defaults_granularity")
+
+        // B14 — morning check-in cutoff
+        private val MORNING_LATEST = intPreferencesKey("morning_checkin_latest_hour")
+
+        // B15 — custom keywords
+        private val CK_WORK = stringPreferencesKey("custom_keywords_work")
+        private val CK_PERSONAL = stringPreferencesKey("custom_keywords_personal")
+        private val CK_SELFCARE = stringPreferencesKey("custom_keywords_selfcare")
+        private val CK_HEALTH = stringPreferencesKey("custom_keywords_health")
+    }
+
+    fun getUrgencyBands(): Flow<UrgencyBands> = context.advancedTuningDataStore.data.map {
+        UrgencyBands(
+            critical = it[URGENCY_BAND_CRITICAL] ?: 0.7f,
+            high = it[URGENCY_BAND_HIGH] ?: 0.5f,
+            medium = it[URGENCY_BAND_MEDIUM] ?: 0.3f
+        )
+    }
+
+    fun getUrgencyWindows(): Flow<UrgencyWindows> = context.advancedTuningDataStore.data.map {
+        UrgencyWindows(
+            overdueCeilingDays = (it[URGENCY_OVERDUE_CEIL] ?: 7).coerceAtLeast(1),
+            imminentWindowDays = (it[URGENCY_IMMINENT_WIN] ?: 7).coerceAtLeast(1)
+        )
+    }
+
+    fun getBurnoutWeights(): Flow<BurnoutWeights> = context.advancedTuningDataStore.data.map {
+        BurnoutWeights(
+            workMax = it[BURNOUT_WORK_MAX] ?: 25,
+            overdueMax = it[BURNOUT_OVERDUE_MAX] ?: 20,
+            selfCareMax = it[BURNOUT_SELFCARE_MAX] ?: 20,
+            medicationMax = it[BURNOUT_MEDICATION_MAX] ?: 15,
+            streakMax = it[BURNOUT_STREAK_MAX] ?: 10,
+            restDeficitMax = it[BURNOUT_REST_MAX] ?: 10,
+            restDeficitDays = (it[BURNOUT_REST_DAYS] ?: 2).coerceAtLeast(1)
+        )
+    }
+
+    fun getProductivityWeights(): Flow<ProductivityWeights> = context.advancedTuningDataStore.data.map {
+        ProductivityWeights(
+            taskWeight = it[PROD_TASK] ?: 0.40f,
+            onTimeWeight = it[PROD_ONTIME] ?: 0.25f,
+            habitWeight = it[PROD_HABIT] ?: 0.20f,
+            estimationWeight = it[PROD_ESTIMATION] ?: 0.15f,
+            trendThreshold = it[PROD_TREND_THRESHOLD] ?: 3.0f
+        )
+    }
+
+    fun getMoodCorrelationConfig(): Flow<MoodCorrelationConfig> = context.advancedTuningDataStore.data.map {
+        MoodCorrelationConfig(
+            minObservations = (it[MOOD_MIN_OBS] ?: 7).coerceAtLeast(1),
+            strongThreshold = it[MOOD_STRONG] ?: 0.5f,
+            moderateThreshold = it[MOOD_MODERATE] ?: 0.3f
+        )
+    }
+
+    fun getRefillUrgencyConfig(): Flow<RefillUrgencyConfig> = context.advancedTuningDataStore.data.map {
+        RefillUrgencyConfig(
+            urgentDays = (it[REFILL_URGENT] ?: 3).coerceAtLeast(0),
+            upcomingDays = (it[REFILL_UPCOMING] ?: 7).coerceAtLeast(0)
+        )
+    }
+
+    fun getEnergyPomodoroConfig(): Flow<EnergyPomodoroConfig> = context.advancedTuningDataStore.data.map {
+        EnergyPomodoroConfig(
+            veryLowWork = it[POM_VL_W] ?: 15, veryLowBreak = it[POM_VL_B] ?: 10, veryLowLong = it[POM_VL_L] ?: 20,
+            lowWork = it[POM_L_W] ?: 15, lowBreak = it[POM_L_B] ?: 10, lowLong = it[POM_L_L] ?: 20,
+            mediumWork = it[POM_M_W] ?: 25, mediumBreak = it[POM_M_B] ?: 5, mediumLong = it[POM_M_L] ?: 15,
+            highWork = it[POM_H_W] ?: 35, highBreak = it[POM_H_B] ?: 4, highLong = it[POM_H_L] ?: 12,
+            veryHighWork = it[POM_VH_W] ?: 45, veryHighBreak = it[POM_VH_B] ?: 3, veryHighLong = it[POM_VH_L] ?: 10
+        )
+    }
+
+    fun getGoodEnoughTimerConfig(): Flow<GoodEnoughTimerConfig> = context.advancedTuningDataStore.data.map {
+        GoodEnoughTimerConfig(
+            gracePeriodMinutes = it[GE_GRACE] ?: 2,
+            nudgeCooldownMinutes = it[GE_NUDGE] ?: 10,
+            dialogCooldownMinutes = it[GE_DIALOG] ?: 15,
+            extensionMinutes = it[GE_EXTEND] ?: 10
+        )
+    }
+
+    fun getSuggestionConfig(): Flow<SuggestionConfig> = context.advancedTuningDataStore.data.map {
+        SuggestionConfig(
+            tagThreshold = it[SUG_TAG_THRESH] ?: 0.2f,
+            projectThreshold = it[SUG_PROJ_THRESH] ?: 0.3f,
+            maxResults = (it[SUG_MAX_RESULTS] ?: 3).coerceAtLeast(1)
+        )
+    }
+
+    fun getExtractorConfig(): Flow<ExtractorConfig> = context.advancedTuningDataStore.data.map {
+        ExtractorConfig(
+            maxInputChars = (it[EXTRACT_MAX_INPUT] ?: 10_000).coerceAtLeast(100),
+            maxTitleChars = (it[EXTRACT_MAX_TITLE] ?: 120).coerceAtLeast(20)
+        )
+    }
+
+    fun getSmartDefaultsConfig(): Flow<SmartDefaultsConfig> = context.advancedTuningDataStore.data.map {
+        SmartDefaultsConfig(
+            minHistory = (it[SD_MIN_HISTORY] ?: 5).coerceAtLeast(1),
+            durationGranularityMinutes = (it[SD_GRANULARITY] ?: 15).coerceAtLeast(1)
+        )
+    }
+
+    fun getMorningCheckInPromptCutoff(): Flow<MorningCheckInPromptCutoff> = context.advancedTuningDataStore.data.map {
+        MorningCheckInPromptCutoff(
+            latestHour = (it[MORNING_LATEST] ?: 11).coerceIn(0, 23)
+        )
+    }
+
+    fun getLifeCategoryCustomKeywords(): Flow<LifeCategoryCustomKeywords> = context.advancedTuningDataStore.data.map {
+        LifeCategoryCustomKeywords(
+            work = it[CK_WORK] ?: "",
+            personal = it[CK_PERSONAL] ?: "",
+            selfCare = it[CK_SELFCARE] ?: "",
+            health = it[CK_HEALTH] ?: ""
+        )
+    }
+
+    suspend fun setUrgencyBands(bands: UrgencyBands) {
+        context.advancedTuningDataStore.edit {
+            it[URGENCY_BAND_CRITICAL] = bands.critical
+            it[URGENCY_BAND_HIGH] = bands.high
+            it[URGENCY_BAND_MEDIUM] = bands.medium
+        }
+    }
+
+    suspend fun setUrgencyWindows(windows: UrgencyWindows) {
+        context.advancedTuningDataStore.edit {
+            it[URGENCY_OVERDUE_CEIL] = windows.overdueCeilingDays
+            it[URGENCY_IMMINENT_WIN] = windows.imminentWindowDays
+        }
+    }
+
+    suspend fun setBurnoutWeights(w: BurnoutWeights) {
+        context.advancedTuningDataStore.edit {
+            it[BURNOUT_WORK_MAX] = w.workMax
+            it[BURNOUT_OVERDUE_MAX] = w.overdueMax
+            it[BURNOUT_SELFCARE_MAX] = w.selfCareMax
+            it[BURNOUT_MEDICATION_MAX] = w.medicationMax
+            it[BURNOUT_STREAK_MAX] = w.streakMax
+            it[BURNOUT_REST_MAX] = w.restDeficitMax
+            it[BURNOUT_REST_DAYS] = w.restDeficitDays
+        }
+    }
+
+    suspend fun setProductivityWeights(w: ProductivityWeights) {
+        context.advancedTuningDataStore.edit {
+            it[PROD_TASK] = w.taskWeight
+            it[PROD_ONTIME] = w.onTimeWeight
+            it[PROD_HABIT] = w.habitWeight
+            it[PROD_ESTIMATION] = w.estimationWeight
+            it[PROD_TREND_THRESHOLD] = w.trendThreshold
+        }
+    }
+
+    suspend fun setMoodCorrelationConfig(c: MoodCorrelationConfig) {
+        context.advancedTuningDataStore.edit {
+            it[MOOD_MIN_OBS] = c.minObservations
+            it[MOOD_STRONG] = c.strongThreshold
+            it[MOOD_MODERATE] = c.moderateThreshold
+        }
+    }
+
+    suspend fun setRefillUrgencyConfig(c: RefillUrgencyConfig) {
+        context.advancedTuningDataStore.edit {
+            it[REFILL_URGENT] = c.urgentDays
+            it[REFILL_UPCOMING] = c.upcomingDays
+        }
+    }
+
+    suspend fun setEnergyPomodoroConfig(c: EnergyPomodoroConfig) {
+        context.advancedTuningDataStore.edit {
+            it[POM_VL_W] = c.veryLowWork
+            it[POM_VL_B] = c.veryLowBreak
+            it[POM_VL_L] = c.veryLowLong
+            it[POM_L_W] = c.lowWork
+            it[POM_L_B] = c.lowBreak
+            it[POM_L_L] = c.lowLong
+            it[POM_M_W] = c.mediumWork
+            it[POM_M_B] = c.mediumBreak
+            it[POM_M_L] = c.mediumLong
+            it[POM_H_W] = c.highWork
+            it[POM_H_B] = c.highBreak
+            it[POM_H_L] = c.highLong
+            it[POM_VH_W] = c.veryHighWork
+            it[POM_VH_B] = c.veryHighBreak
+            it[POM_VH_L] = c.veryHighLong
+        }
+    }
+
+    suspend fun setGoodEnoughTimerConfig(c: GoodEnoughTimerConfig) {
+        context.advancedTuningDataStore.edit {
+            it[GE_GRACE] = c.gracePeriodMinutes
+            it[GE_NUDGE] = c.nudgeCooldownMinutes
+            it[GE_DIALOG] = c.dialogCooldownMinutes
+            it[GE_EXTEND] = c.extensionMinutes
+        }
+    }
+
+    suspend fun setSuggestionConfig(c: SuggestionConfig) {
+        context.advancedTuningDataStore.edit {
+            it[SUG_TAG_THRESH] = c.tagThreshold
+            it[SUG_PROJ_THRESH] = c.projectThreshold
+            it[SUG_MAX_RESULTS] = c.maxResults
+        }
+    }
+
+    suspend fun setExtractorConfig(c: ExtractorConfig) {
+        context.advancedTuningDataStore.edit {
+            it[EXTRACT_MAX_INPUT] = c.maxInputChars
+            it[EXTRACT_MAX_TITLE] = c.maxTitleChars
+        }
+    }
+
+    suspend fun setSmartDefaultsConfig(c: SmartDefaultsConfig) {
+        context.advancedTuningDataStore.edit {
+            it[SD_MIN_HISTORY] = c.minHistory
+            it[SD_GRANULARITY] = c.durationGranularityMinutes
+        }
+    }
+
+    suspend fun setMorningCheckInPromptCutoff(c: MorningCheckInPromptCutoff) {
+        context.advancedTuningDataStore.edit {
+            it[MORNING_LATEST] = c.latestHour
+        }
+    }
+
+    suspend fun setLifeCategoryCustomKeywords(k: LifeCategoryCustomKeywords) {
+        context.advancedTuningDataStore.edit {
+            it[CK_WORK] = k.work
+            it[CK_PERSONAL] = k.personal
+            it[CK_SELFCARE] = k.selfCare
+            it[CK_HEALTH] = k.health
+        }
+    }
+}

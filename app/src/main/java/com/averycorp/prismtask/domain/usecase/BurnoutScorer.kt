@@ -1,6 +1,7 @@
 package com.averycorp.prismtask.domain.usecase
 
 import com.averycorp.prismtask.data.local.entity.TaskEntity
+import com.averycorp.prismtask.data.preferences.BurnoutWeights
 import com.averycorp.prismtask.domain.model.LifeCategory
 
 /**
@@ -98,14 +99,16 @@ data class BurnoutResult(
  * `CAUTION` / `HIGH_RISK`. The UI renders a gauge + a caption like
  * "Balanced ✨" or "High risk — consider blocking time for rest."
  */
-class BurnoutScorer {
+class BurnoutScorer(
+    private val weights: BurnoutWeights = BurnoutWeights()
+) {
     fun compute(inputs: BurnoutInputs): BurnoutResult {
         val workPoints = workOvershoot(inputs.workRatio, inputs.workTarget)
         val overduePoints = overdueComponent(inputs.overdueCount)
-        val selfCarePoints = (inputs.skippedSelfCareRatio.coerceIn(0f, 1f) * SELF_CARE_MAX).toInt()
-        val medicationPoints = (inputs.medicationGapRatio.coerceIn(0f, 1f) * MEDICATION_MAX).toInt()
+        val selfCarePoints = (inputs.skippedSelfCareRatio.coerceIn(0f, 1f) * weights.selfCareMax).toInt()
+        val medicationPoints = (inputs.medicationGapRatio.coerceIn(0f, 1f) * weights.medicationMax).toInt()
         val streakPoints = streakBreakComponent(inputs.streakBreaks)
-        val restDeficitPoints = if (inputs.restDeficit) REST_DEFICIT_MAX else 0
+        val restDeficitPoints = if (inputs.restDeficit) weights.restDeficitMax else 0
 
         val total = (
             workPoints + overduePoints + selfCarePoints + medicationPoints +
@@ -155,8 +158,8 @@ class BurnoutScorer {
             skipped.toFloat() / selfCareThisWeek.size.toFloat()
         }
 
-        // Rest deficit: no self-care tasks completed in the last 2 days.
-        val twoDaysAgo = now - TWO_DAYS_MILLIS
+        // Rest deficit: no self-care tasks completed in the last [restDeficitDays] days.
+        val twoDaysAgo = now - weights.restDeficitDays.toLong() * 24L * 60 * 60 * 1000
         val selfCareCompletedRecently = tasks.any { task ->
             LifeCategory.fromStorage(task.lifeCategory) == LifeCategory.SELF_CARE &&
                 task.isCompleted &&
@@ -177,24 +180,24 @@ class BurnoutScorer {
     }
 
     private fun workOvershoot(actual: Float, target: Float): Int {
-        // 25 points max, scaled linearly from 0 (at target) to 25 (target+40%).
+        // workMax points scaled linearly from 0 (at target) to workMax (target+40%).
         if (actual <= target) return 0
         val overshoot = (actual - target).coerceIn(0f, 0.40f)
-        return ((overshoot / 0.40f) * WORK_MAX).toInt()
+        return ((overshoot / 0.40f) * weights.workMax).toInt()
     }
 
     private fun overdueComponent(count: Int): Int {
-        // 20 points max at 10+ overdue tasks.
+        // overdueMax points scaled at 10+ overdue tasks.
         if (count <= 0) return 0
         val scaled = count.coerceAtMost(10).toFloat() / 10f
-        return (scaled * OVERDUE_MAX).toInt()
+        return (scaled * weights.overdueMax).toInt()
     }
 
     private fun streakBreakComponent(count: Int): Int {
-        // 10 points max at 5+ broken streaks.
+        // streakMax points scaled at 5+ broken streaks.
         if (count <= 0) return 0
         val scaled = count.coerceAtMost(5).toFloat() / 5f
-        return (scaled * STREAK_MAX).toInt()
+        return (scaled * weights.streakMax).toInt()
     }
 
     companion object {
