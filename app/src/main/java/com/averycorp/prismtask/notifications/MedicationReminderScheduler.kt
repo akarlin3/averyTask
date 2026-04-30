@@ -7,7 +7,10 @@ import android.content.Intent
 import com.averycorp.prismtask.data.local.dao.MedicationDao
 import com.averycorp.prismtask.data.local.dao.MedicationDoseDao
 import com.averycorp.prismtask.data.local.entity.MedicationEntity
+import com.averycorp.prismtask.data.preferences.MedicationReminderMode
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
+import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
+import com.averycorp.prismtask.domain.usecase.MedicationReminderModeResolver
 import com.averycorp.prismtask.util.DayBoundary
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first
@@ -43,7 +46,8 @@ constructor(
     @ApplicationContext private val context: Context,
     private val medicationDao: MedicationDao,
     private val medicationDoseDao: MedicationDoseDao,
-    private val taskBehaviorPreferences: TaskBehaviorPreferences
+    private val taskBehaviorPreferences: TaskBehaviorPreferences,
+    private val userPreferences: UserPreferencesDataStore
 ) {
     private val alarmManager: AlarmManager?
         get() = context.getSystemService(AlarmManager::class.java)
@@ -52,15 +56,32 @@ constructor(
      * Registers every alarm the medication's schedule implies. Idempotent
      * per medication — call [cancelForMedication] first if a schedule
      * change needs to fire fresh.
+     *
+     * Wall-clock paths (`TIMES_OF_DAY`, `SPECIFIC_TIMES`) are skipped when
+     * the resolved reminder mode is INTERVAL — the per-medication-override
+     * alarm fires from [MedicationIntervalRescheduler] instead, and we'd
+     * otherwise double-fire. The `INTERVAL` schedule-mode path keeps
+     * running so legacy migrated medications with a populated
+     * `intervalMillis` continue to work.
      */
     suspend fun scheduleForMedication(med: MedicationEntity) {
         if (med.isArchived) return
+        val mode = resolvedReminderMode(med)
         when (med.scheduleMode) {
-            "TIMES_OF_DAY" -> scheduleTimesOfDay(med)
-            "SPECIFIC_TIMES" -> scheduleSpecificTimes(med)
+            "TIMES_OF_DAY" -> if (mode == MedicationReminderMode.CLOCK) scheduleTimesOfDay(med)
+            "SPECIFIC_TIMES" -> if (mode == MedicationReminderMode.CLOCK) scheduleSpecificTimes(med)
             "INTERVAL" -> scheduleInterval(med)
             // AS_NEEDED and anything else: no alarms.
         }
+    }
+
+    private suspend fun resolvedReminderMode(med: MedicationEntity): MedicationReminderMode {
+        val global = userPreferences.medicationReminderModeFlow.first()
+        return MedicationReminderModeResolver.resolveReminderMode(
+            medication = med,
+            slot = null,
+            global = global
+        )
     }
 
     /** Cancels every slot alarm for the medication. */

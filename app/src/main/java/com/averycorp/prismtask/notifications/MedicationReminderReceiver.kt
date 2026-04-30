@@ -175,8 +175,14 @@ class MedicationReminderReceiver : BroadcastReceiver() {
         val med = entryPoint.medicationDao().getByIdOnce(medicationId)
         if (med == null || med.isArchived) return
 
-        // Per-medication alarms self-re-register on the new scheduler.
-        entryPoint.medicationReminderScheduler().onAlarmFired(medicationId, slotKey)
+        // Per-medication alarms self-re-register on the legacy scheduler.
+        // Alarms from MedicationIntervalRescheduler (slotKey
+        // "interval-override") are re-armed by the rescheduler's own
+        // dose-change Flow observer; routing them through the legacy
+        // onAlarmFired risks interleaving the two interval-anchor sources.
+        if (slotKey != "interval-override") {
+            entryPoint.medicationReminderScheduler().onAlarmFired(medicationId, slotKey)
+        }
 
         NotificationHelper.showMedicationReminder(
             context,
