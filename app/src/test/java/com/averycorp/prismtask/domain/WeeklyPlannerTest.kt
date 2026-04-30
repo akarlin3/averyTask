@@ -16,12 +16,20 @@ import org.junit.Test
 class WeeklyPlannerTest {
     @Test
     fun plan_parsesFromApiResponse() {
+        // Backend now emits Firestore doc IDs (strings); the ViewModel
+        // resolves them to local Longs. This test simulates the mapping
+        // with a fixed lookup.
+        val cloudToLocal = mapOf(
+            "cloud-1" to 1L,
+            "cloud-2" to 2L,
+            "cloud-5" to 5L
+        )
         val response = WeeklyPlanResponse(
             plan = mapOf(
                 "Monday" to DayPlanResponse(
                     date = "2026-04-13",
                     tasks = listOf(
-                        PlannedTaskResponse(1L, "Write report", "9:00 AM", 60, "Due Tuesday")
+                        PlannedTaskResponse("cloud-1", "Write report", "9:00 AM", 60, "Due Tuesday")
                     ),
                     totalHours = 1.0,
                     calendarEvents = listOf("Standup 10:00-10:30"),
@@ -30,7 +38,7 @@ class WeeklyPlannerTest {
                 "Tuesday" to DayPlanResponse(
                     date = "2026-04-14",
                     tasks = listOf(
-                        PlannedTaskResponse(2L, "Review PR", "9:00 AM", 30, "Quick task")
+                        PlannedTaskResponse("cloud-2", "Review PR", "9:00 AM", 30, "Quick task")
                     ),
                     totalHours = 0.5,
                     calendarEvents = emptyList(),
@@ -38,7 +46,7 @@ class WeeklyPlannerTest {
                 )
             ),
             unscheduled = listOf(
-                UnscheduledTaskResponse(5L, "Low priority", "Defer to next week")
+                UnscheduledTaskResponse("cloud-5", "Low priority", "Defer to next week")
             ),
             weekSummary = "Light week with 2 tasks.",
             tips = listOf("Focus on the report Monday")
@@ -50,7 +58,9 @@ class WeeklyPlannerTest {
                 DayPlan(
                     date = dayPlan.date,
                     dayName = dayName,
-                    tasks = dayPlan.tasks.map { PlannedTask(it.taskId, it.title, it.suggestedTime, it.durationMinutes, it.reason) },
+                    tasks = dayPlan.tasks.map {
+                        PlannedTask(cloudToLocal.getValue(it.taskId), it.title, it.suggestedTime, it.durationMinutes, it.reason)
+                    },
                     totalHours = dayPlan.totalHours,
                     calendarEvents = dayPlan.calendarEvents,
                     habits = dayPlan.habits
@@ -60,7 +70,9 @@ class WeeklyPlannerTest {
 
         val plan = WeeklyPlan(
             days = days,
-            unscheduled = response.unscheduled.map { UnscheduledTask(it.taskId, it.title, it.reason) },
+            unscheduled = response.unscheduled.map {
+                UnscheduledTask(cloudToLocal.getValue(it.taskId), it.title, it.reason)
+            },
             weekSummary = response.weekSummary,
             tips = response.tips
         )

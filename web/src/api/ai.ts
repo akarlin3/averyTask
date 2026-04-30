@@ -56,14 +56,8 @@ export interface PomodoroResponse {
 //
 // Backend schema: backend/app/schemas/ai.py:142-172. The request field is
 // `date` (not `target_date` as some prompts suggested) and the response's
-// unscheduled list is `unscheduled_tasks`.
-//
-// TODO(weekly-followup): task_id in ScheduleBlock / UnscheduledTask is
-// still Long on the backend side for this endpoint. Kept as string here
-// since Firestore doc IDs are strings; if the backend ever sends numeric
-// JSON, Gson-style coercion on the browser will silently coerce to a
-// decimal string which is fine for rendering. Real fix lands with the
-// Long -> String audit.
+// unscheduled list is `unscheduled_tasks`. task_id is a Firestore doc id
+// (string) on every AI endpoint.
 
 export interface TimeBlockRequest {
   date: string; // ISO date (YYYY-MM-DD)

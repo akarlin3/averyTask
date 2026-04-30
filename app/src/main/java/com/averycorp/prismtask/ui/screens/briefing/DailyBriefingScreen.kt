@@ -255,6 +255,15 @@ private fun BriefingContent(
             }
         }
 
+        // Pending sync footer — surfaces tasks the AI returned that we
+        // can't bind to a local row (typically created on another device,
+        // not yet synced down).
+        if (briefing.pendingSyncTitles.isNotEmpty()) {
+            item(key = "pending_sync_footer") {
+                PendingSyncFooter(titles = briefing.pendingSyncTitles)
+            }
+        }
+
         item(key = "bottom_spacer") {
             Spacer(Modifier.height(24.dp))
         }
@@ -346,6 +355,44 @@ private fun PriorityCard(
                     overflow = TextOverflow.Ellipsis
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun PendingSyncFooter(titles: List<String>) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+            .padding(12.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.Default.Warning,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = "${titles.size} pending sync from another device",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+        Spacer(Modifier.height(4.dp))
+        titles.forEach { title ->
+            Text(
+                text = "• $title",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(start = 24.dp, top = 2.dp)
+            )
         }
     }
 }

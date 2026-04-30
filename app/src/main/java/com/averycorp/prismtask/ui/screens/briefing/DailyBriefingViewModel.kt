@@ -34,7 +34,12 @@ data class DailyBriefing(
     val topPriorities: List<BriefingPriority>,
     val headsUp: List<String>,
     val suggestedOrder: List<SuggestedTask>,
-    val habitReminders: List<String>
+    val habitReminders: List<String>,
+    // Titles of priorities/suggestions whose Firestore doc IDs couldn't be
+    // resolved to local Long task ids — typically tasks created on another
+    // device that haven't synced down yet. Surfaced as a footer so partial
+    // briefings still render.
+    val pendingSyncTitles: List<String> = emptyList()
 )
 
 @HiltViewModel
@@ -87,17 +92,37 @@ constructor(
             _orderApplied.value = false
             try {
                 val response = api.getDailyBriefing(DailyBriefingRequest(date = targetDate))
+                // Resolve Firestore doc IDs to local Long task ids. Tasks not
+                // present locally (e.g. created on another device and not yet
+                // synced down) are demoted into pendingSyncTitles so the rest
+                // of the briefing still renders.
+                val pendingSync = mutableListOf<String>()
+                val resolvedPriorities = response.topPriorities.mapNotNull { p ->
+                    val localId = taskDao.getIdByCloudId(p.taskId)
+                    if (localId == null) {
+                        pendingSync += p.title
+                        null
+                    } else {
+                        BriefingPriority(localId, p.title, p.reason)
+                    }
+                }
+                val resolvedSuggestions = response.suggestedOrder.mapNotNull { s ->
+                    val localId = taskDao.getIdByCloudId(s.taskId)
+                    if (localId == null) {
+                        pendingSync += s.title
+                        null
+                    } else {
+                        SuggestedTask(localId, s.title, s.suggestedTime, s.reason)
+                    }
+                }
                 _briefing.value = DailyBriefing(
                     greeting = response.greeting,
                     dayType = response.dayType,
-                    topPriorities = response.topPriorities.map { p ->
-                        BriefingPriority(p.taskId, p.title, p.reason)
-                    },
+                    topPriorities = resolvedPriorities,
                     headsUp = response.headsUp,
-                    suggestedOrder = response.suggestedOrder.map { s ->
-                        SuggestedTask(s.taskId, s.title, s.suggestedTime, s.reason)
-                    },
-                    habitReminders = response.habitReminders
+                    suggestedOrder = resolvedSuggestions,
+                    habitReminders = response.habitReminders,
+                    pendingSyncTitles = pendingSync.distinct()
                 )
                 cachedDate = targetDate
             } catch (e: Exception) {

@@ -16,14 +16,21 @@ import org.junit.Test
 class TimeBlockTest {
     @Test
     fun schedule_parsesFromApiResponse() {
+        // Backend now emits Firestore doc IDs (strings); the ViewModel
+        // resolves them to local Longs. This test simulates the mapping
+        // with a fixed lookup.
+        val cloudToLocal = mapOf(
+            "cloud-1" to 1L,
+            "cloud-7" to 7L
+        )
         val response = TimeBlockResponse(
             schedule = listOf(
-                ScheduleBlockResponse("09:00", "09:30", "task", 1L, "Write report", "Deep work while fresh"),
+                ScheduleBlockResponse("09:00", "09:30", "task", "cloud-1", "Write report", "Deep work while fresh"),
                 ScheduleBlockResponse("09:30", "10:00", "event", null, "Team standup", "Fixed calendar event"),
                 ScheduleBlockResponse("10:00", "10:15", "break", null, "Break", "Recovery after work")
             ),
             unscheduledTasks = listOf(
-                UnscheduledTaskResponse(7L, "Low priority task", "Not enough time")
+                UnscheduledTaskResponse("cloud-7", "Low priority task", "Not enough time")
             ),
             stats = TimeBlockStatsResponse(
                 totalWorkMinutes = 30,
@@ -40,13 +47,13 @@ class TimeBlockTest {
                     block.start,
                     block.end,
                     block.type,
-                    block.taskId,
+                    block.taskId?.let { cloudToLocal[it] },
                     block.title,
                     block.reason,
                     date = block.date ?: "2026-04-22"
                 )
             },
-            unscheduledTasks = response.unscheduledTasks.map { it.taskId to it.title },
+            unscheduledTasks = response.unscheduledTasks.map { cloudToLocal[it.taskId] to it.title },
             stats = AiTimeBlockStats(
                 totalWorkMinutes = response.stats.totalWorkMinutes,
                 totalBreakMinutes = response.stats.totalBreakMinutes,

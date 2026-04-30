@@ -506,19 +506,36 @@ constructor(
                     )
                     return@launch
                 }
+                // Resolve Firestore doc IDs returned by the backend to local
+                // Long task ids. Tasks not present locally (e.g. created on
+                // another device and not yet synced down) get demoted into
+                // the skipped list so the rest of the plan still renders.
+                val unresolved = mutableListOf<SkippedTask>()
+                val sessions = response.sessions.map { s ->
+                    val resolved = s.tasks.mapNotNull { t ->
+                        val localId = taskDao.getIdByCloudId(t.taskId)
+                        if (localId == null) {
+                            unresolved += SkippedTask(0L, "${t.title}: not synced to this device")
+                            null
+                        } else {
+                            SessionTask(localId, t.title, t.allocatedMinutes)
+                        }
+                    }
+                    PomodoroSession(
+                        sessionNumber = s.sessionNumber,
+                        tasks = resolved,
+                        rationale = s.rationale
+                    )
+                }
+                val skipped = response.skippedTasks.mapNotNull {
+                    val localId = taskDao.getIdByCloudId(it.taskId) ?: return@mapNotNull null
+                    SkippedTask(localId, it.reason)
+                } + unresolved
                 val built = PomodoroPlan(
-                    sessions = response.sessions.map { s ->
-                        PomodoroSession(
-                            sessionNumber = s.sessionNumber,
-                            tasks = s.tasks.map { t ->
-                                SessionTask(t.taskId, t.title, t.allocatedMinutes)
-                            },
-                            rationale = s.rationale
-                        )
-                    },
+                    sessions = sessions,
                     totalWorkMinutes = response.totalWorkMinutes,
                     totalBreakMinutes = response.totalBreakMinutes,
-                    skippedTasks = response.skippedTasks.map { SkippedTask(it.taskId, it.reason) }
+                    skippedTasks = skipped
                 )
                 _planUiState.value = PomodoroPlanUiState.Success(built)
             } catch (e: Exception) {

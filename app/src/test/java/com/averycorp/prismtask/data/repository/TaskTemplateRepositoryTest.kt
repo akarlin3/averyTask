@@ -514,6 +514,9 @@ class TaskTemplateRepositoryTest {
 
         override suspend fun getTaskByIdOnce(id: Long): TaskEntity? = tasks.firstOrNull { it.id == id }
 
+        override suspend fun getIdByCloudId(cloudId: String): Long? =
+            tasks.firstOrNull { it.cloudId == cloudId }?.id
+
         override suspend fun getSubtasksOnce(parentTaskId: Long): List<TaskEntity> =
             tasks.filter { it.parentTaskId == parentTaskId }.sortedBy { it.sortOrder }
 

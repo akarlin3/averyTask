@@ -58,6 +58,10 @@ class SmartPomodoroViewModelTest {
         Dispatchers.setMain(dispatcher)
         appContext = mockk(relaxed = true)
         taskDao = mockk(relaxed = true)
+        // Default cloud-id resolution for the standard fixtures used across
+        // generatePlan tests. Individual tests can override as needed.
+        coEvery { taskDao.getIdByCloudId("cloud-1") } returns 1L
+        coEvery { taskDao.getIdByCloudId("cloud-2") } returns 2L
         api = mockk(relaxed = true)
         proFeatureGate = mockk(relaxed = true)
         every { proFeatureGate.userTier } returns MutableStateFlow(UserTier.PRO)
@@ -139,7 +143,7 @@ class SmartPomodoroViewModelTest {
             sessions = listOf(
                 PomodoroSessionResponse(
                     sessionNumber = 1,
-                    tasks = listOf(SessionTaskResponse(taskId = 1L, title = "Focus", allocatedMinutes = 25)),
+                    tasks = listOf(SessionTaskResponse(taskId = "cloud-1", title = "Focus", allocatedMinutes = 25)),
                     rationale = "Warm up"
                 )
             ),
@@ -158,6 +162,40 @@ class SmartPomodoroViewModelTest {
         val plan = (state as PomodoroPlanUiState.Success).plan
         assertEquals(1, plan.sessions.size)
         assertEquals(25, plan.totalWorkMinutes)
+    }
+
+    @Test
+    fun generatePlan_resolvesFirestoreCloudIdsToLocalLongIds() = runTest(dispatcher) {
+        every { proFeatureGate.hasAccess(ProFeatureGate.AI_POMODORO) } returns true
+        coEvery { taskDao.getIdByCloudId("cloud-abc") } returns 42L
+        coEvery { taskDao.getIdByCloudId("cloud-missing") } returns null
+        coEvery { api.planPomodoro(any()) } returns PomodoroResponse(
+            sessions = listOf(
+                PomodoroSessionResponse(
+                    sessionNumber = 1,
+                    tasks = listOf(
+                        SessionTaskResponse(taskId = "cloud-abc", title = "Resolved", allocatedMinutes = 25),
+                        SessionTaskResponse(taskId = "cloud-missing", title = "Unsynced", allocatedMinutes = 15)
+                    ),
+                    rationale = "Mixed"
+                )
+            ),
+            totalSessions = 1,
+            totalWorkMinutes = 25,
+            totalBreakMinutes = 5,
+            skippedTasks = emptyList()
+        )
+
+        val vm = newViewModel()
+        vm.generatePlan()
+        advanceUntilIdle()
+
+        val plan = (vm.planUiState.value as PomodoroPlanUiState.Success).plan
+        // Resolved task lands in the session, unresolved task is moved to skipped.
+        assertEquals(1, plan.sessions.size)
+        assertEquals(listOf(42L), plan.sessions[0].tasks.map { it.taskId })
+        assertEquals(1, plan.skippedTasks.size)
+        assertTrue(plan.skippedTasks[0].reason.contains("not synced"))
     }
 
     @Test
@@ -257,7 +295,7 @@ class SmartPomodoroViewModelTest {
             sessions = listOf(
                 PomodoroSessionResponse(
                     sessionNumber = 1,
-                    tasks = listOf(SessionTaskResponse(1L, "Draft", 25)),
+                    tasks = listOf(SessionTaskResponse("cloud-1", "Draft", 25)),
                     rationale = "go"
                 )
             ),
@@ -285,7 +323,7 @@ class SmartPomodoroViewModelTest {
             sessions = listOf(
                 PomodoroSessionResponse(
                     sessionNumber = 1,
-                    tasks = listOf(SessionTaskResponse(1L, "Draft", 25)),
+                    tasks = listOf(SessionTaskResponse("cloud-1", "Draft", 25)),
                     rationale = "go"
                 )
             ),
@@ -324,7 +362,7 @@ class SmartPomodoroViewModelTest {
             sessions = listOf(
                 PomodoroSessionResponse(
                     sessionNumber = 1,
-                    tasks = listOf(SessionTaskResponse(1L, "Draft", 25)),
+                    tasks = listOf(SessionTaskResponse("cloud-1", "Draft", 25)),
                     rationale = "go"
                 )
             ),
@@ -379,7 +417,7 @@ class SmartPomodoroViewModelTest {
             sessions = listOf(
                 PomodoroSessionResponse(
                     sessionNumber = 1,
-                    tasks = listOf(SessionTaskResponse(1L, "Draft", 25)),
+                    tasks = listOf(SessionTaskResponse("cloud-1", "Draft", 25)),
                     rationale = "go"
                 )
             ),
@@ -414,7 +452,7 @@ class SmartPomodoroViewModelTest {
             sessions = listOf(
                 PomodoroSessionResponse(
                     sessionNumber = 1,
-                    tasks = listOf(SessionTaskResponse(1L, "Draft", 25)),
+                    tasks = listOf(SessionTaskResponse("cloud-1", "Draft", 25)),
                     rationale = "go"
                 )
             ),
@@ -445,7 +483,7 @@ class SmartPomodoroViewModelTest {
             sessions = listOf(
                 PomodoroSessionResponse(
                     sessionNumber = 1,
-                    tasks = listOf(SessionTaskResponse(1L, "Draft", 25)),
+                    tasks = listOf(SessionTaskResponse("cloud-1", "Draft", 25)),
                     rationale = "go"
                 )
             ),
@@ -479,12 +517,12 @@ class SmartPomodoroViewModelTest {
             sessions = listOf(
                 PomodoroSessionResponse(
                     sessionNumber = 1,
-                    tasks = listOf(SessionTaskResponse(1L, "Draft", 25)),
+                    tasks = listOf(SessionTaskResponse("cloud-1", "Draft", 25)),
                     rationale = "go"
                 ),
                 PomodoroSessionResponse(
                     sessionNumber = 2,
-                    tasks = listOf(SessionTaskResponse(2L, "Review", 25)),
+                    tasks = listOf(SessionTaskResponse("cloud-2", "Review", 25)),
                     rationale = "then"
                 )
             ),
@@ -528,7 +566,7 @@ class SmartPomodoroViewModelTest {
             sessions = listOf(
                 PomodoroSessionResponse(
                     sessionNumber = 1,
-                    tasks = listOf(SessionTaskResponse(1L, "Only task", 25)),
+                    tasks = listOf(SessionTaskResponse("cloud-1", "Only task", 25)),
                     rationale = "just one"
                 )
             ),
@@ -566,12 +604,12 @@ class SmartPomodoroViewModelTest {
             sessions = listOf(
                 PomodoroSessionResponse(
                     sessionNumber = 1,
-                    tasks = listOf(SessionTaskResponse(1L, "Draft", 25)),
+                    tasks = listOf(SessionTaskResponse("cloud-1", "Draft", 25)),
                     rationale = "go"
                 ),
                 PomodoroSessionResponse(
                     sessionNumber = 2,
-                    tasks = listOf(SessionTaskResponse(2L, "Review", 25)),
+                    tasks = listOf(SessionTaskResponse("cloud-2", "Review", 25)),
                     rationale = "then"
                 )
             ),

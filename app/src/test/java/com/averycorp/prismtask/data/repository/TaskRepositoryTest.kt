@@ -617,6 +617,9 @@ class TaskRepositoryTest {
         override suspend fun getTaskByIdOnce(id: Long): TaskEntity? =
             tasks.firstOrNull { it.id == id }
 
+        override suspend fun getIdByCloudId(cloudId: String): Long? =
+            tasks.firstOrNull { it.cloudId == cloudId }?.id
+
         override suspend fun markCompleted(id: Long, completedAt: Long) {
             val idx = tasks.indexOfFirst { it.id == id }
             if (idx >= 0) {
