@@ -194,5 +194,5 @@ pattern.
 ## Open questions
 
 - Should the Today screen's daily-essentials card surface a per-language tracker once the LANGUAGE slot is enabled? Phase 1 included this; implementation deferred. UX research / user feedback should drive a follow-up PR if so.
-- Should `syncHabitCompletion` be refactored to gate ALL slots (including MUSIC + FLEX) by `config.enabled` for consistency? Pre-existing behavior treats MUSIC / FLEX as always-required regardless of slot enable flag. Out of scope here, but worth a stand-alone audit.
+- ~~Should `syncHabitCompletion` be refactored to gate ALL slots by `config.enabled` for consistency?~~ **Resolved during PR review (operator: "All slots should be needed to check off leisure"):** every enabled slot — MUSIC, FLEX, LANGUAGE, and each enabled custom section — must now be done for the shared "Leisure" meta-habit to fire. Disabled slots are skipped. This is a behavior change for existing users who had a disabled MUSIC or FLEX slot (they previously had to complete the disabled slot to close the day; now they don't). The change matches the gating logic already used by `getDailyLeisureProgress`, so the on-screen progress bar and the meta-habit completion now agree.
 ```

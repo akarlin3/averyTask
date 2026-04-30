@@ -306,11 +306,15 @@ constructor(
         val enabledCustomsAllDone = customSections
             .filter { it.enabled }
             .all { section -> customStates[section.id]?.done == true }
-        // LANGUAGE is opt-in (default disabled) — only require languageDone
-        // when the slot is enabled, so users who never picked languages in
-        // onboarding still complete the meta-habit when music + flex are done.
+        // Every enabled slot (music, flex, language, custom) must be done
+        // for the shared "Leisure" meta-habit to fire. Disabled slots are
+        // skipped so a user who opted out of a slot in settings or never
+        // opted into LANGUAGE in onboarding can still close the day.
+        val musicEnabled = leisurePreferences.getSlotConfig(LeisureSlotId.MUSIC).first().enabled
+        val flexEnabled = leisurePreferences.getSlotConfig(LeisureSlotId.FLEX).first().enabled
         val languageEnabled = leisurePreferences.getSlotConfig(LeisureSlotId.LANGUAGE).first().enabled
-        val allDone = log.musicDone && log.flexDone &&
+        val allDone = (!musicEnabled || log.musicDone) &&
+            (!flexEnabled || log.flexDone) &&
             (!languageEnabled || log.languageDone) &&
             enabledCustomsAllDone
         val alreadyCompleted = habitCompletionDao.isCompletedOnDateLocalOnce(habit.id, todayLocal)
