@@ -158,6 +158,37 @@ data class ApiNetworkConfig(
     val retryAttempts: Int = 2
 )
 
+/** Periodic widget refresh cadence (15 = WorkManager floor, 240 = battery-saver ceiling). */
+data class WidgetRefreshConfig(
+    val intervalMinutes: Int = 15
+)
+
+/** Productivity widget score-to-color thresholds (≥green = green, ≥orange = orange, below = red). */
+data class ProductivityWidgetThresholds(
+    val greenScore: Int = 80,
+    val orangeScore: Int = 60
+)
+
+/**
+ * Editor field row caps for long-form planners. These are the
+ * `maxLines` values applied to the description and notes fields in
+ * the Add/Edit Task editor (E1).
+ */
+data class EditorFieldRows(
+    val descriptionRows: Int = 5,
+    val notesRows: Int = 8
+)
+
+/** QuickAdd / paste-multi-task field max-lines (E2). */
+data class QuickAddRows(
+    val maxLines: Int = 5
+)
+
+/** Search results description preview line count (E5). */
+data class SearchPreview(
+    val previewLines: Int = 2
+)
+
 @Singleton
 class AdvancedTuningPreferences
 @Inject
@@ -272,6 +303,23 @@ constructor(
         // C9 — API network
         private val API_TIMEOUT = intPreferencesKey("api_network_timeout_seconds")
         private val API_RETRIES = intPreferencesKey("api_network_retry_attempts")
+
+        // D1 — widget refresh cadence
+        private val WIDGET_REFRESH_MINUTES = intPreferencesKey("widget_refresh_minutes")
+
+        // D4 — productivity widget thresholds
+        private val PROD_WIDGET_GREEN = intPreferencesKey("productivity_widget_green")
+        private val PROD_WIDGET_ORANGE = intPreferencesKey("productivity_widget_orange")
+
+        // E1 — editor field rows
+        private val EDITOR_DESCRIPTION_ROWS = intPreferencesKey("editor_description_rows")
+        private val EDITOR_NOTES_ROWS = intPreferencesKey("editor_notes_rows")
+
+        // E2 — quick-add rows
+        private val QUICKADD_MAX_LINES = intPreferencesKey("quickadd_max_lines")
+
+        // E5 — search preview lines
+        private val SEARCH_PREVIEW_LINES = intPreferencesKey("search_preview_lines")
     }
 
     fun getUrgencyBands(): Flow<UrgencyBands> = context.advancedTuningDataStore.data.map {
@@ -581,6 +629,71 @@ constructor(
         context.advancedTuningDataStore.edit {
             it[API_TIMEOUT] = c.timeoutSeconds
             it[API_RETRIES] = c.retryAttempts
+        }
+    }
+
+    fun getWidgetRefreshConfig(): Flow<WidgetRefreshConfig> = context.advancedTuningDataStore.data.map {
+        WidgetRefreshConfig(
+            intervalMinutes = (it[WIDGET_REFRESH_MINUTES] ?: 15).coerceIn(15, 240)
+        )
+    }
+
+    suspend fun setWidgetRefreshConfig(c: WidgetRefreshConfig) {
+        context.advancedTuningDataStore.edit {
+            it[WIDGET_REFRESH_MINUTES] = c.intervalMinutes.coerceIn(15, 240)
+        }
+    }
+
+    fun getProductivityWidgetThresholds(): Flow<ProductivityWidgetThresholds> =
+        context.advancedTuningDataStore.data.map {
+            ProductivityWidgetThresholds(
+                greenScore = (it[PROD_WIDGET_GREEN] ?: 80).coerceIn(0, 100),
+                orangeScore = (it[PROD_WIDGET_ORANGE] ?: 60).coerceIn(0, 100)
+            )
+        }
+
+    suspend fun setProductivityWidgetThresholds(c: ProductivityWidgetThresholds) {
+        context.advancedTuningDataStore.edit {
+            it[PROD_WIDGET_GREEN] = c.greenScore.coerceIn(0, 100)
+            it[PROD_WIDGET_ORANGE] = c.orangeScore.coerceIn(0, 100)
+        }
+    }
+
+    fun getEditorFieldRows(): Flow<EditorFieldRows> = context.advancedTuningDataStore.data.map {
+        EditorFieldRows(
+            descriptionRows = (it[EDITOR_DESCRIPTION_ROWS] ?: 5).coerceIn(1, 50),
+            notesRows = (it[EDITOR_NOTES_ROWS] ?: 8).coerceIn(1, 50)
+        )
+    }
+
+    suspend fun setEditorFieldRows(c: EditorFieldRows) {
+        context.advancedTuningDataStore.edit {
+            it[EDITOR_DESCRIPTION_ROWS] = c.descriptionRows.coerceIn(1, 50)
+            it[EDITOR_NOTES_ROWS] = c.notesRows.coerceIn(1, 50)
+        }
+    }
+
+    fun getQuickAddRows(): Flow<QuickAddRows> = context.advancedTuningDataStore.data.map {
+        QuickAddRows(
+            maxLines = (it[QUICKADD_MAX_LINES] ?: 5).coerceIn(1, 50)
+        )
+    }
+
+    suspend fun setQuickAddRows(c: QuickAddRows) {
+        context.advancedTuningDataStore.edit {
+            it[QUICKADD_MAX_LINES] = c.maxLines.coerceIn(1, 50)
+        }
+    }
+
+    fun getSearchPreview(): Flow<SearchPreview> = context.advancedTuningDataStore.data.map {
+        SearchPreview(
+            previewLines = (it[SEARCH_PREVIEW_LINES] ?: 2).coerceIn(1, 10)
+        )
+    }
+
+    suspend fun setSearchPreview(c: SearchPreview) {
+        context.advancedTuningDataStore.edit {
+            it[SEARCH_PREVIEW_LINES] = c.previewLines.coerceIn(1, 10)
         }
     }
 }
