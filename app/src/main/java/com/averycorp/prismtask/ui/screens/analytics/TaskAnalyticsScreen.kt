@@ -154,6 +154,12 @@ fun TaskAnalyticsScreen(
                         accent = accentColor,
                         streak = state.streak
                     )
+                    if (productivity.scores.isNotEmpty()) {
+                        ProductivityHeatmap(
+                            scores = productivity.scores,
+                            accent = accentColor
+                        )
+                    }
                 }
                 // Time-tracking bar chart \u2014 Pro-gated (P2-C, C4 + C5)
                 state.timeTracking?.let { timeTracking ->
