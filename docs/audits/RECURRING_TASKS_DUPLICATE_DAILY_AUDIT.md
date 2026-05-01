@@ -321,3 +321,95 @@ hour of work). One bundled PR — see Item 2 rationale.
   test/seeder code. ViewModels should never bypass repositories for
   mutating operations — repositories are where reminder, sync, widget,
   and recurrence orchestration lives.
+
+---
+
+## Phase 3 — Bundle summary
+
+**Status — all items shipped.** Every PROCEED item from Phase 1 landed on `main`,
+including the two DEFERRED items (Item 2 residual + Item 3) that the user
+explicitly authorized after the initial bundle.
+
+### Per-item PR refs
+
+| Item | Title | PR | Verdict | Path on main |
+|-----:|-------|----|---------|--------------|
+| Audit doc | Phase 1 itself | [#1019](https://github.com/averycorp/prismTask/pull/1019) | RED → AUDIT | `docs/audits/RECURRING_TASKS_DUPLICATE_DAILY_AUDIT.md` |
+| 1 + 2 | Idempotent `completeTask` + Undo rolls back spawn (Items 1 + 2 base) **carrying** Item 2 residual via squash-collapse | [#1021](https://github.com/averycorp/prismTask/pull/1021) | RED → MERGED | `TaskRepository.kt`, `Migrations.kt` (MIGRATION_66_67), `TaskCompletionEntity.kt` (`spawned_recurrence_id`), `RecurrenceIntegrationTest.kt` (5 new tests) |
+| 2 residual | Toggle-uncomplete rollback via `task_completions.spawned_recurrence_id` link | [#1023](https://github.com/averycorp/prismTask/pull/1023) (squash-merged into #1021's branch — diff lands via #1021's squash, not directly on main) | DEFERRED → MERGED | (folded into #1021) |
+| 3 | Eisenhower / SmartPomodoro completion routed through `TaskRepository` | [#1022](https://github.com/averycorp/prismTask/pull/1022) | DEFERRED → MERGED | `EisenhowerViewModel.kt`, `SmartPomodoroViewModel.kt` |
+
+PR #1023 was developed as a stacked PR on `fix/recurring-task-idempotence`
+(Item 2 residual was found mid-implementation when reviewing the
+`uncompleteTask` toggle path) and squash-merged into that base branch
+rather than `main` directly — so the combined Item 1 + Item 2 base + Item 2
+residual diff all lands via #1021's squash on main. Worth noting for
+historians: the Phase 1 doc only listed PRs #1019, #1021, #1022 as the
+intended fan-out shape, and that's still what landed on main; #1023 is
+visible only in the GitHub history.
+
+### How #1021 actually merged
+
+The first 2 attempts at #1021's `connected-tests` job failed at test
+~423/424 with `ConnectivityManager$TooManyRequestsException` on
+`SyncTestHarnessSmokeTest.harness_deviceAOfflineToggleDoesNotBlockDeviceBWrites`
+— Android's per-UID callback quota (~100). The 3rd rerun hung at 39 min
+(canceled). The flake is unrelated to #1021's diff: each
+`disableNetwork()`/`enableNetwork()` cycle on Firestore re-initialises
+`FirestoreClient`, which calls
+`AndroidConnectivityMonitor.<init>` → `ConnectivityManager.registerDefaultNetworkCallback`,
+and the budget bleeds across the whole 424-test suite. PR #1020's earlier
+fix only cached the `deviceB` Firestore client; the production-side
+default `FirebaseFirestore.getInstance()` still churns on each toggle.
+
+#1021 was admin-merged once the third rerun confirmed the flake was
+process-quota exhaustion, not a regression in the diff. A structural
+follow-up — [#1026](https://github.com/averycorp/prismTask/pull/1026) —
+rewrites the smoke test to assert the FirebaseApp orthogonality
+*structurally* (distinct `FirebaseApp.name`, distinct `FirebaseFirestore`
+instances) instead of by toggling network state. Real offline-toggle
+behaviour is still exercised by `Test7OfflineEditReconnectTest`,
+`Test10ConcurrentDeleteTest`, and `Test11OfflineDuringRemoteWriteTest`.
+#1026 unblocks #1015 and any future PR that would otherwise ride the
+same flake.
+
+### Re-baselined wall-clock estimates
+
+The original Phase 1 estimates held on Items 1 + 2 + 3 (the
+implementation work itself was ~3h end-to-end). What blew the budget
+was the connected-tests flake hold-up — five rerun cycles, three
+worktree branches, and an admin-merge decision tree added ~2h of
+wall-clock that the audit doc did not anticipate. **Memory candidate:**
+when a PR's required CI check is a sync-harness test and the diff
+doesn't touch Firestore lifecycle, treat repeated same-flake failures
+as external infra and skip rerun loops earlier — admin-merge with a
+follow-up structural fix is cheaper than 5 rerun cycles.
+
+### Follow-up audits flagged (no schedule)
+
+Two anti-patterns worth a dedicated audit lane each:
+
+1. **Pre-transaction-read anti-pattern (data-integrity audit).** The
+   "read outside the transaction, write inside" shape that enabled
+   Item 1's race exists in other repository methods
+   (`completeTask`/`duplicateTask`/`moveTask` were called out in the
+   anti-patterns section above). A short audit pass should sweep every
+   `TaskRepository`/`HabitRepository`/`ProjectRepository` method that
+   does the same thing and either fold the read into the transaction
+   or guard with a re-check. Probably a similar-sized audit (~3-5
+   items, single bundled PR).
+2. **Firebase test isolation (test-infra audit).** The `TooManyRequests`
+   flake is the second time this exact failure has surfaced (#1015,
+   #1021); the first mitigation (#1020) was a partial cache, the
+   second (#1026) reduced one toggle call site but the *structural*
+   cause — Firestore re-initialising its connectivity monitor on every
+   `disableNetwork()`/`enableNetwork()` cycle — is still live in
+   Test7/Test10/Test11. Worth a dedicated audit covering: shard
+   strategy (`-Pandroid.testInstrumentationRunnerArguments.notPackage`
+   or per-package CI lanes), SDK-level callback recycling, or moving
+   genuine offline-scenario tests behind a `@LargeTest` filter that
+   only runs on a dedicated runner with a fresh process per scenario.
+
+**Schedule for next audit.** None planned. Both follow-ups above are
+candidates the user can pick up when CI noise warrants — neither is
+urgent today now that #1021 + #1026 have closed the user-visible bug.
