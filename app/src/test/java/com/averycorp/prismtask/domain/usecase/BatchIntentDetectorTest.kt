@@ -228,4 +228,49 @@ class BatchIntentDetectorTest {
         // known limitation; revisit if it shows up in user reports.
         assertEquals(Result.NotABatch, detector.detect("\"complete all tasks today\""))
     }
+
+    @Test
+    fun descriptionStyleQuantifierPlusTimeRange_isNotBatch() {
+        // F.1 fix: QUANT + TIME_RANGE with no operation verb is most
+        // likely a description ("all my tasks for today"), not a batch
+        // command. Carve-out forces NotABatch.
+        assertEquals(Result.NotABatch, detector.detect("all my tasks for today"))
+        assertEquals(Result.NotABatch, detector.detect("everything I have tomorrow"))
+        assertEquals(Result.NotABatch, detector.detect("each item due friday"))
+        // Mixed case — locks in case insensitivity through the
+        // description carve-out path.
+        assertEquals(Result.NotABatch, detector.detect("All My Tasks For Today"))
+    }
+
+    @Test
+    fun quantifierPlusTimeRangeWithBulkVerb_stillBatch() {
+        // Lock-in: the description carve-out is narrowly scoped to "no
+        // bulk verb anywhere". Inputs with a bulk verb token — even
+        // when BULK_VERB_AND_PLURAL doesn't fire (singular entity noun)
+        // — keep their batch routing.
+        assertTrue(detector.detect("mark every habit complete for today") is Result.Batch)
+        // Unchanged: 1 signal (TIME_RANGE only, no QUANT) → NotABatch.
+        assertTrue(detector.detect("clear thursday") is Result.NotABatch)
+        // QUANT + TIME_RANGE + bulk verb token (no plural) → Batch.
+        assertTrue(detector.detect("cancel everything tomorrow") is Result.Batch)
+    }
+
+    @Test
+    fun recurrenceRegexMustNotIncludeEntityNouns() {
+        // F.2 regression — `everyHabit_plusTimeRange_detects` passes
+        // today specifically because `habit` is NOT in the recurrence
+        // regex's noun group. If a future edit adds it, the recurrence
+        // carve-out would fire on "Mark every habit complete for today"
+        // and flip routing from Batch to NotABatch. Lock the contract
+        // here too so a regression surfaces in TWO places, not one.
+        //
+        // Each input below has the form `every <entity-noun>` and MUST
+        // stay on the batch path — never via the RECURRENCE carve-out.
+        assertTrue(detector.detect("Mark every habit complete for today") is Result.Batch)
+        assertTrue(detector.detect("delete every task tomorrow") is Result.Batch)
+        assertTrue(detector.detect("archive every project tomorrow") is Result.Batch)
+        // Negative side of the contract: `every monday` (a real
+        // recurrence noun) must still fire the recurrence carve-out.
+        assertEquals(Result.NotABatch, detector.detect("every monday at 8am"))
+    }
 }
