@@ -53,6 +53,10 @@ export interface BatchProjectContext {
 export interface BatchMedicationContext {
   id: string;
   name: string;
+  /** User-facing alias (e.g. brand name when `name` is the generic) sent to
+   *  Haiku as a secondary match target — keeps spoken phrases like "took my
+   *  Wellbutrin" resolvable when the canonical `name` is "Bupropion HCL XL". */
+  display_label?: string | null;
 }
 
 export interface BatchUserContext {
