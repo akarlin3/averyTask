@@ -123,7 +123,8 @@ fun TaskAnalyticsScreen(
                         response = productivity,
                         selectedRange = state.productivityRange,
                         onRangeSelected = { viewModel.setProductivityRange(it) },
-                        accent = accentColor
+                        accent = accentColor,
+                        streak = state.streak
                     )
                 }
                 // Time-tracking bar chart \u2014 Pro-gated (P2-C, C4 + C5)

@@ -9,6 +9,8 @@ import com.averycorp.prismtask.data.local.dao.TaskCompletionDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
 import com.averycorp.prismtask.data.local.dao.TaskTimingDao
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
+import com.averycorp.prismtask.data.preferences.ProductiveStreakPreferences
+import com.averycorp.prismtask.data.preferences.ProductiveStreakSnapshot
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.repository.HabitRepository
 import com.averycorp.prismtask.data.repository.ProjectRepository
@@ -60,7 +62,8 @@ data class TaskAnalyticsState(
     val isPro: Boolean = false,
     val productivity: ProductivityScoreResponse? = null,
     val productivityRange: ProductivityRange = ProductivityRange.THIRTY_DAYS,
-    val timeTracking: TimeTrackingResponse? = null
+    val timeTracking: TimeTrackingResponse? = null,
+    val streak: ProductiveStreakSnapshot? = null
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -81,6 +84,7 @@ constructor(
     private val productivityScoreCalculator: ProductivityScoreCalculator,
     private val timeTrackingAggregator: TimeTrackingAggregator,
     private val proFeatureGate: ProFeatureGate,
+    private val productiveStreakPreferences: ProductiveStreakPreferences,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     private val initialProjectId: Long? = savedStateHandle
@@ -176,7 +180,11 @@ constructor(
         taskBehaviorPreferences.getFirstDayOfWeek()
     ) { p, f -> p to f }
 
-    private val summaryAndProFlow = combine(summaryFlow, isProFlow) { s, p -> s to p }
+    private val summaryProAndStreakFlow = combine(
+        summaryFlow,
+        isProFlow,
+        productiveStreakPreferences.observe()
+    ) { s, p, streak -> Triple(s, p, streak) }
 
     private val productivityAndRangeFlow = combine(
         productivityFlow,
@@ -193,9 +201,9 @@ constructor(
     val state: StateFlow<TaskAnalyticsState> = combine(
         basicTriple,
         projectsAndDowFlow,
-        summaryAndProFlow,
+        summaryProAndStreakFlow,
         productivityAndRangeFlow
-    ) { (stats, period, projectId), (projects, fdow), (summary, isPro), pAndR ->
+    ) { (stats, period, projectId), (projects, fdow), (summary, isPro, streak), pAndR ->
         val (productivity, range, timeTracking) = pAndR
         TaskAnalyticsState(
             stats = stats,
@@ -208,7 +216,8 @@ constructor(
             isPro = isPro,
             productivity = productivity,
             productivityRange = range,
-            timeTracking = timeTracking
+            timeTracking = timeTracking,
+            streak = streak
         )
     }.stateIn(
         viewModelScope,
