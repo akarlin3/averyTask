@@ -807,9 +807,17 @@ constructor(
                 val obj = elem.asJsonObject
                 val exportedMedId = obj.get("medicationId")
                     ?.takeIf { !it.isJsonNull }?.asLong
-                    ?: return@forEach
-                val localMedId = medIdRemap[exportedMedId]
-                if (localMedId == null) {
+                val customMedicationName = obj.get("customMedicationName")
+                    ?.takeIf { !it.isJsonNull }?.asString
+                // A dose must reference either a tracked medication (FK
+                // remap-able) or carry a custom-medication name. Rows
+                // missing both are export-side data corruption — skip.
+                if (exportedMedId == null && customMedicationName.isNullOrBlank()) {
+                    return@forEach
+                }
+                val localMedId = exportedMedId?.let { medIdRemap[it] }
+                if (exportedMedId != null && localMedId == null) {
+                    // Tracked-medication dose whose parent didn't import.
                     ctx.orphansSkipped++
                     return@forEach
                 }
@@ -822,6 +830,7 @@ constructor(
                         ?: return@forEach
                 val default = com.averycorp.prismtask.data.local.entity.MedicationDoseEntity(
                     medicationId = localMedId,
+                    customMedicationName = customMedicationName,
                     slotKey = slotKey,
                     takenAt = takenAt,
                     takenDateLocal = takenDateLocal
@@ -831,7 +840,8 @@ constructor(
                     merged.copy(
                         id = 0,
                         cloudId = null,
-                        medicationId = localMedId
+                        medicationId = localMedId,
+                        customMedicationName = customMedicationName
                     )
                 )
                 ctx.medicationDosesImported++

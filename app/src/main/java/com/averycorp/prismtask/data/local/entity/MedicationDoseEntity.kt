@@ -30,6 +30,13 @@ import androidx.room.PrimaryKey
  * history, completion counts, or analytics — they exist purely as
  * scheduling anchors. Such rows always carry `note=""` and the slot's
  * own slotKey; sync round-trips them so all devices share the anchor.
+ *
+ * One-time custom doses (added in MIGRATION_68_69) carry a null
+ * [medicationId] paired with a non-null [customMedicationName]. These rows
+ * have no parent in the medications table — they exist purely as
+ * historical "I took something not in my list" entries. The repository
+ * enforces the invariant that exactly one of [medicationId] or
+ * [customMedicationName] is non-null on every insert path.
  */
 @Entity(
     tableName = "medication_doses",
@@ -53,7 +60,9 @@ data class MedicationDoseEntity(
     @ColumnInfo(name = "cloud_id")
     val cloudId: String? = null,
     @ColumnInfo(name = "medication_id")
-    val medicationId: Long,
+    val medicationId: Long?,
+    @ColumnInfo(name = "custom_medication_name")
+    val customMedicationName: String? = null,
     @ColumnInfo(name = "slot_key")
     val slotKey: String,
     @ColumnInfo(name = "taken_at")

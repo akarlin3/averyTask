@@ -78,6 +78,61 @@ class MedicationLogViewModelTest {
     )
 
     @Test
+    fun medicationName_customDose_returnsCustomMedicationNameWhenMedicationIdIsNull() {
+        // Custom one-time doses (medicationId = null + customMedicationName
+        // populated) must render their stored name in the log row instead
+        // of falling through to the medsById lookup and printing "Unknown".
+        val day = MedicationLogDay(
+            date = "2026-05-01",
+            doses = emptyList(),
+            medicationsById = emptyMap()
+        )
+        val customDose = MedicationDoseEntity(
+            id = 100L,
+            medicationId = null,
+            customMedicationName = "Tylenol 500mg",
+            slotKey = "anytime",
+            takenAt = 1L,
+            takenDateLocal = "2026-05-01"
+        )
+
+        assertEquals("Tylenol 500mg", day.medicationName(customDose))
+    }
+
+    @Test
+    fun medicationName_customDose_fallsBackToCustomLabelWhenNameMissing() {
+        // Defensive — a sync round-trip from a buggy producer could land
+        // a null medicationId paired with a null/blank customMedicationName.
+        // The log row should show *something* so the user can still see
+        // there was a dose entry, rather than an empty row that looks
+        // like a rendering bug.
+        val day = MedicationLogDay(
+            date = "2026-05-01",
+            doses = emptyList(),
+            medicationsById = emptyMap()
+        )
+        val nullNamedDose = MedicationDoseEntity(
+            id = 101L,
+            medicationId = null,
+            customMedicationName = null,
+            slotKey = "anytime",
+            takenAt = 1L,
+            takenDateLocal = "2026-05-01"
+        )
+        val blankNamedDose = MedicationDoseEntity(
+            id = 102L,
+            medicationId = null,
+            customMedicationName = "   ",
+            slotKey = "anytime",
+            takenAt = 1L,
+            takenDateLocal = "2026-05-01"
+        )
+
+        assertEquals("Custom", day.medicationName(nullNamedDose))
+        assertEquals("Custom", day.medicationName(blankNamedDose))
+    }
+
+    @Test
     fun dosesWithNumericSlotKeyResolveToSlotsById() = runTest(dispatcher) {
         // Regression: post-#857 every dose carries `slotKey = slot.id.toString()`.
         // The log screen used to bucket against legacy TOD strings and the

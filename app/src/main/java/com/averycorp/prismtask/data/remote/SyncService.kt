@@ -1007,8 +1007,14 @@ constructor(
             for (dose in allDoses) {
                 try {
                     if (syncMetadataDao.getCloudId(dose.id, "medication_dose") != null) continue
-                    val medCloudId = syncMetadataDao.getCloudId(dose.medicationId, "medication")
-                        ?: continue
+                    // Custom doses (medicationId == null) sync without a parent
+                    // cloud id; tracked-medication doses bail when the parent
+                    // hasn't synced yet so we don't push an orphan doc.
+                    val medCloudId: String? = if (dose.medicationId == null) {
+                        null
+                    } else {
+                        syncMetadataDao.getCloudId(dose.medicationId, "medication") ?: continue
+                    }
                     val docRef = userCollection("medication_doses")?.document() ?: continue
                     docRef.set(MedicationSyncMapper.medicationDoseToMap(dose, medCloudId)).await()
                     syncMetadataDao.upsert(
@@ -1251,7 +1257,11 @@ constructor(
             }
             "medication_dose" -> {
                 val dose = medicationDoseDao.getAllOnce().find { it.id == meta.localId } ?: return
-                val medCloudId = syncMetadataDao.getCloudId(dose.medicationId, "medication") ?: return
+                val medCloudId = if (dose.medicationId == null) {
+                    null
+                } else {
+                    syncMetadataDao.getCloudId(dose.medicationId, "medication") ?: return
+                }
                 MedicationSyncMapper.medicationDoseToMap(dose, medCloudId)
             }
             "medication_slot" -> {
@@ -1413,7 +1423,11 @@ constructor(
             }
             "medication_dose" -> {
                 val dose = medicationDoseDao.getAllOnce().find { it.id == meta.localId } ?: return
-                val medCloudId = syncMetadataDao.getCloudId(dose.medicationId, "medication") ?: return
+                val medCloudId = if (dose.medicationId == null) {
+                    null
+                } else {
+                    syncMetadataDao.getCloudId(dose.medicationId, "medication") ?: return
+                }
                 MedicationSyncMapper.medicationDoseToMap(dose, medCloudId)
             }
             "medication_slot" -> {
@@ -2201,9 +2215,13 @@ constructor(
         skippedPermanent += medicationsResult.skippedPermanent
 
         val medicationDosesResult = pullCollection("medication_doses") { data, cloudId ->
-            val medCloudId = data["medicationCloudId"] as? String ?: return@pullCollection false
-            val medLocalId = syncMetadataDao.getLocalId(medCloudId, "medication")
-                ?: return@pullCollection false
+            // Custom doses (no parent medication) come down with a null
+            // medicationCloudId — accept those and insert with medicationId=null.
+            // Tracked-medication doses still require the FK to resolve
+            // locally; if the parent hasn't pulled yet, skip and retry next cycle.
+            val medCloudId = data["medicationCloudId"] as? String
+            val medLocalId = medCloudId?.let { syncMetadataDao.getLocalId(it, "medication") }
+            if (medCloudId != null && medLocalId == null) return@pullCollection false
             val localId = syncMetadataDao.getLocalId(cloudId, "medication_dose")
             if (localId == null) {
                 val dose = MedicationSyncMapper.mapToMedicationDose(
