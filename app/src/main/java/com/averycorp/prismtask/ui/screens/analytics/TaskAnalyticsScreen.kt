@@ -164,6 +164,9 @@ fun TaskAnalyticsScreen(
                         accent = accentColor
                     )
                 }
+                // Habit correlations \u2014 Pro-gated, on-demand (server
+                // rate-limits to 1 call/day so don't auto-fetch).
+                HabitCorrelationsSection(accent = accentColor)
             }
 
             if (stats == null || stats.totalCompleted == 0) {
