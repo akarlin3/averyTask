@@ -39,6 +39,10 @@ package com.averycorp.prismtask.domain.usecase
  *     TIME_RANGE and the input matches `(every|each) <day-noun|weekday>`
  *     (e.g. `every monday at 8am`, `each friday morning`), the input
  *     is recurring single-task creation, not a batch command.
+ *   - **Description-vs-command** — when the only signals are
+ *     QUANTIFIER + TIME_RANGE and no bulk verb appears in the input
+ *     (e.g. `all my tasks for today`), the user is describing rather
+ *     than commanding. Defers to the single-task path.
  *
  * Tokenization splits on whitespace plus common sentence-ending
  * punctuation (`,.;!?`) so trailing periods/commas don't defeat
@@ -122,10 +126,22 @@ class BatchIntentDetector {
 
     /**
      * Recurrence pattern (`every monday`, `each friday morning`). Used
-     * by the carve-out below to keep recurring single-task creation off
-     * the batch path. Includes calendar nouns (`day`, `week`, `month`,
-     * `year`, `hour`, `other`) and parts-of-day (`morning`, `evening`,
-     * `night`) commonly used after `every`/`each`.
+     * by the recurrence carve-out below to keep recurring single-task
+     * creation off the batch path; the description-vs-command carve-out
+     * is its companion for non-recurrence {QUANT, TIME_RANGE} inputs.
+     * Includes calendar nouns (`day`, `week`, `month`, `year`, `hour`,
+     * `other`) and parts-of-day (`morning`, `evening`, `night`)
+     * commonly used after `every`/`each`.
+     *
+     * IMPORTANT: do NOT add singular entity nouns (`habit`, `task`,
+     * `medication`, `med`, `project`, `item`) to the noun group below.
+     * They're the singulars of `entityPlurals`; adding them would
+     * silently break `everyHabit_plusTimeRange_detects` — `mark every
+     * habit complete for today` routes to BATCH today via the
+     * {QUANT, TIME_RANGE} signal mix, and that test deliberately locks
+     * the broader gate semantics. If a future edit needs an entity noun
+     * to behave as a recurrence trigger, change the carve-out instead —
+     * don't expand this regex.
      */
     private val recurrencePatternRegex = Regex(
         """\b(every|each)\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday|day|week|month|year|morning|evening|night|hour|other)\b""",
@@ -176,6 +192,22 @@ class BatchIntentDetector {
         // the user really is operating on a collection).
         if (signals == setOf(Signal.QUANTIFIER, Signal.TIME_RANGE) &&
             recurrencePatternRegex.containsMatchIn(text)
+        ) {
+            return Result.NotABatch
+        }
+
+        // Description-vs-command carve-out — when signals are exactly
+        // QUANT+TIME_RANGE and no bulk verb appears anywhere in the
+        // input (e.g. `all my tasks for today`), the user is describing
+        // their tasks rather than commanding a batch operation. Inputs
+        // with a bulk-verb token (`mark every habit complete for today`)
+        // keep their existing routing because `mark`/`complete` are in
+        // `bulkVerbs`, so the `tokens.none { ... }` check fails and
+        // this skips. Order vs. recurrence carve-out is safe: both fire
+        // only on the same {QUANT, TIME_RANGE} mix and either correctly
+        // returns NotABatch.
+        if (signals == setOf(Signal.QUANTIFIER, Signal.TIME_RANGE) &&
+            tokens.none { it in bulkVerbs }
         ) {
             return Result.NotABatch
         }
