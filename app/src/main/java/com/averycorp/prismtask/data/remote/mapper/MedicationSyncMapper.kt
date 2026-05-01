@@ -92,10 +92,11 @@ object MedicationSyncMapper {
 
     fun medicationDoseToMap(
         dose: MedicationDoseEntity,
-        medicationCloudId: String
+        medicationCloudId: String?
     ): Map<String, Any?> = mapOf(
         "localId" to dose.id,
         "medicationCloudId" to medicationCloudId,
+        "customMedicationName" to dose.customMedicationName,
         "slotKey" to dose.slotKey,
         "takenAt" to dose.takenAt,
         "takenDateLocal" to dose.takenDateLocal,
@@ -108,12 +109,13 @@ object MedicationSyncMapper {
     fun mapToMedicationDose(
         data: Map<String, Any?>,
         localId: Long = 0,
-        medicationLocalId: Long = 0,
+        medicationLocalId: Long? = null,
         cloudId: String? = null
     ): MedicationDoseEntity = MedicationDoseEntity(
         id = localId,
         cloudId = cloudId,
         medicationId = medicationLocalId,
+        customMedicationName = data["customMedicationName"] as? String,
         slotKey = data["slotKey"] as? String ?: "anytime",
         takenAt = (data["takenAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
         takenDateLocal = data["takenDateLocal"] as? String ?: "",

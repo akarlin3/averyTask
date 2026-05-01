@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -36,6 +37,24 @@ constructor(
     private val repository: MedicationRepository,
     private val slotRepository: MedicationSlotRepository
 ) : ViewModel() {
+    /**
+     * Logs a one-time custom medication dose against today. Delegates to
+     * [MedicationRepository.logCustomDose] which enforces the non-blank
+     * name invariant and stores the dose with `slotKey="anytime"` and
+     * `medicationId=null`. Surfaced to the Log screen's "+" affordance.
+     */
+    fun logCustomDose(name: String, takenAtMillis: Long, note: String) {
+        viewModelScope.launch {
+            try {
+                repository.logCustomDose(name = name, takenAt = takenAtMillis, note = note)
+            } catch (_: IllegalArgumentException) {
+                // Blank-name guard. The UI's enabled-when-non-blank already
+                // prevents this, but keep the catch so a future caller
+                // can't crash the ViewModel by passing an empty string.
+            }
+        }
+    }
+
     val days: StateFlow<List<MedicationLogDay>> = combine(
         repository.observeAll(),
         repository.observeAllDoses(),
@@ -173,6 +192,9 @@ data class MedicationLogDay(
             .groupBy { it.slotKey }
 
     fun medicationName(dose: MedicationDoseEntity): String {
+        if (dose.medicationId == null) {
+            return dose.customMedicationName?.takeIf { it.isNotBlank() } ?: "Custom"
+        }
         val med = medicationsById[dose.medicationId]
         return med?.displayLabel ?: med?.name ?: "Unknown"
     }

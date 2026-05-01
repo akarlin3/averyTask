@@ -152,18 +152,21 @@ constructor(
             // achieved-tier auto-compute pass.
             val realDoses = doses.asSequence()
                 .filter {
-                    it.medicationId in linkedMedIds &&
+                    val medId = it.medicationId
+                    medId != null &&
+                        medId in linkedMedIds &&
                         it.slotKey == slot.id.toString() &&
                         !it.isSyntheticSkip
                 }
                 .toList()
-            val takenIds = realDoses.map { it.medicationId }.toSet()
+            val takenIds = realDoses.mapNotNull { it.medicationId }.toSet()
             // Latest taken_at per medication. Multiple rows can land for
             // the same (med, slot, date) triple after a toggle-untoggle
             // cycle, so collapse to the max so the inline label shows
-            // the most recent tap.
+            // the most recent tap. Custom doses (medicationId=null) are
+            // already excluded by the filter above; the !! is sound here.
             val takenAtByMed: Map<Long, Long> = realDoses
-                .groupingBy { it.medicationId }
+                .groupingBy { it.medicationId!! }
                 .fold(0L) { acc, dose -> if (dose.takenAt > acc) dose.takenAt else acc }
             val computed = MedicationTierComputer.computeAchievedTier(
                 medsForSlot = linkedMeds.associate { it.id to MedicationTier.fromStorage(it.tier) },
@@ -253,7 +256,7 @@ constructor(
         val doses = todaysDoses.value
         val takenIds = doses.asSequence()
             .filter { it.slotKey == slotId.toString() }
-            .map { it.medicationId }
+            .mapNotNull { it.medicationId }
             .toSet()
         val computed = MedicationTierComputer.computeAchievedTier(
             medsForSlot = meds.associate { it.id to MedicationTier.fromStorage(it.tier) },
@@ -456,8 +459,8 @@ constructor(
             // don't pile up duplicate dose rows.
             val takenByMed: Map<Long, Set<Long>> = todaysDoses.value
                 .asSequence()
-                .filter { !it.isSyntheticSkip }
-                .groupBy { it.medicationId }
+                .filter { !it.isSyntheticSkip && it.medicationId != null }
+                .groupBy { it.medicationId!! }
                 .mapValues { (_, doses) -> doses.map { it.slotKey.toLongOrNull() ?: -1L }.toSet() }
             mutations = rawTargets
                 .filter { (med, _) ->

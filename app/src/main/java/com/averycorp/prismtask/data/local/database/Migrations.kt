@@ -1982,7 +1982,69 @@ val MIGRATION_67_68 = object : Migration(67, 68) {
  * The diagnostic test will fail until all three are done, preventing the
  * "forgot to add migration" class of startup crash from reaching main.
  */
-const val CURRENT_DB_VERSION = 68
+/**
+ * v68 → v69 — Adds `custom_medication_name` to `medication_doses` and
+ * relaxes `medication_id` from `NOT NULL` to nullable so a dose can
+ * record an ad-hoc one-time medication that has no parent
+ * `MedicationEntity`. The repository enforces "exactly one of
+ * medication_id / custom_medication_name is non-null" on insert paths.
+ *
+ * SQLite ALTER cannot drop NOT NULL, so the table is recreated with the
+ * new column shape. Existing rows backfill `custom_medication_name = NULL`
+ * (every legacy dose had a parent medication) and keep their
+ * `medication_id`. CASCADE FK behavior is preserved on the recreated
+ * table so deleting a medication still removes its dose history;
+ * custom doses (FK = NULL) are unaffected because the FK has no parent
+ * to cascade from.
+ *
+ * Audit: `docs/audits/MEDICATION_LOG_ONE_TIME_CUSTOM_AUDIT.md`.
+ */
+val MIGRATION_68_69 = object : Migration(68, 69) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE `medication_doses_new` (
+              `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+              `cloud_id` TEXT,
+              `medication_id` INTEGER,
+              `custom_medication_name` TEXT,
+              `slot_key` TEXT NOT NULL,
+              `taken_at` INTEGER NOT NULL,
+              `taken_date_local` TEXT NOT NULL,
+              `note` TEXT NOT NULL DEFAULT '',
+              `is_synthetic_skip` INTEGER NOT NULL DEFAULT 0,
+              `created_at` INTEGER NOT NULL,
+              `updated_at` INTEGER NOT NULL,
+              FOREIGN KEY(`medication_id`) REFERENCES `medications`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            """
+            INSERT INTO `medication_doses_new`
+              (id, cloud_id, medication_id, custom_medication_name, slot_key,
+               taken_at, taken_date_local, note, is_synthetic_skip, created_at, updated_at)
+            SELECT
+              id, cloud_id, medication_id, NULL, slot_key,
+              taken_at, taken_date_local, note, is_synthetic_skip, created_at, updated_at
+            FROM `medication_doses`
+            """.trimIndent()
+        )
+        db.execSQL("DROP TABLE `medication_doses`")
+        db.execSQL("ALTER TABLE `medication_doses_new` RENAME TO `medication_doses`")
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_medication_doses_cloud_id` ON `medication_doses` (`cloud_id`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_medication_doses_medication_id_taken_date_local` ON `medication_doses` (`medication_id`, `taken_date_local`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_medication_doses_taken_date_local` ON `medication_doses` (`taken_date_local`)"
+        )
+    }
+}
+
+const val CURRENT_DB_VERSION = 69
 
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
@@ -2051,5 +2113,6 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_64_65,
     MIGRATION_65_66,
     MIGRATION_66_67,
-    MIGRATION_67_68
+    MIGRATION_67_68,
+    MIGRATION_68_69
 )

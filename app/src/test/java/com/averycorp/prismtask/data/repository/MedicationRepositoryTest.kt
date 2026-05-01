@@ -152,6 +152,50 @@ class MedicationRepositoryTest {
     }
 
     @Test
+    fun logCustomDose_storesCustomNameWithNullMedicationIdAndAnytimeSlot() = runBlocking {
+        val doseId = repo.logCustomDose(
+            name = "Tylenol 500mg",
+            takenAt = 1_000_000L,
+            note = "headache"
+        )
+
+        val dose = medicationDoseDao.rows.single { it.id == doseId }
+        // The whole point of this feature: dose carries the custom name
+        // verbatim and has no FK to a tracked medication, so the user
+        // can record "I took something" without first creating a med.
+        assertEquals(null, dose.medicationId)
+        assertEquals("Tylenol 500mg", dose.customMedicationName)
+        assertEquals("anytime", dose.slotKey)
+        assertEquals("headache", dose.note)
+        coVerify { syncTracker.trackCreate(doseId, "medication_dose") }
+    }
+
+    @Test
+    fun logCustomDose_trimsLeadingAndTrailingWhitespace() = runBlocking {
+        val doseId = repo.logCustomDose(name = "  Tylenol  ", takenAt = 1L)
+
+        val dose = medicationDoseDao.rows.single { it.id == doseId }
+        // We trim because users dictate names by voice or paste them,
+        // and trailing/leading whitespace would render as ugly gaps in
+        // the log row label.
+        assertEquals("Tylenol", dose.customMedicationName)
+    }
+
+    @Test
+    fun logCustomDose_blankNameThrows() = runBlocking {
+        try {
+            repo.logCustomDose(name = "   ", takenAt = 1L)
+            error("expected IllegalArgumentException for blank name")
+        } catch (_: IllegalArgumentException) {
+            // expected — a custom dose with no name has no way to
+            // render in the log and would defeat the feature's purpose.
+        }
+        assert(medicationDoseDao.rows.isEmpty()) {
+            "blank-name guard must short-circuit before insert"
+        }
+    }
+
+    @Test
     fun unlogDose_removesDoseAndTracksDelete() = runBlocking {
         val dose = MedicationDoseEntity(
             id = 10,

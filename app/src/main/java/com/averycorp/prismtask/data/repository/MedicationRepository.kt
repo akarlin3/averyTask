@@ -120,6 +120,42 @@ constructor(
     }
 
     /**
+     * Inserts a one-time custom dose with no parent [MedicationEntity].
+     * The dose carries [name] verbatim in [MedicationDoseEntity.customMedicationName]
+     * (after `trim`), `slotKey = "anytime"` (custom doses are inherently
+     * ad-hoc), and `medicationId = null`. Used by the Medication Log
+     * screen's "log custom dose" affordance for things the user took but
+     * doesn't track on a recurring schedule.
+     *
+     * Throws if [name] is blank — a custom dose without a name has no
+     * way to render in the log and would defeat the feature's purpose.
+     */
+    suspend fun logCustomDose(
+        name: String,
+        takenAt: Long = System.currentTimeMillis(),
+        note: String = ""
+    ): Long {
+        require(name.isNotBlank()) { "custom medication name must be non-blank" }
+        val dayStartHour = taskBehaviorPreferences.getDayStartHour().first()
+        val dateLocal = DayBoundary.currentLocalDateString(dayStartHour, takenAt)
+        val now = System.currentTimeMillis()
+        val dose = MedicationDoseEntity(
+            medicationId = null,
+            customMedicationName = name.trim(),
+            slotKey = "anytime",
+            takenAt = takenAt,
+            takenDateLocal = dateLocal,
+            note = note,
+            createdAt = now,
+            updatedAt = now
+        )
+        val id = medicationDoseDao.insert(dose)
+        syncTracker.trackCreate(id, "medication_dose")
+        widgetUpdateManager.updateMedicationWidget()
+        return id
+    }
+
+    /**
      * Insert a synthetic-skip dose. The interval-mode reminder rescheduler
      * uses every dose row — including these synthetic ones — as a re-anchor
      * point, so that marking a slot SKIPPED still resets the interval clock.

@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -29,7 +30,10 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.averycorp.prismtask.ui.screens.medication.components.LogCustomDoseSheet
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,6 +62,7 @@ fun MedicationLogScreen(
     viewModel: MedicationLogViewModel = hiltViewModel()
 ) {
     val days by viewModel.days.collectAsStateWithLifecycle()
+    var showCustomDoseSheet by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -66,6 +71,11 @@ fun MedicationLogScreen(
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { showCustomDoseSheet = true }) {
+                        Icon(Icons.Default.Add, contentDescription = "Log Custom Dose")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -113,6 +123,16 @@ fun MedicationLogScreen(
                 item { Spacer(modifier = Modifier.height(24.dp)) }
             }
         }
+    }
+
+    if (showCustomDoseSheet) {
+        LogCustomDoseSheet(
+            onDismiss = { showCustomDoseSheet = false },
+            onLog = { name, takenAt, note ->
+                viewModel.logCustomDose(name = name, takenAtMillis = takenAt, note = note)
+                showCustomDoseSheet = false
+            }
+        )
     }
 }
 
