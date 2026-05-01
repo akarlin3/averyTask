@@ -22,6 +22,16 @@ android {
         versionName = "1.8.4"
 
         testInstrumentationRunner = "com.averycorp.prismtask.HiltTestRunner"
+        // Wipe app state between instrumented test methods so each method
+        // starts in a clean process. Pairs with the
+        // `ANDROIDX_TEST_ORCHESTRATOR` execution mode set below — without
+        // this flag Orchestrator still runs each test in its own process
+        // but leaves /data/data state intact, so any process-singleton
+        // (Firestore, WorkManager) carries over. The combination is what
+        // closes the long-suite `ConnectivityManager$TooManyRequestsException`
+        // accumulation that broke `connectedDebugAndroidTest` at test
+        // ~397/422.
+        testInstrumentationRunnerArguments["clearPackageData"] = "true"
         vectorDrawables { useSupportLibrary = true }
 
         buildConfigField(
@@ -117,6 +127,16 @@ android {
     }
 
     testOptions {
+        // Run each instrumented test method in its own process via
+        // androidx.test.orchestrator (the `androidTestUtil` dependency
+        // below). Each FirebaseFirestore client registers a
+        // `ConnectivityManager.registerDefaultNetworkCallback` callback
+        // (Android caps these at ~100 per UID); a single-process run of
+        // 422 instrumented tests cumulatively burnt the quota and
+        // dropped the suite at the offline-toggle smoke test. Per-test
+        // process isolation hard-resets the count between tests.
+        execution = "ANDROIDX_TEST_ORCHESTRATOR"
+
         unitTests {
             isIncludeAndroidResources = true
             // Return default values (nulls, zeros, empty strings) for any
@@ -355,6 +375,11 @@ dependencies {
     androidTestImplementation("com.google.dagger:hilt-android-testing:2.59.2")
     androidTestImplementation("io.mockk:mockk-android:1.13.13")
     androidTestImplementation("androidx.work:work-testing:2.9.1")
+    // Required by `testOptions.execution = "ANDROIDX_TEST_ORCHESTRATOR"`.
+    // The `androidTestUtil` configuration installs the orchestrator APK
+    // alongside the test APK rather than bundling it.
+    androidTestUtil("androidx.test:orchestrator:1.5.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
     kspAndroidTest("com.google.dagger:hilt-compiler:2.59.2")
 
     // Debug
