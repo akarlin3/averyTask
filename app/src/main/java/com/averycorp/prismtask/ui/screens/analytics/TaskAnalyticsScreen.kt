@@ -17,9 +17,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import android.content.Intent
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenuItem
@@ -70,6 +73,7 @@ fun TaskAnalyticsScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val accentColor = MaterialTheme.colorScheme.primary
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -78,6 +82,30 @@ fun TaskAnalyticsScreen(
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    if (state.isPro && state.stats != null) {
+                        IconButton(onClick = {
+                            val markdown = viewModel.buildExportMarkdown()
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/markdown"
+                                putExtra(Intent.EXTRA_SUBJECT, "PrismTask Analytics Report")
+                                putExtra(Intent.EXTRA_TEXT, markdown)
+                            }
+                            try {
+                                context.startActivity(
+                                    Intent.createChooser(intent, "Share Analytics Report")
+                                )
+                            } catch (_: Exception) {
+                                // No share targets available — silent no-op.
+                            }
+                        }) {
+                            Icon(
+                                imageVector = Icons.Filled.Share,
+                                contentDescription = "Share Analytics Report"
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

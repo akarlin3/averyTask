@@ -21,6 +21,7 @@ import com.averycorp.prismtask.domain.model.AnalyticsSummary
 import com.averycorp.prismtask.domain.model.ProductivityRange
 import com.averycorp.prismtask.domain.model.ProductivityScoreResponse
 import com.averycorp.prismtask.domain.model.TimeTrackingResponse
+import com.averycorp.prismtask.domain.usecase.AnalyticsMarkdownExporter
 import com.averycorp.prismtask.domain.usecase.AnalyticsSummaryAggregator
 import com.averycorp.prismtask.domain.usecase.ProFeatureGate
 import com.averycorp.prismtask.domain.usecase.ProductivityScoreCalculator
@@ -85,6 +86,7 @@ constructor(
     private val timeTrackingAggregator: TimeTrackingAggregator,
     private val proFeatureGate: ProFeatureGate,
     private val productiveStreakPreferences: ProductiveStreakPreferences,
+    private val analyticsMarkdownExporter: AnalyticsMarkdownExporter,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     private val initialProjectId: Long? = savedStateHandle
@@ -235,5 +237,23 @@ constructor(
 
     fun setProductivityRange(range: ProductivityRange) {
         _productivityRange.value = range
+    }
+
+    /**
+     * Builds the markdown report for the share-sheet action. Snapshot-only —
+     * relies on the latest collected [state]; doesn't trigger a fresh
+     * recomputation. Safe to call from the UI thread.
+     */
+    fun buildExportMarkdown(): String {
+        val snapshot = state.value
+        return analyticsMarkdownExporter.build(
+            generatedOn = LocalDate.now(),
+            rangeDays = snapshot.productivityRange.days,
+            productivity = snapshot.productivity,
+            timeTracking = snapshot.timeTracking,
+            stats = snapshot.stats,
+            summary = snapshot.summary,
+            streak = snapshot.streak
+        )
     }
 }
