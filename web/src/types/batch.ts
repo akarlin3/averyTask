@@ -59,6 +59,15 @@ export interface BatchMedicationContext {
   display_label?: string | null;
 }
 
+/** Phrase the client's local matcher classified as ambiguous. The backend
+ *  appends these to its `ambiguous_entities` response so the picker
+ *  surfaces them even if Haiku decided the phrase was clear. */
+export interface ForcedAmbiguousPhrase {
+  phrase: string;
+  candidate_entity_type: BatchEntityType;
+  candidate_entity_ids: string[];
+}
+
 export interface BatchUserContext {
   today: string;
   timezone: string;
@@ -66,6 +75,13 @@ export interface BatchUserContext {
   habits: BatchHabitContext[];
   projects: BatchProjectContext[];
   medications: BatchMedicationContext[];
+  /** Phrase → medication_id pairs the client deterministically resolved.
+   *  Backend treats these as authoritative — see `medicationNameMatcher.ts`. */
+  committed_medication_matches?: Record<string, string>;
+  /** Phrases the client classified as ambiguous (≥2 candidate meds). The
+   *  backend unconditionally appends these to the response's
+   *  `ambiguous_entities` so the picker stays in the loop. */
+  forced_ambiguous_phrases?: ForcedAmbiguousPhrase[];
 }
 
 export interface BatchParseRequest {

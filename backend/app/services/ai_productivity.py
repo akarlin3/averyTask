@@ -784,6 +784,8 @@ You are given:
 - A list of HABITS the user tracks, with id and name
 - A list of PROJECTS the user has, with id and name
 - A list of MEDICATIONS the user takes, with id, name, and optional display_label (a user-facing alias, e.g. brand name when name is the generic). When matching a user's spoken phrase against medications, consider both 'name' and 'display_label' as valid match targets.
+- A `committed_medication_matches` map (phrase -> medication_id) the client has already deterministically resolved. When a medication mention in the command matches one of these phrases, you MUST emit the committed entity_id and MUST NOT flag the phrase in `ambiguous_entities`. These are authoritative — they override any guess you would otherwise make.
+- A `forced_ambiguous_phrases` list the client classified as ambiguous (multiple candidate medications). Do not propose mutations for these phrases; the service will unconditionally append them to your `ambiguous_entities` response so the user can disambiguate.
 
 You must return strict JSON with this shape (no prose, no markdown fences):
 {
@@ -840,6 +842,71 @@ Hard rules — break any of these and the request fails:
 If the command makes no sense or matches no entities, return `{"mutations": [], "confidence": 0.0, "ambiguous_entities": []}`."""
 
 
+def _enforce_medication_match_guards(
+    mutations: list[dict],
+    ambiguous_entities: list[dict],
+    *,
+    known_medication_ids: set[str],
+    forced_ambiguous_phrases: list[dict],
+) -> tuple[list[dict], list[dict]]:
+    """Defensive backend guards that close failure modes #1 and #2 even
+    if Haiku ignores the system-prompt instructions:
+
+    1. Drop any MEDICATION mutation whose entity_id isn't in the known
+       medications list (Haiku can't legally invent ids; this is the
+       last-line firewall against the silent wrong-pick failure mode).
+    2. Append every client-supplied forced_ambiguous_phrase to the
+       response's ambiguous_entities, deduplicated by (phrase, ids).
+    """
+
+    safe_mutations: list[dict] = []
+    for mutation in mutations:
+        if not isinstance(mutation, dict):
+            continue
+        if mutation.get("entity_type") == "MEDICATION":
+            entity_id = mutation.get("entity_id")
+            if entity_id is None or str(entity_id) not in known_medication_ids:
+                logger.info(
+                    "batch_parse: dropping MEDICATION mutation with unknown id %r",
+                    entity_id,
+                )
+                continue
+        safe_mutations.append(mutation)
+
+    seen: set[tuple[str, tuple[str, ...]]] = set()
+    for hint in ambiguous_entities:
+        if not isinstance(hint, dict):
+            continue
+        seen.add(
+            (
+                str(hint.get("phrase") or ""),
+                tuple(sorted(str(i) for i in (hint.get("candidate_entity_ids") or []))),
+            )
+        )
+    for forced in forced_ambiguous_phrases:
+        if not isinstance(forced, dict):
+            continue
+        phrase = str(forced.get("phrase") or "")
+        ids = tuple(
+            sorted(str(i) for i in (forced.get("candidate_entity_ids") or []))
+        )
+        key = (phrase, ids)
+        if key in seen:
+            continue
+        seen.add(key)
+        ambiguous_entities.append(
+            {
+                "phrase": phrase,
+                "candidate_entity_type": forced.get(
+                    "candidate_entity_type", "MEDICATION"
+                ),
+                "candidate_entity_ids": list(ids),
+                "note": forced.get("note"),
+            }
+        )
+    return safe_mutations, ambiguous_entities
+
+
 def parse_batch_command(
     command_text: str,
     user_context: dict,
@@ -876,6 +943,15 @@ def parse_batch_command(
     if isinstance(ctx.get("medications"), list):
         ctx["medications"] = ctx["medications"][:50]
 
+    known_medication_ids: set[str] = {
+        str(m["id"])
+        for m in (ctx.get("medications") or [])
+        if isinstance(m, dict) and m.get("id") is not None
+    }
+    forced_ambiguous_phrases = ctx.get("forced_ambiguous_phrases") or []
+    if not isinstance(forced_ambiguous_phrases, list):
+        forced_ambiguous_phrases = []
+
     user_payload = json.dumps(
         {"command": command_text, "context": ctx},
         default=str,
@@ -899,10 +975,18 @@ def parse_batch_command(
             # pydantic-level validation but we want a clean error here.
             if "mutations" not in result:
                 raise ValueError("Response missing required key 'mutations'")
+            mutations = result.get("mutations") or []
+            ambiguous_entities = result.get("ambiguous_entities") or []
+            mutations, ambiguous_entities = _enforce_medication_match_guards(
+                mutations,
+                ambiguous_entities,
+                known_medication_ids=known_medication_ids,
+                forced_ambiguous_phrases=forced_ambiguous_phrases,
+            )
             return {
-                "mutations": result.get("mutations") or [],
+                "mutations": mutations,
                 "confidence": float(result.get("confidence") or 0.0),
-                "ambiguous_entities": result.get("ambiguous_entities") or [],
+                "ambiguous_entities": ambiguous_entities,
             }
         except (json.JSONDecodeError, KeyError, TypeError, IndexError, ValueError) as e:
             last_error = e

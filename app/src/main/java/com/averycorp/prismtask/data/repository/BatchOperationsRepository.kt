@@ -18,11 +18,13 @@ import com.averycorp.prismtask.data.local.entity.MedicationDoseEntity
 import com.averycorp.prismtask.data.local.entity.MedicationSlotEntity
 import com.averycorp.prismtask.data.local.entity.MedicationTierStateEntity
 import com.averycorp.prismtask.data.remote.api.BatchParseResponse
+import com.averycorp.prismtask.data.remote.api.ForcedAmbiguousPhrase
 import com.averycorp.prismtask.data.remote.api.PrismTaskApi
 import com.averycorp.prismtask.data.remote.api.ProposedMutationResponse
 import com.averycorp.prismtask.domain.model.BatchEntityType
 import com.averycorp.prismtask.domain.model.BatchMutationType
 import com.averycorp.prismtask.domain.usecase.BatchUserContextProvider
+import com.averycorp.prismtask.domain.usecase.MedicationNameMatcher
 import com.google.gson.Gson
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -76,17 +78,56 @@ constructor(
 
     /**
      * Calls the backend's `/api/v1/ai/batch-parse` with a fresh snapshot
-     * of the user's tasks/habits/projects/medications. The caller is
-     * responsible for ProFeatureGate enforcement before calling.
+     * of the user's tasks/habits/projects/medications. Caller is responsible
+     * for ProFeatureGate enforcement before calling.
+     *
+     * Before the network call we run [MedicationNameMatcher] locally — its
+     * result becomes the `committed_medication_matches` and
+     * `forced_ambiguous_phrases` hints we send to the backend, and the
+     * committed entity_ids ride back on [BatchParseOutcome] so the
+     * ViewModel can override its auto-strip safeguard for them.
      */
-    suspend fun parseCommand(commandText: String): BatchParseResponse {
+    suspend fun parseCommand(commandText: String): BatchParseOutcome {
         val ctx = contextProvider.build()
-        return api.parseBatchCommand(
+        val matcherInputs = ctx.medications.map {
+            MedicationNameMatcher.Medication(
+                id = it.id,
+                name = it.name,
+                displayLabel = it.displayLabel
+            )
+        }
+        val matchResult = MedicationNameMatcher.match(commandText, matcherInputs)
+        val (committed, ambiguous) = expandMatchResult(matchResult)
+        val forcedPhrases = ambiguous.map {
+            ForcedAmbiguousPhrase(
+                phrase = it.phrase,
+                candidateEntityType = "MEDICATION",
+                candidateEntityIds = it.candidateEntityIds
+            )
+        }
+        val enrichedCtx = ctx.copy(
+            committedMedicationMatches = committed,
+            forcedAmbiguousPhrases = forcedPhrases
+        )
+        val response = api.parseBatchCommand(
             com.averycorp.prismtask.data.remote.api.BatchParseRequest(
                 commandText = commandText,
-                userContext = ctx
+                userContext = enrichedCtx
             )
         )
+        return BatchParseOutcome(
+            response = response,
+            committedMedicationIds = committed.values.toSet()
+        )
+    }
+
+    private fun expandMatchResult(
+        result: MedicationNameMatcher.MatchResult
+    ): Pair<Map<String, String>, List<MedicationNameMatcher.AmbiguousPhrase>> = when (result) {
+        MedicationNameMatcher.MatchResult.NoMatch -> emptyMap<String, String>() to emptyList()
+        is MedicationNameMatcher.MatchResult.Unambiguous -> result.matches to emptyList()
+        is MedicationNameMatcher.MatchResult.Ambiguous -> emptyMap<String, String>() to result.phrases
+        is MedicationNameMatcher.MatchResult.Mixed -> result.unambiguous to result.ambiguous
     }
 
     /**
@@ -969,6 +1010,19 @@ constructor(
             .toInstant()
             .toEpochMilli()
     }.getOrNull()
+
+    data class BatchParseOutcome(
+        val response: BatchParseResponse,
+        /**
+         * entity_ids the local [MedicationNameMatcher] resolved unambiguously
+         * for this command. The ViewModel uses this set to skip its
+         * auto-strip safeguard when Haiku flagged a committed med as
+         * ambiguous (which shouldn't happen if the backend honors the hint,
+         * but the override is the belt-and-suspenders second line of
+         * defense — same shape as PR #1034).
+         */
+        val committedMedicationIds: Set<String>
+    )
 
     data class BatchApplyResult(
         val batchId: String,
