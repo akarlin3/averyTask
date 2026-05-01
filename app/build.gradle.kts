@@ -18,8 +18,8 @@ android {
         applicationId = "com.averycorp.prismtask"
         minSdk = 26
         targetSdk = 35
-        versionCode = 807
-        versionName = "1.8.9"
+        versionCode = 808
+        versionName = "1.8.10"
 
         testInstrumentationRunner = "com.averycorp.prismtask.HiltTestRunner"
         // Wipe app state between instrumented test methods so each method
