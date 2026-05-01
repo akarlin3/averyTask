@@ -455,21 +455,22 @@ internal fun LazyListScope.draggableTaskItemWithSubtasks(
                     alpha = 0.5f,
                     cornerRadius = CornerRadius(8.dp.toPx(), 8.dp.toPx())
                 )
-            }
-        ) {
-            detectTapGestures(
-                onLongPress = {
-                    startTransfer(
-                        DragAndDropTransferData(
-                            clipData = ClipData.newPlainText(
-                                "task_id",
-                                task.id.toString()
+            },
+            block = {
+                detectTapGestures(
+                    onLongPress = {
+                        startTransfer(
+                            DragAndDropTransferData(
+                                clipData = ClipData.newPlainText(
+                                    "task_id",
+                                    task.id.toString()
+                                )
                             )
                         )
-                    )
-                }
-            )
-        }
+                    }
+                )
+            }
+        )
 
         val dragModifier = Modifier
             .dragAndDropTarget(
