@@ -69,6 +69,7 @@ import com.averycorp.prismtask.ui.screens.today.components.BookableHabitReminder
 import com.averycorp.prismtask.ui.screens.today.components.CheckInCompleteChip
 import com.averycorp.prismtask.ui.screens.today.components.CollapsibleSection
 import com.averycorp.prismtask.ui.screens.today.components.CompactProgressHeader
+import com.averycorp.prismtask.ui.screens.today.components.ProductivityScoreBadge
 import com.averycorp.prismtask.ui.screens.today.components.CompletedTaskItem
 import com.averycorp.prismtask.ui.screens.today.components.FloatingQuickAddBar
 import com.averycorp.prismtask.ui.screens.today.components.HabitChipRow
@@ -215,6 +216,11 @@ fun TodayScreen(
                 progress = combinedProgress,
                 progressStyle = progressStyle,
                 onAnalyticsClick = { navController.navigate(PrismTaskRoute.TaskAnalytics.createRoute()) },
+                productivityBadge = {
+                    ProductivityScoreBadge(
+                        onClick = { navController.navigate(PrismTaskRoute.TaskAnalytics.createRoute()) }
+                    )
+                },
                 trailingActions = { SyncIndicatorHost() }
             )
         },
