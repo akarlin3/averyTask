@@ -4,17 +4,17 @@ import androidx.sqlite.db.SupportSQLiteOpenHelper
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.averycorp.prismtask.data.local.database.MIGRATION_66_67
+import com.averycorp.prismtask.data.local.database.MIGRATION_67_68
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Direct-SQL migration test for v66 → v67 (additive `language_pick` /
+ * Direct-SQL migration test for v67 → v68 (additive `language_pick` /
  * `language_done` columns on `leisure_logs` for the new LANGUAGE built-in
  * leisure slot). Mirrors the pattern of [Migration51To52Test] — the project
- * ships with `exportSchema = false`, so a stripped-down v66 schema is built
+ * ships with `exportSchema = false`, so a stripped-down v67 schema is built
  * via [SupportSQLiteOpenHelper], a row is seeded, the migration is invoked
  * directly, and the new columns are verified.
  *
@@ -25,14 +25,14 @@ import org.junit.runner.RunWith
  *  - new writes can populate the new columns post-migration
  */
 @RunWith(AndroidJUnit4::class)
-class Migration66To67Test {
+class Migration67To68Test {
 
-    private fun openV66(): SupportSQLiteOpenHelper {
+    private fun openV67(): SupportSQLiteOpenHelper {
         val config = SupportSQLiteOpenHelper.Configuration.builder(
             ApplicationProvider.getApplicationContext()
         )
             .name(null)
-            .callback(object : SupportSQLiteOpenHelper.Callback(66) {
+            .callback(object : SupportSQLiteOpenHelper.Callback(67) {
                 override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
                     db.execSQL(
                         """CREATE TABLE `leisure_logs` (
@@ -68,7 +68,7 @@ class Migration66To67Test {
 
     @Test
     fun migrate_addsLanguageColumnsWithSafeDefaults() {
-        val helper = openV66()
+        val helper = openV67()
         val db = helper.writableDatabase
 
         db.execSQL(
@@ -77,7 +77,7 @@ class Migration66To67Test {
                 "VALUES (1, 100, 'piano', 1, 'read', 0, 100, 100)"
         )
 
-        MIGRATION_66_67.migrate(db)
+        MIGRATION_67_68.migrate(db)
 
         db.query(
             "SELECT music_pick, music_done, flex_pick, flex_done, language_pick, language_done " +
@@ -96,10 +96,10 @@ class Migration66To67Test {
 
     @Test
     fun migrate_allowsWritingNewLanguageColumns() {
-        val helper = openV66()
+        val helper = openV67()
         val db = helper.writableDatabase
 
-        MIGRATION_66_67.migrate(db)
+        MIGRATION_67_68.migrate(db)
 
         db.execSQL(
             "INSERT INTO leisure_logs " +

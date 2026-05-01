@@ -57,7 +57,7 @@ hardcoded defaults that ship with the app.
 | File | Change |
 |------|--------|
 | `LeisureLogEntity.kt` | Add `language_pick`, `language_done` columns |
-| `Migrations.kt` | New `MIGRATION_66_67` (additive `ALTER TABLE`); bump `CURRENT_DB_VERSION` to 67 |
+| `Migrations.kt` | New `MIGRATION_67_68` (additive `ALTER TABLE`); bump `CURRENT_DB_VERSION` to 68 |
 | `SyncMapper.kt:551-580` | Add `languagePick` / `languageDone` to to/from-map |
 | `LeisureRepository.kt:72-154` | Add `setLanguagePick`/`toggleLanguageDone`/`clearLanguagePick`; extend `resetToday`, `getDailyLeisureProgress`, `syncHabitCompletion` |
 | `LeisurePreferences.kt:23` | Add `LANGUAGE` to enum |
@@ -75,7 +75,7 @@ hardcoded defaults that ship with the app.
 | `OnboardingViewModel.kt:212-222` | Add `applyLeisureSelection` call for `LANGUAGE` |
 | `DailyEssentialsUseCase.kt:30, 75-76, 113-114, 160-205` | Add `LANGUAGE` to `LeisureKind`; thread `languageConfig` into `combineDailyEssentials`; expose `languageLeisure` card state |
 | `TemplateBrowserViewModel.kt:44-45` | Add LANGUAGE call to mirror onboarding's apply flow |
-| Tests | New `Migration66To67Test`; extend `LeisurePreferencesTest`, `SyncMapperTier2Test`, `TemplateSelectionsTest` |
+| Tests | New `Migration67To68Test`; extend `LeisurePreferencesTest`, `SyncMapperTier2Test`, `TemplateSelectionsTest` |
 
 `LifeModesScreen` exposes a single feature-level `leisureEnabled` toggle for
 the whole subsystem, so it does not need per-slot work for this audit.
@@ -150,7 +150,7 @@ Single improvement; not a fan-out audit.
 ## Phase 3 — Bundle summary
 
 - **PR**: [#1015](https://github.com/averycorp/prismTask/pull/1015) — `feat(leisure): add Language as a third built-in leisure slot`. Single bundled PR; auto-merge with squash enabled.
-- **Files touched**: 13 source + 3 test + 1 new migration test (17 total). One additive Room migration (`MIGRATION_66_67`, `CURRENT_DB_VERSION` 66 → 67).
+- **Files touched**: 13 source + 3 test + 1 new migration test (17 total). One additive Room migration (`MIGRATION_67_68`, `CURRENT_DB_VERSION` 67 → 68 — was 66 → 67 pre-rebase but main shipped a different `MIGRATION_66_67` from the recurring-tasks audit; renumbered cleanly).
 - **Scope deviation from Phase 1**: skipped the proposed `DailyEssentialsUseCase` extension. Rationale: `DailyEssentialsUseCase` only reads `LeisureSlotId` as a parameter (no exhaustive `when`), so omitting LANGUAGE there does not break compilation, and surfacing a third Today-screen leisure card is a UX decision orthogonal to the onboarding scope. The dedicated `LeisureScreen` and progress aggregation in `LeisureRepository.getDailyLeisureProgress` already cover language; a follow-up PR can add the per-language Today card if user feedback warrants. This avoids the `combineDailyEssentials` index-drift risk flagged in Phase 1.
 - **LANGUAGE default switched from enabled → disabled** during implementation. The Phase 1 default was `enabled = true` mirroring MUSIC / FLEX. Implementation revealed that `syncHabitCompletion` in `LeisureRepository` uses `log.musicDone && log.flexDone` (no `enabled` gating) to decide whether the shared "Leisure" meta-habit fires for the day. Adding LANGUAGE with `enabled = true` would have silently broken the meta-habit on every existing install (suddenly required `languageDone` too). Switching the default to disabled + adding an enable-on-pick step in `OnboardingViewModel.applyTemplateSelections` and `TemplateBrowserViewModel.commit` keeps the meta-habit definition stable for existing users while still surfacing the slot for new users who opt in.
 - **Memory entry candidate** *(non-obvious)*: when extending a slot-keyed feature, audit `syncHabitCompletion` (or any aggregate-completion logic) for hard-coded slot-list assumptions. Several aggregation paths (here `log.musicDone && log.flexDone`) are not gated by `config.enabled` and will silently change behavior when a new slot is added with `enabled = true`. **Pending PR merge** before considering for memory.
@@ -188,7 +188,7 @@ pattern.
 
 - `LeisureRepository.syncHabitCompletion` uses `log.musicDone && log.flexDone` directly — it does NOT gate by `LeisureSlotConfig.enabled`. Adding LANGUAGE with `enabled = true` would have silently broken the shared "Leisure" meta-habit completion on every existing install. The fix was to default LANGUAGE to disabled and flip it on inside `OnboardingViewModel.applyTemplateSelections` + `TemplateBrowserViewModel.commit` only when the user actually picks a language. The aggregate-completion logic still requires `languageDone` only when the slot is enabled.
 - Firestore is schema-less (map-backed), so the new `languagePick` / `languageDone` keys round-trip cleanly with older clients via `as?`-style reads on missing keys (default `null` / `false`). No cross-platform compat break.
-- `exportSchema = false` on the Room database means migration tests hand-roll their own pre-migration schema via `SupportSQLiteOpenHelper` instead of using `MigrationTestHelper`. Pattern is well-established (`Migration51To52Test`, `Migration53To54Test`, etc.). The new `Migration66To67Test` follows the same shape.
+- `exportSchema = false` on the Room database means migration tests hand-roll their own pre-migration schema via `SupportSQLiteOpenHelper` instead of using `MigrationTestHelper`. Pattern is well-established (`Migration51To52Test`, `Migration53To54Test`, etc.). The new `Migration67To68Test` follows the same shape.
 - `TemplateSelections` is the contract between the onboarding template picker UI and `OnboardingViewModel.applyTemplateSelections` / `TemplateBrowserViewModel.commit`. All callers use named parameters or empty constructors, so inserting the new `languageIds` field at position 3 is safe.
 
 ## Open questions
