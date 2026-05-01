@@ -173,6 +173,23 @@ fun TaskAnalyticsScreen(
                 // Habit correlations \u2014 Pro-gated, on-demand (server
                 // rate-limits to 1 call/day so don't auto-fetch).
                 HabitCorrelationsSection(accent = accentColor)
+            } else {
+                // Free-tier replacements so the screen doesn't have a
+                // silent gap where the Pro charts would render. Each
+                // upsell mirrors the section it stands in for so users
+                // see exactly which feature unlocks with Pro.
+                AnalyticsSectionProUpsell(
+                    title = "Unlock Productivity Score Chart",
+                    body = "Daily 0\u2013100 score with trend, best/worst-day callouts, and a 12-week heatmap \u2014 included with Pro."
+                )
+                AnalyticsSectionProUpsell(
+                    title = "Unlock Time Tracking",
+                    body = "Daily logged-time bars from manual logs and Pomodoro auto-tracking \u2014 included with Pro."
+                )
+                AnalyticsSectionProUpsell(
+                    title = "Unlock Habit Correlations",
+                    body = "AI-powered analysis of which habits boost your productivity \u2014 included with Pro."
+                )
             }
 
             if (stats == null || stats.totalCompleted == 0) {
