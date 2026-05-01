@@ -20,7 +20,7 @@ data class CustomLeisureActivity(
     val icon: String
 )
 
-enum class LeisureSlotId { MUSIC, FLEX }
+enum class LeisureSlotId { MUSIC, FLEX, LANGUAGE }
 
 data class LeisureSlotConfig(
     val enabled: Boolean,
@@ -50,6 +50,22 @@ data class LeisureSlotConfig(
                 emoji = "\uD83C\uDFB2",
                 durationMinutes = 30,
                 gridColumns = 2,
+                autoComplete = true,
+                hiddenBuiltInIds = emptyList(),
+                customActivities = emptyList()
+            )
+            // LANGUAGE defaults to disabled so existing installs don't
+            // suddenly require completing a third slot to finish the
+            // shared "Leisure" meta-habit. Onboarding flips this on when
+            // the user picks any language in the template picker, and
+            // the leisure-settings screen exposes the toggle for users
+            // who want to opt in later.
+            LeisureSlotId.LANGUAGE -> LeisureSlotConfig(
+                enabled = false,
+                label = "Language Practice",
+                emoji = "\uD83D\uDDE3\uFE0F",
+                durationMinutes = 15,
+                gridColumns = 3,
                 autoComplete = true,
                 hiddenBuiltInIds = emptyList(),
                 customActivities = emptyList()
@@ -90,28 +106,36 @@ constructor(
     companion object {
         private val CUSTOM_MUSIC_KEY = stringPreferencesKey("custom_music_activities")
         private val CUSTOM_FLEX_KEY = stringPreferencesKey("custom_flex_activities")
+        private val CUSTOM_LANGUAGE_KEY = stringPreferencesKey("custom_language_activities")
         private val CUSTOM_SECTIONS_KEY = stringPreferencesKey("custom_sections")
 
         private val MUSIC_ENABLED_KEY = stringPreferencesKey("music_enabled")
         private val FLEX_ENABLED_KEY = stringPreferencesKey("flex_enabled")
+        private val LANGUAGE_ENABLED_KEY = stringPreferencesKey("language_enabled")
 
         private val MUSIC_LABEL_KEY = stringPreferencesKey("music_label")
         private val FLEX_LABEL_KEY = stringPreferencesKey("flex_label")
+        private val LANGUAGE_LABEL_KEY = stringPreferencesKey("language_label")
 
         private val MUSIC_EMOJI_KEY = stringPreferencesKey("music_emoji")
         private val FLEX_EMOJI_KEY = stringPreferencesKey("flex_emoji")
+        private val LANGUAGE_EMOJI_KEY = stringPreferencesKey("language_emoji")
 
         private val MUSIC_DURATION_KEY = stringPreferencesKey("music_duration_minutes")
         private val FLEX_DURATION_KEY = stringPreferencesKey("flex_duration_minutes")
+        private val LANGUAGE_DURATION_KEY = stringPreferencesKey("language_duration_minutes")
 
         private val MUSIC_COLUMNS_KEY = stringPreferencesKey("music_grid_columns")
         private val FLEX_COLUMNS_KEY = stringPreferencesKey("flex_grid_columns")
+        private val LANGUAGE_COLUMNS_KEY = stringPreferencesKey("language_grid_columns")
 
         private val MUSIC_AUTO_KEY = stringPreferencesKey("music_auto_complete")
         private val FLEX_AUTO_KEY = stringPreferencesKey("flex_auto_complete")
+        private val LANGUAGE_AUTO_KEY = stringPreferencesKey("language_auto_complete")
 
         private val MUSIC_HIDDEN_KEY = stringPreferencesKey("music_hidden_builtins")
         private val FLEX_HIDDEN_KEY = stringPreferencesKey("flex_hidden_builtins")
+        private val LANGUAGE_HIDDEN_KEY = stringPreferencesKey("language_hidden_builtins")
 
         const val MIN_DURATION_MINUTES = 1
         const val MAX_DURATION_MINUTES = 240
@@ -448,6 +472,16 @@ constructor(
             FLEX_AUTO_KEY,
             FLEX_HIDDEN_KEY,
             CUSTOM_FLEX_KEY
+        )
+        LeisureSlotId.LANGUAGE -> SlotKeys(
+            LANGUAGE_ENABLED_KEY,
+            LANGUAGE_LABEL_KEY,
+            LANGUAGE_EMOJI_KEY,
+            LANGUAGE_DURATION_KEY,
+            LANGUAGE_COLUMNS_KEY,
+            LANGUAGE_AUTO_KEY,
+            LANGUAGE_HIDDEN_KEY,
+            CUSTOM_LANGUAGE_KEY
         )
     }
 }

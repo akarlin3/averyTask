@@ -57,10 +57,11 @@ fun LeisureScreen(
 ) {
     val musicState by viewModel.musicSlot.collectAsStateWithLifecycle()
     val flexState by viewModel.flexSlot.collectAsStateWithLifecycle()
+    val languageState by viewModel.languageSlot.collectAsStateWithLifecycle()
     val customStates by viewModel.customSlots.collectAsStateWithLifecycle()
 
     // Active slots in display order. Disabled slots are hidden entirely.
-    val slots = (listOf(musicState, flexState) + customStates).filter { it.config.enabled }
+    val slots = (listOf(musicState, flexState, languageState) + customStates).filter { it.config.enabled }
     val doneCount = slots.count { it.done }
     val targetCount = slots.size
     val allDone = targetCount > 0 && doneCount == targetCount
@@ -190,6 +191,7 @@ fun LeisureScreen(
                 is LeisureSectionKey.BuiltIn -> when (key.slot) {
                     LeisureSlotId.MUSIC -> musicState.config.label
                     LeisureSlotId.FLEX -> flexState.config.label
+                    LeisureSlotId.LANGUAGE -> languageState.config.label
                 }
                 is LeisureSectionKey.Custom -> "Section"
             }

@@ -154,6 +154,39 @@ class SyncMapperTier2Test {
         assertEquals(0L, entity.updatedAt)
     }
 
+    @Test
+    fun leisureLog_languageFields_roundTrip() {
+        val entity = LeisureLogEntity(
+            id = 9,
+            date = 4000L,
+            languagePick = "italian",
+            languageDone = true,
+            updatedAt = 42_000L
+        )
+        val map = SyncMapper.leisureLogToMap(entity)
+        assertEquals("italian", map["languagePick"])
+        assertEquals(true, map["languageDone"])
+        val restored = SyncMapper.mapToLeisureLog(map, localId = 9)
+        assertEquals("italian", restored.languagePick)
+        assertEquals(true, restored.languageDone)
+    }
+
+    @Test
+    fun leisureLog_inputMapper_missingLanguageFields_defaultToNullAndFalse() {
+        // A doc written by an older client (or pre-language web) will have
+        // no languagePick / languageDone keys — the mapper has to absorb the
+        // omission without throwing and fall back to safe defaults.
+        val map = mapOf<String, Any?>(
+            "date" to 3000L,
+            "musicPick" to "piano",
+            "createdAt" to 1000L,
+            "updatedAt" to 5000L
+        )
+        val entity = SyncMapper.mapToLeisureLog(map)
+        assertEquals(null, entity.languagePick)
+        assertEquals(false, entity.languageDone)
+    }
+
     // ── Course ────────────────────────────────────────────────────────────────
 
     @Test

@@ -88,6 +88,20 @@ class TemplateSelectionsTest {
     }
 
     @Test
+    fun withLanguageToggled_flipsMembership_independentlyOfOtherSlots() {
+        val s = TemplateSelections()
+            .withMusicToggled("piano")
+            .withLanguageToggled("italian")
+            .withLanguageToggled("french")
+        assertEquals(setOf("piano"), s.musicIds)
+        assertEquals(setOf("italian", "french"), s.languageIds)
+        val toggledOff = s.withLanguageToggled("italian")
+        assertEquals(setOf("french"), toggledOff.languageIds)
+        // Music must not be disturbed by language toggles.
+        assertEquals(setOf("piano"), toggledOff.musicIds)
+    }
+
+    @Test
     fun unknownRoutineType_returnsEmpty() {
         val s = TemplateSelections()
         assertEquals(emptySet<String>(), s.effectiveStepIds("nonsense"))

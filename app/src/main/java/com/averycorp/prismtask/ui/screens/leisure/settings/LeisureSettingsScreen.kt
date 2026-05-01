@@ -56,6 +56,7 @@ fun LeisureSettingsScreen(
 ) {
     val musicState by viewModel.musicState.collectAsStateWithLifecycle()
     val flexState by viewModel.flexState.collectAsStateWithLifecycle()
+    val languageState by viewModel.languageState.collectAsStateWithLifecycle()
     val customSections by viewModel.customSections.collectAsStateWithLifecycle()
 
     var addDialogSlot by remember { mutableStateOf<LeisureSlotId?>(null) }
@@ -85,8 +86,9 @@ fun LeisureSettingsScreen(
         ) {
             Spacer(Modifier.height(8.dp))
             Text(
-                "Music and flexible are the built-in leisure sections, fully customizable below. " +
-                    "Add your own sections for anything else you want to rotate through each day.",
+                "Music, flexible, and language practice are the built-in leisure sections, " +
+                    "fully customizable below. Add your own sections for anything else you " +
+                    "want to rotate through each day.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -110,6 +112,15 @@ fun LeisureSettingsScreen(
 
             Spacer(Modifier.height(24.dp))
 
+            SlotEditor(
+                state = languageState,
+                viewModel = viewModel,
+                onRequestAdd = { addDialogSlot = LeisureSlotId.LANGUAGE },
+                onRequestReset = { resetConfirm = LeisureSlotId.LANGUAGE }
+            )
+
+            Spacer(Modifier.height(24.dp))
+
             CustomSectionsBlock(
                 sections = customSections,
                 viewModel = viewModel,
@@ -127,6 +138,7 @@ fun LeisureSettingsScreen(
             category = when (slot) {
                 LeisureSlotId.MUSIC -> musicState.config.label
                 LeisureSlotId.FLEX -> flexState.config.label
+                LeisureSlotId.LANGUAGE -> languageState.config.label
             },
             onDismiss = { addDialogSlot = null },
             onConfirm = { label, icon ->
@@ -469,6 +481,7 @@ private fun SlotEditor(
                         when (slot) {
                             LeisureSlotId.MUSIC -> "Music / practice"
                             LeisureSlotId.FLEX -> "Flexible leisure"
+                            LeisureSlotId.LANGUAGE -> "Language practice"
                         },
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant

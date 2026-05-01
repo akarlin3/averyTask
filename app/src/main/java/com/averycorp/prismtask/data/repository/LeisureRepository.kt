@@ -56,15 +56,18 @@ constructor(
             getTodayLog(),
             leisurePreferences.getSlotConfig(LeisureSlotId.MUSIC),
             leisurePreferences.getSlotConfig(LeisureSlotId.FLEX),
+            leisurePreferences.getSlotConfig(LeisureSlotId.LANGUAGE),
             leisurePreferences.getCustomSections()
-        ) { log, music, flex, customs ->
+        ) { log, music, flex, language, customs ->
             val customStates = readCustomSectionStates(log)
             val enabledCustoms = customs.filter { it.enabled }
             val total = (if (music.enabled) 1 else 0) +
                 (if (flex.enabled) 1 else 0) +
+                (if (language.enabled) 1 else 0) +
                 enabledCustoms.size
             val done = (if (music.enabled && log?.musicDone == true) 1 else 0) +
                 (if (flex.enabled && log?.flexDone == true) 1 else 0) +
+                (if (language.enabled && log?.languageDone == true) 1 else 0) +
                 enabledCustoms.count { customStates[it.id]?.done == true }
             DailyLeisureProgress(done = done, total = total)
         }
@@ -153,6 +156,48 @@ constructor(
         syncHabitCompletion(updated)
     }
 
+    suspend fun setLanguagePick(activityId: String) {
+        val today = startOfToday()
+        val existing = leisureDao.getLogForDateOnce(today)
+        if (existing != null) {
+            val updated = existing.copy(
+                languagePick = activityId,
+                languageDone = false,
+                startedAt = existing.startedAt ?: System.currentTimeMillis(),
+                updatedAt = System.currentTimeMillis()
+            )
+            leisureDao.updateLog(updated)
+            syncTracker.trackUpdate(existing.id, "leisure_log")
+            syncHabitCompletion(updated)
+        } else {
+            val id = leisureDao.insertLog(
+                LeisureLogEntity(
+                    date = today,
+                    languagePick = activityId,
+                    startedAt = System.currentTimeMillis(),
+                    updatedAt = System.currentTimeMillis()
+                )
+            )
+            syncTracker.trackCreate(id, "leisure_log")
+        }
+    }
+
+    suspend fun toggleLanguageDone(done: Boolean) {
+        val existing = leisureDao.getLogForDateOnce(startOfToday()) ?: return
+        val updated = existing.copy(languageDone = done, updatedAt = System.currentTimeMillis())
+        leisureDao.updateLog(updated)
+        syncTracker.trackUpdate(existing.id, "leisure_log")
+        syncHabitCompletion(updated)
+    }
+
+    suspend fun clearLanguagePick() {
+        val existing = leisureDao.getLogForDateOnce(startOfToday()) ?: return
+        val updated = existing.copy(languagePick = null, languageDone = false, updatedAt = System.currentTimeMillis())
+        leisureDao.updateLog(updated)
+        syncTracker.trackUpdate(existing.id, "leisure_log")
+        syncHabitCompletion(updated)
+    }
+
     suspend fun resetToday() {
         val existing = leisureDao.getLogForDateOnce(startOfToday()) ?: return
         val updated = existing.copy(
@@ -160,6 +205,8 @@ constructor(
             musicDone = false,
             flexPick = null,
             flexDone = false,
+            languagePick = null,
+            languageDone = false,
             customSectionsState = null,
             startedAt = null,
             updatedAt = System.currentTimeMillis()
@@ -259,7 +306,17 @@ constructor(
         val enabledCustomsAllDone = customSections
             .filter { it.enabled }
             .all { section -> customStates[section.id]?.done == true }
-        val allDone = log.musicDone && log.flexDone && enabledCustomsAllDone
+        // Every enabled slot (music, flex, language, custom) must be done
+        // for the shared "Leisure" meta-habit to fire. Disabled slots are
+        // skipped so a user who opted out of a slot in settings or never
+        // opted into LANGUAGE in onboarding can still close the day.
+        val musicEnabled = leisurePreferences.getSlotConfig(LeisureSlotId.MUSIC).first().enabled
+        val flexEnabled = leisurePreferences.getSlotConfig(LeisureSlotId.FLEX).first().enabled
+        val languageEnabled = leisurePreferences.getSlotConfig(LeisureSlotId.LANGUAGE).first().enabled
+        val allDone = (!musicEnabled || log.musicDone) &&
+            (!flexEnabled || log.flexDone) &&
+            (!languageEnabled || log.languageDone) &&
+            enabledCustomsAllDone
         val alreadyCompleted = habitCompletionDao.isCompletedOnDateLocalOnce(habit.id, todayLocal)
 
         if (allDone && !alreadyCompleted) {

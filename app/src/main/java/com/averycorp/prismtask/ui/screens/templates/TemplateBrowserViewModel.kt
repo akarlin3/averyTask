@@ -43,6 +43,13 @@ constructor(
         viewModelScope.launch {
             applyLeisureSelection(LeisureSlotId.MUSIC, snapshot.musicIds)
             applyLeisureSelection(LeisureSlotId.FLEX, snapshot.flexIds)
+            applyLeisureSelection(LeisureSlotId.LANGUAGE, snapshot.languageIds)
+            // LANGUAGE defaults to disabled, so picking a language here also
+            // has to flip the slot on for the activity rotation to surface
+            // on the leisure screen — same reasoning as onboarding.
+            if (snapshot.languageIds.isNotEmpty()) {
+                leisurePreferences.updateSlotConfig(LeisureSlotId.LANGUAGE, enabled = true)
+            }
             listOf("morning", "bedtime", "housework").forEach { routineType ->
                 val stepIds = snapshot.effectiveStepIds(routineType)
                 if (stepIds.isNotEmpty()) {
