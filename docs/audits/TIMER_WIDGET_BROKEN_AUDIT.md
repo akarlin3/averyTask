@@ -208,3 +208,54 @@ because Item 1 is a no-op without it on hot-launches.
 - **`updatePeriodMillis` doesn't actually drive Glance widgets.**
   Glance refreshes via `updateAll()`. The 30000ms manifest value is
   an OS hint that's largely ignored on modern Android; left as-is.
+
+---
+
+## Phase 3 — Bundle summary
+
+All five PROCEED items shipped in a single coherent PR per the
+fan-out bundling rule (one scope: "make the Timer widget work").
+
+| Item | Action      | Where it landed                                                            |
+|------|-------------|----------------------------------------------------------------------------|
+| 1    | PROCEED     | PR #1042 — `MainActivity.ACTION_OPEN_TIMER` + `NavGraph` LaunchedEffect    |
+| 2    | PROCEED     | PR #1042 — pause/resume/stop/skip controls removed; widget body opens app  |
+| 3    | PROCEED     | PR #1042 — `WidgetUpdateManager.clearTimerStateAndUpdate()` runs on app    |
+|      |             |   scope so `onCleared` cleanup actually executes                           |
+| 4    | STOP        | `updatePeriodMillis="30000"` left as-is; it's the right tradeoff           |
+| 5    | PROCEED     | PR #1042 — `MainActivity.onNewIntent` overridden; `launchAction` lifted to |
+|      |             |   `mutableStateOf` so hot-launch deep-links re-fire the NavGraph effects   |
+| 6    | PROCEED     | PR #1042 — `MainActivityActionConstantsTest` pins all five action strings  |
+| —    | DEFER       | Foreground-service migration of the timer countdown — out of scope         |
+
+### Net diff
+
+7 files changed, +90 / −115 (after deleting four dead `ActionCallback`
+classes).
+
+### Memory entry candidates
+
+- **One-way DataStore is not bidirectional control.** When two
+  components share a DataStore but only one observes it, mutations
+  from the non-observer are overwritten on the next write. Useful
+  rule: if you're tempted to "have widget X drive in-app behavior Y
+  via shared preferences," ask first whether Y observes the prefs.
+  If not, you need a foreground service or a back-channel — not a
+  shared key. (Surprising enough to be worth a memory entry; the
+  audit caught this exact pattern silently failing for 4
+  ActionCallback classes.)
+- **`viewModelScope.launch` inside `onCleared` is a no-op.** The
+  scope is closed by `ViewModel.clear()` *before* `onCleared()` is
+  invoked; coroutines launched there are scheduled on a cancelled
+  scope and never run. Use an application-scoped `CoroutineScope`
+  for ViewModel teardown work. (Also surprising — the original
+  cleanup code looked fine on inspection but never executed.)
+
+Both candidates above are non-obvious enough that a follow-up
+session could waste hours rediscovering them. Worth recording.
+
+### Schedule for next audit
+
+No follow-up audit needed unless the foreground-service migration
+lands — at that point, re-auditing widget controls (Items 2 and 4)
+to add back pause/resume from the widget would be the next sweep.
