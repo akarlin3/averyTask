@@ -351,6 +351,11 @@ constructor(
         // intent / single-task NLP. False positives here would trap normal
         // users in the heavier batch flow, so the detector requires two
         // distinct signal categories (quantifier + time range, etc.).
+        //
+        // Carve-outs in BatchIntentDetector return NotABatch even when ≥2
+        // signals fire: recurrence patterns (`every monday at 8am`) and
+        // explicit negation prefixes (`don't complete all tasks today`).
+        // Those inputs proceed through to MultiCreate / single-task NLP.
         val batchIntent = batchIntentDetector.detect(text)
         if (batchIntent is BatchIntentDetector.Result.Batch) {
             if (!proFeatureGate.hasAccess(ProFeatureGate.AI_BATCH_OPS)) {
