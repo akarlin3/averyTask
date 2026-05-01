@@ -382,3 +382,56 @@ After the foreground-service migration (1.1) ships, re-audit Surface
 (toggles can probably ship safely once the service owns state).
 Surface 2's deferred items (2.2, 2.3) likely stay deferred — they're
 shape mismatches, not blocked work.
+
+---
+
+## Phase 3 — Bundle summary
+
+| Item  | Action       | Where it landed                                                                  |
+|-------|--------------|----------------------------------------------------------------------------------|
+| 1.1   | DEFER        | Foreground-service migration of the Timer countdown — own PR; not this branch.   |
+| 1.2   | DEFER        | Blocked on 1.1.                                                                  |
+| 1.3   | PROCEED      | PR #1044 — `PomodoroSessionDots` row in `TimerWidget` on LARGE size when         |
+|       |              |   `pomodoroEnabled`; `TimerWidgetState.pomodoroEnabled` populated from           |
+|       |              |   `TimerViewModel.syncWidgetState`.                                              |
+| 1.4   | PROCEED      | PR #1044 — `TimerWidgetState.isLongBreak` + label switch in `TimerWidget`        |
+|       |              |   distinguishing Focus / Long Break / Short Break / Break Time per Pomodoro      |
+|       |              |   state.                                                                         |
+| 1.5   | DEFER        | Glance dialog/picker shape mismatch; existing tap-to-open is correct.            |
+| 1.6   | DEFER        | Glance has no Canvas; linear progress is correct.                                |
+| 2.1   | PROCEED      | PR #1044 — `MainActivity.ACTION_OPEN_MATRIX` constant + `NavGraph` LaunchedEffect|
+|       |              |   that navigates to `PrismTaskRoute.EisenhowerMatrix`. The widget's `open_matrix`|
+|       |              |   string was a dead deep-link until this PR.                                     |
+| 2.2   | DEFER        | 2×2 cell density doesn't carry a checkbox column; 2.1's deep-link covers it.    |
+| 2.3   | DEFER        | Pro-gated AI behind a widget tap is the wrong shape — no progress UI, no        |
+|       |              |   upgrade prompt surface.                                                        |
+| 2.4   | STOP         | Glance has no popup/dropdown primitive.                                          |
+| 2.5   | PROCEED      | PR #1044 — `EisenhowerQuadrantSummary.topTaskPriority/topTaskDueDate`            |
+|       |              |   populated; `EisenhowerWidget` renders a 6dp priority dot + relative due-date  |
+|       |              |   hint ("Today" / "Tmrw" / "Nd" / "Nd ago") next to the top task.                |
+| 3.1   | DEFER-needs- | Snackbar source pinned to `TaskListViewModel.kt:679`; root cause requires a      |
+|       | repro        |   runtime stack trace from the user. No speculative fix.                         |
+
+### Net diff
+
+PR #1044 — 7 files changed, +163 / −22, plus the 384-line audit doc.
+One coherent scope: "widget readout fidelity + deep-link granularity."
+
+### Memory entry candidates
+
+Nothing surprising enough to record. The architectural blocker (1.1)
+and the "two writers, no reader" anti-pattern were already memorised
+in `TIMER_WIDGET_BROKEN_AUDIT.md` Phase 3. The Glance shape-mismatch
+items (1.5, 1.6, 2.2, 2.4) restate widely-known platform constraints;
+no memory entry warranted.
+
+### Schedule for next audit
+
+Two follow-up moments worth a sweep:
+
+1. **After 1.1 (foreground-service migration) ships** — re-audit
+   Surface 1 to add back the inline controls (1.2) and re-evaluate
+   1.5. ETA: whenever the user prioritises the dedicated migration PR.
+2. **When user supplies a stack trace for 3.1** — re-open this audit
+   to triage the checkoff bug; the suspect list is already compiled
+   in § 3.1.
