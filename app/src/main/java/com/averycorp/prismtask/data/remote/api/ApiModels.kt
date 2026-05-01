@@ -453,7 +453,30 @@ data class BatchUserContext(
     val tasks: List<BatchTaskContext> = emptyList(),
     val habits: List<BatchHabitContext> = emptyList(),
     val projects: List<BatchProjectContext> = emptyList(),
-    val medications: List<BatchMedicationContext> = emptyList()
+    val medications: List<BatchMedicationContext> = emptyList(),
+    /**
+     * Phrase → medication entity_id pairs the client has already resolved
+     * deterministically via `MedicationNameMatcher`. The backend treats
+     * these as authoritative: if a mutation references one of these phrases
+     * the entity_id must come from this map, and the phrase is never flagged
+     * as ambiguous. Empty when the local matcher returned NoMatch / Ambiguous.
+     */
+    @SerializedName("committed_medication_matches")
+    val committedMedicationMatches: Map<String, String> = emptyMap(),
+    /**
+     * Phrases the local matcher classified as ambiguous (≥2 candidate meds
+     * share a name). Backend appends these to its `ambiguous_entities`
+     * response so the client banner / picker always surfaces them, even if
+     * Haiku decided the phrase was clear.
+     */
+    @SerializedName("forced_ambiguous_phrases")
+    val forcedAmbiguousPhrases: List<ForcedAmbiguousPhrase> = emptyList()
+)
+
+data class ForcedAmbiguousPhrase(
+    val phrase: String,
+    @SerializedName("candidate_entity_type") val candidateEntityType: String = "MEDICATION",
+    @SerializedName("candidate_entity_ids") val candidateEntityIds: List<String> = emptyList()
 )
 
 data class BatchParseRequest(

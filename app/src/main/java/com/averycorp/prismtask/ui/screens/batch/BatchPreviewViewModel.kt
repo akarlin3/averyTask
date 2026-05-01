@@ -61,20 +61,42 @@ constructor(
         _state.value = BatchPreviewState.Loading(commandText)
         viewModelScope.launch {
             try {
-                val response = repository.parseCommand(commandText)
+                val outcome = repository.parseCommand(commandText)
+                val response = outcome.response
                 // Belt-and-suspenders: even if Haiku flagged a phrase as
                 // ambiguous via `ambiguous_entities`, Hard Rule #3 in the
                 // system prompt is non-deterministic — Haiku may still emit
                 // a mutation for one of the candidates. Strip those before
-                // they can be silently approved. The hint itself stays so
-                // the banner + picker can offer a corrective UX.
+                // they can be silently approved.
+                //
+                // BUT: a mutation whose entity_id matches one of the
+                // pre-resolver's *committed* matches stays — the local
+                // matcher already proved it's unambiguous, so the
+                // safeguard would only suppress correct mutations.
                 val ambiguousIds: Set<String> = response.ambiguousEntities
                     .flatMap { it.candidateEntityIds }
                     .toSet()
-                val (strippedMutations, keptMutations) = response.mutations.partition {
-                    it.entityId in ambiguousIds
+                val committedIds = outcome.committedMedicationIds
+                val (autoStripped, afterStrip) = response.mutations.partition {
+                    it.entityId in ambiguousIds && it.entityId !in committedIds
                 }
-                val medCandidates = collectMedicationCandidates(response.ambiguousEntities)
+                // Confidence guard (audit failure mode #2 — false-confident
+                // typo): MEDICATION mutations from Haiku are stripped if
+                // confidence is below 0.85 AND the entity_id wasn't
+                // committed by the deterministic matcher. TASK mutations
+                // are left alone — wrong-day scheduling is recoverable,
+                // wrong-medication is not.
+                val (lowConfStripped, keptMutations) = afterStrip.partition {
+                    it.entityType == "MEDICATION" &&
+                        response.confidence < MEDICATION_CONFIDENCE_FLOOR &&
+                        it.entityId !in committedIds
+                }
+                val strippedMutations = autoStripped + lowConfStripped
+                val ambiguousEntities = augmentAmbiguityForLowConfidence(
+                    response.ambiguousEntities,
+                    lowConfStripped
+                )
+                val medCandidates = collectMedicationCandidates(ambiguousEntities)
                 val tagChangeTaskIds = keptMutations
                     .asSequence()
                     .filter { it.mutationType == "TAG_CHANGE" && it.entityType == "TASK" }
@@ -86,7 +108,7 @@ constructor(
                     commandText = commandText,
                     mutations = keptMutations,
                     confidence = response.confidence,
-                    ambiguousEntities = response.ambiguousEntities,
+                    ambiguousEntities = ambiguousEntities,
                     currentTags = currentTags,
                     strippedAmbiguousCount = strippedMutations.size,
                     strippedMutations = strippedMutations,
@@ -100,6 +122,34 @@ constructor(
                 )
             }
         }
+    }
+
+    /**
+     * For each medication mutation we just stripped on low confidence, fold
+     * a synthetic `AmbiguousEntityHintResponse` into the hint list so the
+     * banner + picker still surface the choice instead of silently dropping
+     * it. The note copy is what the user sees beside the row.
+     */
+    private fun augmentAmbiguityForLowConfidence(
+        existing: List<AmbiguousEntityHintResponse>,
+        lowConfStripped: List<ProposedMutationResponse>
+    ): List<AmbiguousEntityHintResponse> {
+        if (lowConfStripped.isEmpty()) return existing
+        val existingByPhraseAndIds = existing.map {
+            it.phrase to it.candidateEntityIds.toSet()
+        }.toSet()
+        val additions = lowConfStripped.mapNotNull { mutation ->
+            val phrase = mutation.humanReadableDescription.ifBlank { mutation.entityId }
+            val ids = listOf(mutation.entityId)
+            if ((phrase to ids.toSet()) in existingByPhraseAndIds) null
+            else AmbiguousEntityHintResponse(
+                phrase = phrase,
+                candidateEntityType = "MEDICATION",
+                candidateEntityIds = ids,
+                note = "Couldn't confirm the medication for this command — pick below or rephrase."
+            )
+        }
+        return existing + additions
     }
 
     /**
@@ -198,6 +248,16 @@ constructor(
         viewModelScope.launch {
             _events.emit(BatchEvent.Cancelled(reason = null))
         }
+    }
+
+    private companion object {
+        // 0.85 is the boundary the audit doc fixed for failure mode #2:
+        // below this floor, MEDICATION-typed mutations get auto-stripped
+        // unless the deterministic matcher confirmed the medication.
+        // TASK / HABIT / PROJECT mutations stay regardless — the
+        // wrong-medication blast radius is the only one we won't tolerate
+        // silently.
+        const val MEDICATION_CONFIDENCE_FLOOR = 0.85f
     }
 }
 

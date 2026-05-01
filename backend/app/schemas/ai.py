@@ -405,6 +405,20 @@ class BatchMedicationContext(BaseModel):
     display_label: Optional[str] = None
 
 
+class ForcedAmbiguousPhrase(BaseModel):
+    """Phrase the client's local matcher already determined is ambiguous
+    (matches >=2 candidate medications). The backend appends these to its
+    `ambiguous_entities` response so the picker always surfaces them, even
+    if Haiku decided the phrase was clear. See ``MedicationNameMatcher``
+    on Android / web / backend for the matching contract."""
+
+    phrase: str
+    candidate_entity_type: str = Field(
+        default="MEDICATION", pattern=_BATCH_ENTITY_TYPE_PATTERN
+    )
+    candidate_entity_ids: list[str] = Field(default_factory=list)
+
+
 class BatchUserContext(BaseModel):
     today: str  # ISO YYYY-MM-DD in user's local timezone
     timezone: str = Field(default="UTC", max_length=64)
@@ -412,6 +426,15 @@ class BatchUserContext(BaseModel):
     habits: list[BatchHabitContext] = Field(default_factory=list)
     projects: list[BatchProjectContext] = Field(default_factory=list)
     medications: list[BatchMedicationContext] = Field(default_factory=list)
+    # Phrase -> medication_id pairs the client deterministically resolved
+    # via its local MedicationNameMatcher. Treated as authoritative: any
+    # mutation that targets one of these phrases must reuse the committed
+    # id, and the phrase must NOT appear in `ambiguous_entities`.
+    committed_medication_matches: dict[str, str] = Field(default_factory=dict)
+    # Phrases the client classified as ambiguous (>=2 candidate meds).
+    # The service unconditionally appends these to the response's
+    # `ambiguous_entities` so the user sees the disambiguation picker.
+    forced_ambiguous_phrases: list[ForcedAmbiguousPhrase] = Field(default_factory=list)
 
 
 class BatchParseRequest(BaseModel):

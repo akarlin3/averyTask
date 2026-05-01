@@ -7,12 +7,25 @@ import { nlpBatchApi } from '@/api/nlpBatch';
 import { webToAndroidPriority } from '@/api/firestore/converters';
 import { getFirebaseUid } from '@/stores/firebaseUid';
 import type {
+  AmbiguousEntityHint,
   BatchHistoryRecord,
   BatchParseResponse,
   BatchUserContext,
+  ForcedAmbiguousPhrase,
   ProposedMutation,
 } from '@/types/batch';
 import { applyMutation, undoEntry } from '@/features/batch/batchApplier';
+import {
+  matchMedicationsInCommand,
+  type MatchResult,
+} from '@/features/batch/medicationNameMatcher';
+
+/** Audit failure mode #2 firewall: MEDICATION mutations from Haiku get
+ *  auto-stripped below this confidence floor unless the deterministic
+ *  matcher already committed the entity_id. TASK / HABIT / PROJECT mutations
+ *  stay regardless — wrong-day scheduling is recoverable, wrong-medication
+ *  is not. Mirrors `BatchPreviewViewModel.MEDICATION_CONFIDENCE_FLOOR`. */
+const MEDICATION_CONFIDENCE_FLOOR = 0.85;
 
 /** 24h to match Android's `UNDO_WINDOW_MILLIS` — the quick Snackbar is
  *  the primary surface, but Settings → Batch History stays usable within
@@ -55,6 +68,99 @@ function randomBatchId(): string {
     return crypto.randomUUID();
   }
   return `batch_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function expandMatchResult(result: MatchResult): {
+  committed: Record<string, string>;
+  forced: ForcedAmbiguousPhrase[];
+} {
+  switch (result.kind) {
+    case 'no_match':
+      return { committed: {}, forced: [] };
+    case 'unambiguous':
+      return { committed: { ...result.matches }, forced: [] };
+    case 'ambiguous':
+      return {
+        committed: {},
+        forced: result.phrases.map((p) => ({
+          phrase: p.phrase,
+          candidate_entity_type: 'MEDICATION',
+          candidate_entity_ids: p.candidate_entity_ids,
+        })),
+      };
+    case 'mixed':
+      return {
+        committed: { ...result.unambiguous },
+        forced: result.ambiguous.map((p) => ({
+          phrase: p.phrase,
+          candidate_entity_type: 'MEDICATION',
+          candidate_entity_ids: p.candidate_entity_ids,
+        })),
+      };
+  }
+}
+
+/** Apply the auto-strip + low-confidence safeguards on top of a Haiku
+ *  response. Mirrors `BatchPreviewViewModel.loadPreview` on Android: any
+ *  mutation whose entity_id appears in `committedIds` is exempt from both
+ *  guards because the deterministic matcher has already proven its
+ *  correctness. */
+function applyClientSafeguards(
+  response: BatchParseResponse,
+  committedIds: Set<string>,
+): BatchParseResponse {
+  const ambiguousIds = new Set(
+    response.ambiguous_entities.flatMap((h) => h.candidate_entity_ids),
+  );
+  const autoStripped: ProposedMutation[] = [];
+  const afterStrip: ProposedMutation[] = [];
+  for (const m of response.mutations) {
+    if (ambiguousIds.has(m.entity_id) && !committedIds.has(m.entity_id)) {
+      autoStripped.push(m);
+    } else {
+      afterStrip.push(m);
+    }
+  }
+  const lowConfStripped: ProposedMutation[] = [];
+  const keptMutations: ProposedMutation[] = [];
+  for (const m of afterStrip) {
+    if (
+      m.entity_type === 'MEDICATION' &&
+      response.confidence < MEDICATION_CONFIDENCE_FLOOR &&
+      !committedIds.has(m.entity_id)
+    ) {
+      lowConfStripped.push(m);
+    } else {
+      keptMutations.push(m);
+    }
+  }
+  const stripped = [...autoStripped, ...lowConfStripped];
+  const augmented: AmbiguousEntityHint[] = [...response.ambiguous_entities];
+  const seen = new Set(
+    augmented.map(
+      (h) => `${h.phrase}::${[...h.candidate_entity_ids].sort().join(',')}`,
+    ),
+  );
+  for (const m of lowConfStripped) {
+    const phrase = m.human_readable_description || m.entity_id;
+    const ids = [m.entity_id];
+    const key = `${phrase}::${ids.join(',')}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    augmented.push({
+      phrase,
+      candidate_entity_type: 'MEDICATION',
+      candidate_entity_ids: ids,
+      note:
+        "Couldn't confirm the medication for this command — pick below or rephrase.",
+    });
+  }
+  return {
+    ...response,
+    mutations: keptMutations,
+    ambiguous_entities: augmented,
+    stripped_ambiguous_count: stripped.length,
+  };
 }
 
 async function buildUserContext(uid: string): Promise<BatchUserContext> {
@@ -145,28 +251,35 @@ export const useBatchStore = create<BatchStoreState>((set, get) => ({
     try {
       const uid = getFirebaseUid();
       const userContext = await buildUserContext(uid);
+
+      // Pre-resolver: run the deterministic local matcher and forward its
+      // result to the backend as authoritative hints. NoMatch / empty
+      // medication list reduces to a no-op so the wire-up stays safe even
+      // before the web has a medications UI.
+      const matchResult = matchMedicationsInCommand(
+        commandText,
+        userContext.medications.map((m) => ({
+          id: m.id,
+          name: m.name,
+          display_label: m.display_label ?? null,
+        })),
+      );
+      const { committed, forced } = expandMatchResult(matchResult);
+
+      const enrichedContext: BatchUserContext = {
+        ...userContext,
+        committed_medication_matches: committed,
+        forced_ambiguous_phrases: forced,
+      };
       const response = await nlpBatchApi.parse({
         command_text: commandText,
-        user_context: userContext,
+        user_context: enrichedContext,
       });
-      // Belt-and-suspenders: even if Haiku flagged a phrase as ambiguous,
-      // it may still emit a mutation for one of the candidate IDs (Hard
-      // Rule #3 in the system prompt is non-deterministic). Strip those
-      // mutations before they can be silently approved. The hint stays
-      // so the banner still surfaces the ambiguity to the user.
-      const ambiguousIds = new Set(
-        response.ambiguous_entities.flatMap((h) => h.candidate_entity_ids),
+
+      const safeguardedResponse = applyClientSafeguards(
+        response,
+        new Set(Object.values(committed)),
       );
-      const keptMutations = response.mutations.filter(
-        (m) => !ambiguousIds.has(m.entity_id),
-      );
-      const strippedAmbiguousCount =
-        response.mutations.length - keptMutations.length;
-      const safeguardedResponse = {
-        ...response,
-        mutations: keptMutations,
-        stripped_ambiguous_count: strippedAmbiguousCount,
-      };
       set({ pendingResponse: safeguardedResponse, isParsing: false });
     } catch (e) {
       set({
