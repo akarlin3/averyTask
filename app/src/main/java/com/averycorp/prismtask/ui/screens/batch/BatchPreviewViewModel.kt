@@ -141,13 +141,16 @@ constructor(
         val additions = lowConfStripped.mapNotNull { mutation ->
             val phrase = mutation.humanReadableDescription.ifBlank { mutation.entityId }
             val ids = listOf(mutation.entityId)
-            if ((phrase to ids.toSet()) in existingByPhraseAndIds) null
-            else AmbiguousEntityHintResponse(
-                phrase = phrase,
-                candidateEntityType = "MEDICATION",
-                candidateEntityIds = ids,
-                note = "Couldn't confirm the medication for this command — pick below or rephrase."
-            )
+            if ((phrase to ids.toSet()) in existingByPhraseAndIds) {
+                null
+            } else {
+                AmbiguousEntityHintResponse(
+                    phrase = phrase,
+                    candidateEntityType = "MEDICATION",
+                    candidateEntityIds = ids,
+                    note = "Couldn't confirm the medication for this command — pick below or rephrase."
+                )
+            }
         }
         return existing + additions
     }
