@@ -14,6 +14,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.averycorp.prismtask.R
 import com.averycorp.prismtask.data.preferences.NotificationPreferences
+import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.domain.usecase.BalanceConfig
@@ -44,7 +45,8 @@ constructor(
     @Assisted params: WorkerParameters,
     private val taskRepository: TaskRepository,
     private val userPreferencesDataStore: UserPreferencesDataStore,
-    private val notificationPreferences: NotificationPreferences
+    private val notificationPreferences: NotificationPreferences,
+    private val taskBehaviorPreferences: TaskBehaviorPreferences
 ) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         if (!notificationPreferences.overloadAlertsEnabled.first()) return Result.success()
@@ -59,7 +61,13 @@ constructor(
             healthTarget = prefs.healthTarget / 100f,
             overloadThreshold = prefs.overloadThresholdPct / 100f
         )
-        val balance = BalanceTracker().compute(tasks, config)
+        val sod = taskBehaviorPreferences.getStartOfDay().first()
+        val balance = BalanceTracker().compute(
+            tasks,
+            config,
+            dayStartHour = sod.hour,
+            dayStartMinute = sod.minute
+        )
 
         if (!balance.isOverloaded || balance.totalTracked == 0) {
             return Result.success()

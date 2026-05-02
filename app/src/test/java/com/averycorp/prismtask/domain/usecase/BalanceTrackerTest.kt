@@ -117,6 +117,66 @@ class BalanceTrackerTest {
     }
 
     @Test
+    fun `4AM SoD includes tasks on the logical previous day before midnight`() {
+        // now = 2026-04-11 02:30 UTC. With dayStartHour = 4, the user is
+        // logically still on 2026-04-10. The 7-day window should run from
+        // 2026-04-04 04:00 UTC through 2026-04-11 02:30 UTC inclusive.
+        val nowAt0230 = now + 2L * 3600 * 1000 + 30L * 60 * 1000
+        val cutoff04At0500 = now - 7 * oneDay + 5L * 3600 * 1000 // 2026-04-04 05:00 UTC
+        val cutoff04At0300 = now - 7 * oneDay + 3L * 3600 * 1000 // 2026-04-04 03:00 UTC
+        val tasks = listOf(
+            task(1, LifeCategory.WORK, dueDate = cutoff04At0500),
+            task(2, LifeCategory.SELF_CARE, dueDate = cutoff04At0300)
+        )
+
+        val sodState = tracker.compute(
+            tasks,
+            BalanceConfig(),
+            now = nowAt0230,
+            timeZone = utc,
+            dayStartHour = 4
+        )
+        assertEquals(1, sodState.totalTracked)
+        assertEquals(1f, sodState.currentRatios[LifeCategory.WORK]!!, 0.001f)
+        assertEquals(0f, sodState.currentRatios[LifeCategory.SELF_CARE]!!, 0.001f)
+
+        // Without SoD (default dayStartHour = 0), system midnight at
+        // 2026-04-11 00:00 UTC snaps "today" forward, so the 7-day window
+        // starts at 2026-04-05 00:00 UTC and excludes both tasks.
+        val midnightState = tracker.compute(
+            tasks,
+            BalanceConfig(),
+            now = nowAt0230,
+            timeZone = utc
+        )
+        assertEquals(0, midnightState.totalTracked)
+    }
+
+    @Test
+    fun `SoD has no effect when current time is past the day-start`() {
+        // now = 2026-04-11 06:00 UTC, well past a 4 AM SoD. The 7-day window
+        // should start at 2026-04-05 04:00 UTC. A task at 2026-04-05 03:00
+        // UTC is excluded; a task at 2026-04-05 05:00 UTC is included.
+        val nowAt0600 = now + 6L * 3600 * 1000
+        val before = now - 6 * oneDay + 3L * 3600 * 1000 // 2026-04-05 03:00 UTC
+        val after = now - 6 * oneDay + 5L * 3600 * 1000 // 2026-04-05 05:00 UTC
+        val tasks = listOf(
+            task(1, LifeCategory.WORK, dueDate = before),
+            task(2, LifeCategory.SELF_CARE, dueDate = after)
+        )
+
+        val state = tracker.compute(
+            tasks,
+            BalanceConfig(),
+            now = nowAt0600,
+            timeZone = utc,
+            dayStartHour = 4
+        )
+        assertEquals(1, state.totalTracked)
+        assertEquals(1f, state.currentRatios[LifeCategory.SELF_CARE]!!, 0.001f)
+    }
+
+    @Test
     fun `config isValid true when sums to 1`() {
         val config = BalanceConfig(
             workTarget = 0.40f,
