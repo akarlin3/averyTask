@@ -379,6 +379,8 @@ fun PrismTaskNavGraph(
                 }
                 if (habitIndex >= 0) {
                     pagerState.scrollToPage(habitIndex)
+                } else {
+                    Unit
                 }
             }
             WidgetLaunchAction.OpenTimer -> {
@@ -387,6 +389,8 @@ fun PrismTaskNavGraph(
                 }
                 if (timerIndex >= 0) {
                     pagerState.scrollToPage(timerIndex)
+                } else {
+                    Unit
                 }
             }
         }
