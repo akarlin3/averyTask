@@ -59,12 +59,12 @@ import com.averycorp.prismtask.ui.screens.settings.SettingsScreen
 import com.averycorp.prismtask.ui.screens.tasklist.TaskListScreen
 import com.averycorp.prismtask.ui.screens.timer.TimerScreen
 import com.averycorp.prismtask.ui.screens.today.TodayScreen
-import com.averycorp.prismtask.widget.launch.WidgetLaunchAction
 import com.averycorp.prismtask.ui.theme.LocalPrismAttrs
 import com.averycorp.prismtask.ui.theme.LocalPrismColors
 import com.averycorp.prismtask.ui.theme.LocalPrismFonts
 import com.averycorp.prismtask.ui.theme.PrismHudDivider
 import com.averycorp.prismtask.ui.theme.prismGlow
+import com.averycorp.prismtask.widget.launch.WidgetLaunchAction
 import kotlinx.coroutines.launch
 
 sealed class PrismTaskRoute(
