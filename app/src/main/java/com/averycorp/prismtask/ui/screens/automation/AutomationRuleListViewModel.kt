@@ -30,7 +30,9 @@ class AutomationRuleListViewModel @Inject constructor(
         viewModelScope.launch { ruleRepository.setEnabled(id, enabled) }
     }
 
-    fun runNow(id: Long) { engine.runNow(id) }
+    fun runNow(id: Long) {
+        engine.runNow(id)
+    }
 
     fun delete(id: Long) {
         viewModelScope.launch { ruleRepository.delete(id) }

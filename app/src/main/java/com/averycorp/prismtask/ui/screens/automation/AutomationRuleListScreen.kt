@@ -192,7 +192,7 @@ private fun OverflowMenu(onViewLog: () -> Unit, onDelete: (() -> Unit)?) {
                 text = { Text("View Run History") },
                 onClick = {
                     expanded = false
-                onViewLog()
+                    onViewLog()
                 }
             )
             if (onDelete != null) {
@@ -200,7 +200,7 @@ private fun OverflowMenu(onViewLog: () -> Unit, onDelete: (() -> Unit)?) {
                     text = { Text("Delete Rule") },
                     onClick = {
                         expanded = false
-                    onDelete()
+                        onDelete()
                     }
                 )
             }
