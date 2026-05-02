@@ -95,6 +95,16 @@ data class TaskEntity(
     @ColumnInfo(name = "life_category")
     val lifeCategory: String? = null,
     /**
+     * Reward / output type for the task. Stored as the
+     * [com.averycorp.prismtask.domain.model.TaskMode] enum name (e.g. "WORK",
+     * "PLAY", "RELAX"). Null or unknown values are treated as
+     * [com.averycorp.prismtask.domain.model.TaskMode.UNCATEGORIZED].
+     *
+     * Orthogonal to [lifeCategory] — see `docs/WORK_PLAY_RELAX.md`.
+     */
+    @ColumnInfo(name = "task_mode")
+    val taskMode: String? = null,
+    /**
      * Focus & Release Mode per-task overrides.
      *
      * Good Enough Timer override in minutes. Null = use global default.

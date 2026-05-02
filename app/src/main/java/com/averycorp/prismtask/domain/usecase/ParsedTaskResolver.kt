@@ -19,7 +19,9 @@ data class ResolvedTask(
     val unmatchedTags: List<String>,
     val unmatchedProject: String?,
     /** Work-Life Balance category carried over from NLP parsing. */
-    val lifeCategory: String? = null
+    val lifeCategory: String? = null,
+    /** Reward / output mode carried over from NLP parsing (`#work-mode` etc). */
+    val taskMode: String? = null
 )
 
 @Singleton
@@ -73,7 +75,8 @@ constructor(
             recurrenceRule = recurrenceRule,
             unmatchedTags = unmatchedTags,
             unmatchedProject = unmatchedProject,
-            lifeCategory = parsed.lifeCategory
+            lifeCategory = parsed.lifeCategory,
+            taskMode = parsed.taskMode
         )
     }
 }

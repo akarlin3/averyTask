@@ -56,12 +56,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.domain.model.LifeCategory
+import com.averycorp.prismtask.domain.model.TaskMode
 import com.averycorp.prismtask.ui.screens.addedittask.AddEditTaskViewModel
 import com.averycorp.prismtask.ui.screens.addedittask.PROJECT_COLORS
 import com.averycorp.prismtask.ui.screens.addedittask.SectionLabel
 import com.averycorp.prismtask.ui.screens.addedittask.TAG_COLORS
 import com.averycorp.prismtask.ui.screens.addedittask.parseColorOr
 import com.averycorp.prismtask.ui.theme.LifeCategoryColor
+import com.averycorp.prismtask.ui.theme.TaskModeColor
 import com.averycorp.prismtask.ui.theme.LocalPrismShapes
 import kotlinx.coroutines.launch
 
@@ -129,6 +131,14 @@ internal fun OrganizeTabContent(
         selected = viewModel.lifeCategory,
         manuallySet = viewModel.lifeCategoryManuallySet,
         onSelect = { viewModel.onLifeCategoryChange(it) }
+    )
+
+    // ---- Task Mode section (Work / Play / Relax — see docs/WORK_PLAY_RELAX.md) ----
+    SectionLabel("Task Mode")
+    TaskModeSelector(
+        selected = viewModel.taskMode,
+        manuallySet = viewModel.taskModeManuallySet,
+        onSelect = { viewModel.onTaskModeChange(it) }
     )
 
     // ---- Parent task section ----
@@ -806,6 +816,49 @@ internal fun LifeCategorySelector(
             color = LifeCategoryColor.HEALTH,
             selected = selected == LifeCategory.HEALTH,
             onClick = { onSelect(LifeCategory.HEALTH) }
+        )
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Organize tab: Task Mode selector (Work / Play / Relax)
+// ---------------------------------------------------------------------------
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun TaskModeSelector(
+    selected: TaskMode?,
+    manuallySet: Boolean,
+    onSelect: (TaskMode?) -> Unit
+) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        LifeCategoryChip(
+            label = "Auto",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            selected = !manuallySet,
+            onClick = { onSelect(null) }
+        )
+        LifeCategoryChip(
+            label = TaskMode.label(TaskMode.WORK),
+            color = TaskModeColor.WORK,
+            selected = selected == TaskMode.WORK,
+            onClick = { onSelect(TaskMode.WORK) }
+        )
+        LifeCategoryChip(
+            label = TaskMode.label(TaskMode.PLAY),
+            color = TaskModeColor.PLAY,
+            selected = selected == TaskMode.PLAY,
+            onClick = { onSelect(TaskMode.PLAY) }
+        )
+        LifeCategoryChip(
+            label = TaskMode.label(TaskMode.RELAX),
+            color = TaskModeColor.RELAX,
+            selected = selected == TaskMode.RELAX,
+            onClick = { onSelect(TaskMode.RELAX) }
         )
     }
 }

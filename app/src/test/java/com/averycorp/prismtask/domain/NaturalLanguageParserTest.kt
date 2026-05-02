@@ -56,6 +56,7 @@ import com.averycorp.prismtask.domain.usecase.NaturalLanguageParser
 import okhttp3.MultipartBody
 import okhttp3.ResponseBody
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -559,5 +560,45 @@ class NaturalLanguageParserTest {
     fun test_noCategoryTagLeavesLifeCategoryNull() {
         val result = parser.parse("Buy milk #groceries")
         assertNull(result.lifeCategory)
+    }
+
+    // Task Mode hashtags (Work / Play / Relax — see docs/WORK_PLAY_RELAX.md)
+
+    @Test
+    fun test_workModeHashtagSetsTaskMode() {
+        val result = parser.parse("Ship the release notes #work-mode")
+        assertEquals("Ship the release notes", result.title)
+        assertEquals("WORK", result.taskMode)
+        // Mode tag is NOT promoted into the regular tag list — it's a
+        // separate dimension, not a tag.
+        assertFalse(result.tags.contains("work-mode"))
+    }
+
+    @Test
+    fun test_playModeHashtagSetsTaskMode() {
+        val result = parser.parse("Pickup basketball #play-mode")
+        assertEquals("Pickup basketball", result.title)
+        assertEquals("PLAY", result.taskMode)
+    }
+
+    @Test
+    fun test_relaxModeHashtagSetsTaskMode() {
+        val result = parser.parse("Long bath #relax-mode")
+        assertEquals("Long bath", result.title)
+        assertEquals("RELAX", result.taskMode)
+    }
+
+    @Test
+    fun test_modeAndCategoryAreOrthogonal() {
+        // A health task can be in any mode — see docs/WORK_PLAY_RELAX.md.
+        val result = parser.parse("Hike with friends #health #play-mode")
+        assertEquals("HEALTH", result.lifeCategory)
+        assertEquals("PLAY", result.taskMode)
+    }
+
+    @Test
+    fun test_noModeHashtagLeavesTaskModeNull() {
+        val result = parser.parse("Buy milk #groceries")
+        assertNull(result.taskMode)
     }
 }

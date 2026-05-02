@@ -42,6 +42,7 @@ import com.averycorp.prismtask.data.preferences.HabitListPreferences
 import com.averycorp.prismtask.data.preferences.HabitReminderFallback
 import com.averycorp.prismtask.data.preferences.LeisurePreferences
 import com.averycorp.prismtask.data.preferences.LifeCategoryCustomKeywords
+import com.averycorp.prismtask.data.preferences.TaskModeCustomKeywords
 import com.averycorp.prismtask.data.preferences.MedicationPreferences
 import com.averycorp.prismtask.data.preferences.MedicationScheduleMode
 import com.averycorp.prismtask.data.preferences.MoodCorrelationConfig
@@ -1689,6 +1690,9 @@ constructor(
         }
         a.getAsJsonObject("lifeCategoryKeywords")?.let {
             p.setLifeCategoryCustomKeywords(gson.fromJson(it, LifeCategoryCustomKeywords::class.java))
+        }
+        a.getAsJsonObject("taskModeKeywords")?.let {
+            p.setTaskModeCustomKeywords(gson.fromJson(it, TaskModeCustomKeywords::class.java))
         }
         a.getAsJsonObject("weeklySummary")?.let {
             p.setWeeklySummarySchedule(gson.fromJson(it, WeeklySummarySchedule::class.java))
