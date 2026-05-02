@@ -47,8 +47,11 @@ fun AutomationLogScreen(
             TopAppBar(
                 title = {
                     Text(
-                        if (ruleIdFilter != null) "Run History (1 rule)"
-                        else "Run History"
+                        if (ruleIdFilter != null) {
+                            "Run History (1 rule)"
+                        } else {
+                            "Run History"
+                        }
                     )
                 },
                 navigationIcon = {

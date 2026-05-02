@@ -64,13 +64,18 @@ object AutomationJsonAdapter {
             when (src) {
                 is AutomationTrigger.EntityEvent -> addProperty("eventKind", src.eventKind)
                 is AutomationTrigger.TimeOfDay -> {
-                    addProperty("hour", src.hour); addProperty("minute", src.minute)
+                    addProperty("hour", src.hour)
+                    addProperty("minute", src.minute)
                 }
                 is AutomationTrigger.DayOfWeekTime -> {
-                    addProperty("hour", src.hour); addProperty("minute", src.minute)
-                    add("daysOfWeek", JsonArray().also { arr ->
-                        src.daysOfWeek.forEach { arr.add(JsonPrimitive(it)) }
-                    })
+                    addProperty("hour", src.hour)
+                    addProperty("minute", src.minute)
+                    add(
+                        "daysOfWeek",
+                        JsonArray().also { arr ->
+                            src.daysOfWeek.forEach { arr.add(JsonPrimitive(it)) }
+                        }
+                    )
                 }
                 is AutomationTrigger.Composed -> addProperty("parentRuleId", src.parentRuleId)
                 AutomationTrigger.Manual -> {}
@@ -117,12 +122,18 @@ object AutomationJsonAdapter {
                     addProperty("field", src.field)
                     add("value", encodeValue(src.value))
                 }
-                is AutomationCondition.And -> add("children", JsonArray().also { arr ->
-                    src.children.forEach { arr.add(serialize(it, AutomationCondition::class.java, context)) }
-                })
-                is AutomationCondition.Or -> add("children", JsonArray().also { arr ->
-                    src.children.forEach { arr.add(serialize(it, AutomationCondition::class.java, context)) }
-                })
+                is AutomationCondition.And -> add(
+                    "children",
+                    JsonArray().also { arr ->
+                        src.children.forEach { arr.add(serialize(it, AutomationCondition::class.java, context)) }
+                    }
+                )
+                is AutomationCondition.Or -> add(
+                    "children",
+                    JsonArray().also { arr ->
+                        src.children.forEach { arr.add(serialize(it, AutomationCondition::class.java, context)) }
+                    }
+                )
                 is AutomationCondition.Not -> add("child", serialize(src.child, AutomationCondition::class.java, context))
             }
         }
@@ -159,24 +170,30 @@ object AutomationJsonAdapter {
             addProperty("type", src.type)
             when (src) {
                 is AutomationAction.Notify -> {
-                    addProperty("title", src.title); addProperty("body", src.body)
+                    addProperty("title", src.title)
+                    addProperty("body", src.body)
                     addProperty("priority", src.priority)
                 }
                 is AutomationAction.MutateTask -> add("updates", encodeMap(src.updates))
                 is AutomationAction.MutateHabit -> add("updates", encodeMap(src.updates))
                 is AutomationAction.MutateMedication -> add("updates", encodeMap(src.updates))
                 is AutomationAction.ScheduleTimer -> {
-                    addProperty("durationMinutes", src.durationMinutes); addProperty("mode", src.mode)
+                    addProperty("durationMinutes", src.durationMinutes)
+                    addProperty("mode", src.mode)
                 }
-                is AutomationAction.ApplyBatch -> add("mutations", JsonArray().also { arr ->
-                    src.mutations.forEach { arr.add(encodeMap(it)) }
-                })
+                is AutomationAction.ApplyBatch -> add(
+                    "mutations",
+                    JsonArray().also { arr ->
+                        src.mutations.forEach { arr.add(encodeMap(it)) }
+                    }
+                )
                 is AutomationAction.AiComplete -> {
                     addProperty("prompt", src.prompt)
                     src.targetField?.let { addProperty("targetField", it) }
                 }
                 is AutomationAction.AiSummarize -> {
-                    addProperty("scope", src.scope); addProperty("maxItems", src.maxItems)
+                    addProperty("scope", src.scope)
+                    addProperty("maxItems", src.maxItems)
                 }
                 is AutomationAction.LogMessage -> addProperty("message", src.message)
             }

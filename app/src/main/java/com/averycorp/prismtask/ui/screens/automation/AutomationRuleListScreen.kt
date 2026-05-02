@@ -189,12 +189,18 @@ private fun OverflowMenu(onViewLog: () -> Unit, onDelete: (() -> Unit)?) {
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             DropdownMenuItem(
                 text = { Text("View Run History") },
-                onClick = { expanded = false; onViewLog() }
+                onClick = {
+                    expanded = false;
+                onViewLog()
+                }
             )
             if (onDelete != null) {
                 DropdownMenuItem(
                     text = { Text("Delete Rule") },
-                    onClick = { expanded = false; onDelete() }
+                    onClick = {
+                        expanded = false;
+                    onDelete()
+                    }
                 )
             }
         }

@@ -22,9 +22,10 @@ sealed class AutomationTrigger(val type: String) {
      */
     data class EntityEvent(
         val eventKind: String
-    ) : AutomationTrigger(TYPE)
-    {
-        companion object { const val TYPE = "ENTITY_EVENT" }
+    ) : AutomationTrigger(TYPE) {
+        companion object {
+            const val TYPE = "ENTITY_EVENT"
+        }
     }
 
     /**
@@ -36,9 +37,10 @@ sealed class AutomationTrigger(val type: String) {
     data class TimeOfDay(
         val hour: Int,
         val minute: Int
-    ) : AutomationTrigger(TYPE)
-    {
-        companion object { const val TYPE = "TIME_OF_DAY" }
+    ) : AutomationTrigger(TYPE) {
+        companion object {
+            const val TYPE = "TIME_OF_DAY"
+        }
     }
 
     /**
@@ -52,13 +54,16 @@ sealed class AutomationTrigger(val type: String) {
         val daysOfWeek: Set<String>,
         val hour: Int,
         val minute: Int
-    ) : AutomationTrigger(TYPE)
-    {
-        companion object { const val TYPE = "DAY_OF_WEEK_TIME" }
+    ) : AutomationTrigger(TYPE) {
+        companion object {
+            const val TYPE = "DAY_OF_WEEK_TIME"
+        }
     }
 
     /** No automatic firing — must be invoked via "Run Now" from the UI. */
-    object Manual : AutomationTrigger(TYPE) { const val TYPE = "MANUAL" }
+    object Manual : AutomationTrigger(TYPE) {
+        const val TYPE = "MANUAL"
+    }
 
     /**
      * Composed trigger — fires when [parentRuleId] fires. Cycle detection
@@ -66,8 +71,9 @@ sealed class AutomationTrigger(val type: String) {
      */
     data class Composed(
         val parentRuleId: Long
-    ) : AutomationTrigger(TYPE)
-    {
-        companion object { const val TYPE = "COMPOSED" }
+    ) : AutomationTrigger(TYPE) {
+        companion object {
+            const val TYPE = "COMPOSED"
+        }
     }
 }

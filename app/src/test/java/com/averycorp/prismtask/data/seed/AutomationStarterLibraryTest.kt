@@ -43,14 +43,16 @@ class AutomationStarterLibraryTest {
             val actionsDecoded = AutomationJsonAdapter.decodeActions(actionsJson)
             assertEquals(
                 "actions count mismatch for ${t.id}",
-                t.actions.size, actionsDecoded.size
+                t.actions.size,
+                actionsDecoded.size
             )
             // Every decoded action's type matches the original — value-shape
             // round-trip for action payloads is covered in AutomationJsonAdapterTest.
             t.actions.zip(actionsDecoded).forEach { (orig, decoded) ->
                 assertEquals(
                     "action type mismatch in ${t.id}",
-                    orig.type, decoded.type
+                    orig.type,
+                    decoded.type
                 )
             }
         }

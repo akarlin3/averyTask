@@ -58,15 +58,19 @@ class AutomationJsonAdapterTest {
     }
 
     @Test fun condition_complexTree_roundTrip() {
-        val original = AutomationCondition.And(listOf(
-            AutomationCondition.Or(listOf(
-                AutomationCondition.Compare(Op.GTE, "task.priority", 3),
-                AutomationCondition.Compare(Op.CONTAINS, "task.tags", "#urgent")
-            )),
-            AutomationCondition.Not(
-                AutomationCondition.Compare(Op.EXISTS, "task.completedAt")
+        val original = AutomationCondition.And(
+            listOf(
+                AutomationCondition.Or(
+                    listOf(
+                        AutomationCondition.Compare(Op.GTE, "task.priority", 3),
+                        AutomationCondition.Compare(Op.CONTAINS, "task.tags", "#urgent")
+                    )
+                ),
+                AutomationCondition.Not(
+                    AutomationCondition.Compare(Op.EXISTS, "task.completedAt")
+                )
             )
-        ))
+        )
         val json = AutomationJsonAdapter.encodeCondition(original)
         val decoded = AutomationJsonAdapter.decodeCondition(json)
         assertEquals(original, decoded)
@@ -118,6 +122,7 @@ class AutomationJsonAdapterTest {
                 )
             )
         )
+
         @Suppress("UNCHECKED_CAST")
         val decoded = AutomationJsonAdapter.decodeActions(
             AutomationJsonAdapter.encodeActions(original)

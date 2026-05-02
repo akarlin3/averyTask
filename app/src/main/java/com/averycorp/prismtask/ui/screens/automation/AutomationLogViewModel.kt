@@ -22,10 +22,11 @@ class AutomationLogViewModel @Inject constructor(
 
     val rows: StateFlow<List<AutomationLogRow>> = combine(
         ruleRepository.observeAll(),
-        if (ruleIdFilter != null)
+        if (ruleIdFilter != null) {
             ruleRepository.observeLogsForRule(ruleIdFilter)
-        else
+        } else {
             ruleRepository.observeRecentLogs()
+        }
     ) { rules, logs ->
         val ruleNameById = rules.associateBy({ it.id }, { it.name })
         logs.map { it.toRow(ruleNameById[it.ruleId] ?: "Rule #${it.ruleId}") }

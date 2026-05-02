@@ -163,7 +163,9 @@ private fun SearchField(
                     Icon(Icons.Filled.Close, contentDescription = "Clear search")
                 }
             }
-        } else null,
+        } else {
+            null
+        },
         placeholder = { Text("Search templates") }
     )
 }

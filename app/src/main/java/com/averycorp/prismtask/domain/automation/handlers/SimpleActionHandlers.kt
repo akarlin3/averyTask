@@ -99,8 +99,8 @@ class MutateTaskActionHandler @Inject constructor(
                 "isFlagged" -> next.copy(isFlagged = value as? Boolean ?: next.isFlagged)
                 "lifeCategory" -> next.copy(lifeCategory = value as? String)
                 "projectId" -> next.copy(projectId = (value as? Number)?.toLong())
-                "tagsAdd", "tagsRemove" -> next  // handled separately below
-                else -> next  // unknown fields silently ignored — handler is best-effort
+                "tagsAdd", "tagsRemove" -> next // handled separately below
+                else -> next // unknown fields silently ignored — handler is best-effort
             }
         }
         if (next != task) taskRepository.updateTask(next)
@@ -157,8 +157,11 @@ class MutateHabitActionHandler @Inject constructor(
             ?: return ActionResult.Skipped(type, "no habit on event")
         val nextArchived = mutate.updates["isArchived"] as? Boolean
         if (nextArchived != null) {
-            if (nextArchived) habitRepository.archiveHabit(habit.id)
-            else habitRepository.unarchiveHabit(habit.id)
+            if (nextArchived) {
+                habitRepository.archiveHabit(habit.id)
+            } else {
+                habitRepository.unarchiveHabit(habit.id)
+            }
             return ActionResult.Ok(type, "habit ${habit.id} archived=$nextArchived")
         }
         return ActionResult.Skipped(type, "no supported updates")

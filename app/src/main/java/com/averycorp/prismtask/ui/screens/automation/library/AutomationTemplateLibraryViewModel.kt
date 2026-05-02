@@ -42,8 +42,11 @@ class AutomationTemplateLibraryViewModel @Inject constructor(
         // audit doc's category order.
         return AutomationTemplateCategory.values().mapNotNull { cat ->
             val rules = matches.filter { it.category == cat }
-            if (rules.isEmpty()) null
-            else AutomationTemplateCategorySection(category = cat, templates = rules)
+            if (rules.isEmpty()) {
+                null
+            } else {
+                AutomationTemplateCategorySection(category = cat, templates = rules)
+            }
         }
     }
 

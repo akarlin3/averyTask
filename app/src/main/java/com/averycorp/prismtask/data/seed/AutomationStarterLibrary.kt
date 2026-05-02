@@ -23,7 +23,7 @@ enum class AutomationTemplateCategory(val displayName: String) {
     FOCUS("Focus + Deep Work"),
     FRICTION("Reduce Friction"),
     WELLNESS("Wellness Check-Ins"),
-    POWER_USER("Power User"),
+    POWER_USER("Power User")
 }
 
 /**
@@ -38,7 +38,7 @@ data class AutomationTemplate(
     val description: String,
     val trigger: AutomationTrigger,
     val condition: AutomationCondition?,
-    val actions: List<AutomationAction>,
+    val actions: List<AutomationAction>
 ) {
     /** True if any action in [actions] egresses to Anthropic. */
     val requiresAi: Boolean
@@ -372,10 +372,12 @@ object AutomationStarterLibrary {
             cmpEq("event.dayOfWeek", "SUNDAY")
         ),
         actions = listOf(
-            mutateTask(mapOf(
-                "tagsAdd" to listOf("personal"),
-                "lifeCategory" to "PERSONAL"
-            ))
+            mutateTask(
+                mapOf(
+                    "tagsAdd" to listOf("personal"),
+                    "lifeCategory" to "PERSONAL"
+                )
+            )
         )
     )
 
@@ -540,7 +542,7 @@ object AutomationStarterLibrary {
         wellnessSundayReview,
         powerManualAiBriefing,
         powerDailyEodAi,
-        powerWeeklyAiReflection,
+        powerWeeklyAiReflection
     )
 
     val TEMPLATES_BY_CATEGORY: Map<AutomationTemplateCategory, List<AutomationTemplate>>
@@ -558,6 +560,6 @@ object AutomationStarterLibrary {
         morningKickoff.id,
         streak7.id,
         frictionAutotagToday.id,
-        focusAiSummarizeCompletions.id,
+        focusAiSummarizeCompletions.id
     )
 }

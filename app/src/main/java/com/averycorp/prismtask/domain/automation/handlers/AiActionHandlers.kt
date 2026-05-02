@@ -1,13 +1,5 @@
 package com.averycorp.prismtask.domain.automation.handlers
 
-import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
-import com.averycorp.prismtask.domain.automation.ActionResult
-import com.averycorp.prismtask.domain.automation.AutomationAction
-import com.averycorp.prismtask.domain.automation.AutomationActionHandler
-import com.averycorp.prismtask.domain.automation.ExecutionContext
-import javax.inject.Inject
-import javax.inject.Singleton
-
 /**
  * `ai.complete` and `ai.summarize` action handlers — routed through the
  * backend `/api/v1/ai/automation/*` endpoints, which inherit the existing
@@ -89,3 +81,4 @@ class ApplyBatchActionHandler @Inject constructor() : AutomationActionHandler {
         "apply.batch deferred to v1.1 — needs BatchOperationsRepository.applyBatchSynthetic extraction"
     )
 }
+

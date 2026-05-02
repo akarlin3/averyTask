@@ -40,10 +40,11 @@ data class EvaluationContext(
      */
     fun resolve(path: String): Any? = when (path) {
         "event.occurredAt" -> event.occurredAt
-        "event.dayOfWeek" -> java.time.LocalDate
-            .ofInstant(java.time.Instant.ofEpochMilli(event.occurredAt), java.time.ZoneId.systemDefault())
-            .dayOfWeek
-            .name
+        "event.dayOfWeek" ->
+            java.time.LocalDate
+                .ofInstant(java.time.Instant.ofEpochMilli(event.occurredAt), java.time.ZoneId.systemDefault())
+                .dayOfWeek
+                .name
         "task.id" -> task?.id
         "task.title" -> task?.title
         "task.priority" -> task?.priority

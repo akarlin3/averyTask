@@ -65,7 +65,10 @@ class AutomationEngine @Inject constructor(
         }
     }
 
-    fun stop() { collectJob?.cancel(); collectJob = null }
+    fun stop() {
+        collectJob?.cancel()
+        collectJob = null
+    }
 
     private suspend fun handleEvent(
         event: AutomationEvent,
