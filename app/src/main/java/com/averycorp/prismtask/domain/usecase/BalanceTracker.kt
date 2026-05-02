@@ -70,6 +70,12 @@ data class BalanceConfig(
  * The tracker intentionally takes a list of [TaskEntity] and a "now" long so it
  * is trivial to unit-test deterministically. Repositories wire it up with
  * `Flow<List<TaskEntity>>` combine operators.
+ *
+ * Window cutoffs respect the user-configured Start-of-Day so that the balance
+ * bar's "this week" matches the Today-screen task filter, habit streaks, and
+ * widget windows (all of which derive their day boundary from
+ * [com.averycorp.prismtask.util.DayBoundary]). Callers that don't have access
+ * to the SoD preference fall back to system midnight (`dayStartHour = 0`).
  */
 class BalanceTracker {
     /** Compute a [BalanceState] from a pool of tasks. */
@@ -77,10 +83,12 @@ class BalanceTracker {
         allTasks: List<TaskEntity>,
         config: BalanceConfig,
         now: Long = System.currentTimeMillis(),
-        timeZone: TimeZone = TimeZone.getDefault()
+        timeZone: TimeZone = TimeZone.getDefault(),
+        dayStartHour: Int = 0,
+        dayStartMinute: Int = 0
     ): BalanceState {
-        val weekCutoff = cutoff(now, days = 7, timeZone = timeZone)
-        val monthCutoff = cutoff(now, days = 28, timeZone = timeZone)
+        val weekCutoff = cutoff(now, days = 7, timeZone, dayStartHour, dayStartMinute)
+        val monthCutoff = cutoff(now, days = 28, timeZone, dayStartHour, dayStartMinute)
 
         val current = computeRatios(allTasks, weekCutoff)
         val rolling = computeRatios(allTasks, monthCutoff)
@@ -143,13 +151,30 @@ class BalanceTracker {
      */
     private fun timestampFor(task: TaskEntity): Long = task.completedAt ?: task.dueDate ?: task.createdAt
 
-    private fun cutoff(now: Long, days: Int, timeZone: TimeZone): Long {
+    /**
+     * Lower bound of the balance window. Snaps `now` back to the most recent
+     * day-start (the configured SoD on today's calendar date if `now` is at or
+     * after it; otherwise yesterday's SoD), then walks back `days - 1` days so
+     * the resulting window covers `days` logical days inclusive of today.
+     */
+    private fun cutoff(
+        now: Long,
+        days: Int,
+        timeZone: TimeZone,
+        dayStartHour: Int,
+        dayStartMinute: Int
+    ): Long {
         val cal = Calendar.getInstance(timeZone)
         cal.timeInMillis = now
-        cal.set(Calendar.HOUR_OF_DAY, 0)
-        cal.set(Calendar.MINUTE, 0)
+        val currentMinutesSinceMidnight = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
+        val sodMinutesSinceMidnight = dayStartHour * 60 + dayStartMinute
+        cal.set(Calendar.HOUR_OF_DAY, dayStartHour)
+        cal.set(Calendar.MINUTE, dayStartMinute)
         cal.set(Calendar.SECOND, 0)
         cal.set(Calendar.MILLISECOND, 0)
+        if (currentMinutesSinceMidnight < sodMinutesSinceMidnight) {
+            cal.add(Calendar.DAY_OF_YEAR, -1)
+        }
         cal.add(Calendar.DAY_OF_YEAR, -(days - 1))
         return cal.timeInMillis
     }

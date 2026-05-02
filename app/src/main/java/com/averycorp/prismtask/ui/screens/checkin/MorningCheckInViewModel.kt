@@ -117,8 +117,9 @@ constructor(
     val balanceState: StateFlow<BalanceState> =
         combine(
             taskRepository.getAllTasks(),
-            workLifeBalancePrefs
-        ) { allTasks, prefs ->
+            workLifeBalancePrefs,
+            taskBehaviorPreferences.getStartOfDay()
+        ) { allTasks, prefs, sod ->
             val config = BalanceConfig(
                 workTarget = prefs.workTarget / 100f,
                 personalTarget = prefs.personalTarget / 100f,
@@ -126,7 +127,12 @@ constructor(
                 healthTarget = prefs.healthTarget / 100f,
                 overloadThreshold = prefs.overloadThresholdPct / 100f
             )
-            balanceTracker.compute(allTasks, config)
+            balanceTracker.compute(
+                allTasks,
+                config,
+                dayStartHour = sod.hour,
+                dayStartMinute = sod.minute
+            )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BalanceState.EMPTY)
 
     /** Composite burnout result (0–100 score + band) for the Balance step badge. */

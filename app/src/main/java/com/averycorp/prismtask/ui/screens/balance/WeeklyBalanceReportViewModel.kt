@@ -2,6 +2,7 @@ package com.averycorp.prismtask.ui.screens.balance
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.domain.model.LifeCategory
@@ -34,7 +35,8 @@ class WeeklyBalanceReportViewModel
 @Inject
 constructor(
     private val taskRepository: TaskRepository,
-    private val userPreferencesDataStore: UserPreferencesDataStore
+    private val userPreferencesDataStore: UserPreferencesDataStore,
+    private val taskBehaviorPreferences: TaskBehaviorPreferences
 ) : ViewModel() {
     private val aggregator = WeeklyReviewAggregator()
     private val balanceTracker = BalanceTracker()
@@ -51,6 +53,7 @@ constructor(
         viewModelScope.launch {
             try {
                 val prefs = userPreferencesDataStore.workLifeBalanceFlow.first()
+                val sod = taskBehaviorPreferences.getStartOfDay().first()
                 val tasks = taskRepository.getAllTasksOnce()
                 val stats = aggregator.aggregate(tasks, reference)
                 val config = BalanceConfig(
@@ -60,7 +63,13 @@ constructor(
                     healthTarget = prefs.healthTarget / 100f,
                     overloadThreshold = prefs.overloadThresholdPct / 100f
                 )
-                val balance = balanceTracker.compute(tasks, config, now = reference)
+                val balance = balanceTracker.compute(
+                    tasks,
+                    config,
+                    now = reference,
+                    dayStartHour = sod.hour,
+                    dayStartMinute = sod.minute
+                )
                 val workRatio = balance.currentRatios[LifeCategory.WORK] ?: 0f
                 val burnout = burnoutScorer.computeFromTasks(
                     tasks,
