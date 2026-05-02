@@ -238,3 +238,80 @@ Bundles can ship as 5 independent PRs — no sequencing constraints remain. Orig
 ---
 
 ## Phase 2 will auto-fire after this doc commits.
+
+---
+
+## Phase 3 — Bundle summary (post-implementation)
+
+All five bundles shipped on a single branch
+(`claude/audit-deferral-cleanup-OkFBq`) as five sequential commits
+rather than fanning out to five branches — repository instructions
+restrict this session to the designated branch.
+
+### Per-bundle outcomes
+
+| Bundle | Commit | LOC (final) | vs. estimate | Notes |
+|--------|--------|-------------|--------------|-------|
+| C — AIRoutes BatchPreview comment | `chore(nav): document BatchPreview's plain composable as deliberate` | 4 | ~3 estimated → matched | One-line comment as planned. |
+| A.2 — parse-debug api_key leak | `fix(backend): drop api_key_length from /tasks/parse-debug response` | 14 (±4) | ~40 estimated → under | Replaced field with `api_key_configured: bool`; dropped log lines in nlp_parser.py; added regression test. |
+| E.2 + E.3 — analytics polish | `feat(analytics): rename dashboard + thread weekly analytics schedule preference` | 26 (±8) | ~50 estimated → under | E.1 reclassified mid-flight (see surprise below). |
+| B.1 — TimerVM widget sync | `fix(timer): resync widget after onTimerCompleted flips mode` | 6 | ~5 estimated → matched | One added `syncWidgetState` + `updateTimerWidget` call. |
+| D — medication dup notification | `fix(reminders): suppress legacy med scheduler when slots are present` | 35 (±21) | ~90 estimated → under | Slot-aware guard at scheduleForMedication entry; shared TIME_OF_DAY_CLOCK extracted; existing test re-pointed at the shared constant. |
+
+**Total LOC shipped:** ~85 changed (well under the ~600-1500 LOC
+estimate from the original mega-prompt — most bundles came in lighter
+than estimated because audit recon caught items that were already
+shipped or didn't need the full proposed scope).
+
+### Mid-flight surprises
+
+1. **E.1 reclassified GREEN-no-work mid-implementation.** The Phase 1
+   audit recommended adding a "Last 12 weeks" header above the heatmap
+   to disambiguate from the productivity range selector. While reading
+   `ProductivityHeatmap.kt:88` to add the header, the existing
+   subtitle `"Last 12 weeks — score per day"` was already in place.
+   No code change needed; closure rationale is "label already
+   exists." This is the exact pattern memory #20 (drive-by fix
+   detection) calls out — the audit should have caught this with a
+   `git log -p -S 'Last 12 weeks'` sweep before recommending the fix.
+   Cheap mistake; no PR churn.
+
+2. **Bundle B.3 verified GREEN via PR #1055 drive-by.** Documented
+   in Phase 1; flagged here as a clean example of the
+   defer-minimization principle paying off — items DO get fixed by
+   adjacent work, and the audit-first sweep is the mechanism that
+   notices.
+
+3. **Bundle B.2 deferred with concrete re-trigger.** The conflict
+   resolution upgrade is now explicitly tied to "when web ships a
+   medication editor" rather than sitting on a vague backlog. This
+   is a higher-quality deferral than what was originally on the
+   timeline.
+
+### Phase 2 STOP-conditions: none fired.
+
+No PR exceeded its LOC estimate. No new architectural findings
+surfaced that warranted bundling-out. No new deferred items created.
+
+### Memory entry candidates: none.
+
+Defer-minimization principle (memory #30) is already recorded.
+The drive-by detection pattern (memory #20) is already recorded.
+The widely-mixed `composable` vs `horizontalSlideComposable`
+convention is interesting but doesn't rise to a memory-worthy
+generalization — it's a per-route product decision.
+
+### Schedule for next audit: none scheduled.
+
+Backlog drained. Operator can re-run audit-first when new deferred
+items accumulate (~5+ items is the typical batching threshold).
+
+### Final state vs. original prompt's deliverables
+
+- **Timeline items:** 10 closed (7 PROCEED'd, 2 GREEN-no-work, 1 DEFER'd with concrete re-trigger).
+- **F.1 backlog:** 2 items closed (A.1 GREEN, A.2 PROCEED).
+- **F.2 backlog:** 4 items closed (B.1 PROCEED, B.2 DEFER, B.3 GREEN, C PROCEED).
+- **F.6 backlog:** 1 item closed (D PROCEED).
+- **Phase I backlog:** 3 items closed (E.1 GREEN, E.2 PROCEED, E.3 PROCEED).
+- **Defer-minimization principle proven in execution:** 0 new timeline items created during the cleanup.
+
