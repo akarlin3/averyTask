@@ -56,6 +56,7 @@ import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
+@Suppress("TooManyFunctions") // One @Provides per Room DAO — cohesive surface, not a refactor target.
 object DatabaseModule {
     @Provides
     @Singleton

@@ -1,8 +1,16 @@
 package com.averycorp.prismtask.domain.automation.handlers
 
+import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
+import com.averycorp.prismtask.domain.automation.ActionResult
+import com.averycorp.prismtask.domain.automation.AutomationAction
+import com.averycorp.prismtask.domain.automation.AutomationActionHandler
+import com.averycorp.prismtask.domain.automation.ExecutionContext
+import javax.inject.Inject
+import javax.inject.Singleton
+
 /**
  * `ai.complete` and `ai.summarize` action handlers — routed through the
- * backend `/api/v1/ai/automation/*` endpoints, which inherit the existing
+ * backend `/api/v1/ai/automation/...` endpoints, which inherit the existing
  * `/ai/` prefix entry in [AiFeatureGateInterceptor.AI_PATH_PREFIXES] (no
  * prefix-list update required — see § A5 of the architecture doc).
  *
@@ -12,7 +20,7 @@ package com.averycorp.prismtask.domain.automation.handlers
  * skip reason instead of an error).
  *
  * The actual Anthropic round-trip ships in a follow-up PR alongside the
- * backend `/ai/automation/*` routes; the action type is registered so
+ * backend `/ai/automation/...` routes; the action type is registered so
  * sample rules importing it parse + log cleanly, surfacing as a "Skipped:
  * backend endpoint pending" rather than a parse error.
  */
@@ -81,4 +89,3 @@ class ApplyBatchActionHandler @Inject constructor() : AutomationActionHandler {
         "apply.batch deferred to v1.1 — needs BatchOperationsRepository.applyBatchSynthetic extraction"
     )
 }
-
