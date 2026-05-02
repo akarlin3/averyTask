@@ -1,5 +1,6 @@
 package com.averycorp.prismtask.ui.screens.batch
 
+import app.cash.turbine.test
 import com.averycorp.prismtask.data.preferences.NdPreferences
 import com.averycorp.prismtask.data.preferences.NdPreferencesDataStore
 import com.averycorp.prismtask.data.remote.api.BatchParseResponse
@@ -12,7 +13,6 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -22,7 +22,6 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -178,19 +177,20 @@ class BatchPreviewViewModelTest {
         viewModel.loadPreview("push my task to friday")
         advanceUntilIdle()
 
-        var captured: BatchEvent.Approved? = null
-        backgroundScope.launch {
-            viewModel.events.collect {
-                if (it is BatchEvent.Approved) captured = it
-            }
+        // Turbine subscribes BEFORE we trigger approve, which matters because
+        // _events is a SharedFlow with replay = 0 — emissions delivered
+        // before subscription are lost. With Turbine, the test() block
+        // owns the subscription lifecycle and pumps awaitItem suspensions
+        // through the StandardTestDispatcher cleanly.
+        viewModel.events.test {
+            viewModel.approve()
+            val event = awaitItem()
+            assertTrue(event is BatchEvent.Approved)
+            val approved = event as BatchEvent.Approved
+            assertEquals("batch-abc", approved.batchId)
+            assertEquals(1, approved.appliedCount)
+            cancelAndIgnoreRemainingEvents()
         }
-
-        viewModel.approve()
-        advanceUntilIdle()
-
-        assertNotNull("Approve must emit BatchEvent.Approved", captured)
-        assertEquals("batch-abc", captured!!.batchId)
-        assertEquals(1, captured!!.appliedCount)
         coVerify { undoBus.notifyApplied(match { it.batchId == "batch-abc" }) }
     }
 
