@@ -211,3 +211,65 @@ Single PROCEED item; no DEFER / STOP-no-work-needed entries.
   what the log *does* cover but not what it omits. Even after this fix
   it should call out reactive-only sources (escalation, follow-up nags)
   the same way the projector's KDoc does.
+
+---
+
+## Phase 3 — Bundle summary
+
+**Shipped.**
+
+- **PR #1052** (`fix(notifications): project slot-driven medication reminders
+  in admin log`) — squash-merged as `cc23ab92`. Bundles the audit doc + the
+  projector fix + the on-screen blurb update in a single PR. Inject
+  `MedicationSlotDao` + `UserPreferencesDataStore` into `NotificationProjector`,
+  add `projectMedicationSlotsClock` and `projectMedicationSlotsInterval`
+  paths that mirror `MedicationClockRescheduler` /
+  `MedicationIntervalRescheduler`, and skip the legacy
+  `med.scheduleMode`-driven projection for any medication with at least one
+  linked active slot. Adds two new `Source` enum entries
+  (`MEDICATION_SLOT_CLOCK`, `MEDICATION_SLOT_INTERVAL`) so the log labels
+  the row by which scheduler owns the alarm.
+
+**Tests added with the fix.** Five new unit tests in
+`NotificationProjectorTest`, all passing locally (`./gradlew
+:app:testDebugUnitTest --tests "...NotificationProjectorTest"` reports 18
+tests, 0 failures, ~1.3 s):
+
+- `slot CLOCK projects daily occurrences at slot idealTime` — anchors the
+  fix's premise: a slot at `07:30` produces seven daily projected rows at
+  `07:30`, not the legacy `08:00` bucket.
+- `slot CLOCK fans out one row per linked medication` — confirms the
+  `(slot × medication)` fanout and per-med labelling.
+- `slot-linked medication is skipped by legacy projection to avoid
+  double-count` — locks in the legacy-skip rule.
+- `slot INTERVAL anchors on most recent dose plus interval minutes` —
+  mirrors `MedicationIntervalRescheduler.rescheduleAll`'s anchor math.
+- `slot INTERVAL bootstraps to now plus interval when no dose exists` —
+  matches the bootstrap path the production rescheduler also takes.
+
+**Measured impact.** Cannot be measured post-merge in isolation
+(the projector is read on demand by `AdminNotificationLogViewModel.refresh`),
+but the on-screen blurb now matches what the projector computes and the
+slot-aware tests are wired into CI, so a future regression of the same
+shape would fail the suite.
+
+**Memory entry candidates.** None — the lesson here ("when a new
+production scheduler lands, every read-side mirror needs to be updated
+in the same PR or guarded by a coverage gap audit") is already implicit
+in `feedback_audit_drive_by_migration_fixes.md`'s spirit
+(`git log -p -S` before recommending fixes). The duplicate
+`TIME_OF_DAY_CLOCK` constant (flagged in the anti-patterns section) is a
+candidate for a small drive-by extraction PR but doesn't warrant a
+memory entry.
+
+**Schedule for next audit.** None — the two follow-ups in the
+anti-patterns section (dual-scheduler duplicate-firing risk; on-screen
+blurb completeness for reactive-only sources) are small enough to land
+opportunistically the next time the surrounding code is touched.
+
+**Re-baselined wall-clock estimate.** This audit + fix took roughly the
+expected time for a single-PROCEED-item audit (one source-of-truth
+divergence, one reader to fix, one screen blurb to sync, five
+behaviour-anchoring tests). No re-baseline needed — the validated
+single-pass audit shape from PR #859 still holds.
+
