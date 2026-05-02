@@ -168,6 +168,11 @@ class TagRepositoryTest {
         override suspend fun getTagIdsForTaskOnce(taskId: Long): List<Long> =
             crossRefs.filter { it.taskId == taskId }.map { it.tagId }
 
+        override suspend fun getTagNamesForTaskOnce(taskId: Long): List<String> {
+            val ids = crossRefs.filter { it.taskId == taskId }.map { it.tagId }.toSet()
+            return tags.filter { it.id in ids }.map { it.name }
+        }
+
         override fun searchTags(query: String): Flow<List<TagEntity>> =
             flowOf(tags.filter { it.name.contains(query, ignoreCase = true) })
 
