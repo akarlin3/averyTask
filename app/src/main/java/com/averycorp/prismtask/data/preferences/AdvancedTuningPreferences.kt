@@ -146,7 +146,11 @@ data class WeeklySummarySchedule(
     val habitSummaryMinute: Int = 0,
     val reviewHour: Int = 20,
     val reviewMinute: Int = 0,
-    val eveningSummaryHour: Int = 20
+    val eveningSummaryHour: Int = 20,
+    // 19:00 default — fires before the weekly review (20:00) so the
+    // two Sunday notifications stagger.
+    val analyticsSummaryHour: Int = 19,
+    val analyticsSummaryMinute: Int = 0
 )
 
 /** Re-engagement nudge thresholds. */
@@ -324,6 +328,8 @@ constructor(
         private val WS_REVIEW_HR = intPreferencesKey("weekly_summary_review_hour")
         private val WS_REVIEW_MIN = intPreferencesKey("weekly_summary_review_minute")
         private val WS_EVENING_HR = intPreferencesKey("weekly_summary_evening_hour")
+        private val WS_ANALYTICS_HR = intPreferencesKey("weekly_summary_analytics_hour")
+        private val WS_ANALYTICS_MIN = intPreferencesKey("weekly_summary_analytics_minute")
 
         // C2 — re-engagement
         private val RE_ABSENCE_DAYS = intPreferencesKey("reengagement_absence_days")
@@ -619,7 +625,9 @@ constructor(
             habitSummaryMinute = (it[WS_HABIT_MIN] ?: 0).coerceIn(0, 59),
             reviewHour = (it[WS_REVIEW_HR] ?: 20).coerceIn(0, 23),
             reviewMinute = (it[WS_REVIEW_MIN] ?: 0).coerceIn(0, 59),
-            eveningSummaryHour = (it[WS_EVENING_HR] ?: 20).coerceIn(0, 23)
+            eveningSummaryHour = (it[WS_EVENING_HR] ?: 20).coerceIn(0, 23),
+            analyticsSummaryHour = (it[WS_ANALYTICS_HR] ?: 19).coerceIn(0, 23),
+            analyticsSummaryMinute = (it[WS_ANALYTICS_MIN] ?: 0).coerceIn(0, 59)
         )
     }
 
@@ -667,6 +675,8 @@ constructor(
             it[WS_REVIEW_HR] = s.reviewHour
             it[WS_REVIEW_MIN] = s.reviewMinute
             it[WS_EVENING_HR] = s.eveningSummaryHour
+            it[WS_ANALYTICS_HR] = s.analyticsSummaryHour
+            it[WS_ANALYTICS_MIN] = s.analyticsSummaryMinute
         }
     }
 

@@ -78,7 +78,7 @@ fun TaskAnalyticsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Task Analytics", fontWeight = FontWeight.Bold) },
+                title = { Text("Productivity Dashboard", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")

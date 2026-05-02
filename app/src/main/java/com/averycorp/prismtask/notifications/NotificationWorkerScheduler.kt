@@ -176,10 +176,13 @@ constructor(
 
     suspend fun applyWeeklyAnalytics(enabled: Boolean) {
         if (enabled) {
-            // Hard-coded to Sunday 19:00 — earlier than the weekly review
-            // (20:00) so the two notifications stagger. Configurability
-            // can come later if users actually ask for it.
-            WeeklyAnalyticsWorker.schedule(context)
+            val schedule = advancedTuningPreferences.getWeeklySummarySchedule().first()
+            WeeklyAnalyticsWorker.schedule(
+                context,
+                dayOfWeek = toCalendarDayOfWeek(schedule.dayOfWeek),
+                hourOfDay = schedule.analyticsSummaryHour,
+                minute = schedule.analyticsSummaryMinute
+            )
         } else {
             WeeklyAnalyticsWorker.cancel(context)
         }
