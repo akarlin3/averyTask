@@ -82,4 +82,3 @@ class ApplyBatchActionHandler @Inject constructor() : AutomationActionHandler {
     )
 }
 
-
