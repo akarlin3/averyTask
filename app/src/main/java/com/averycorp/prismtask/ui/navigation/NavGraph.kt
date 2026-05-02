@@ -373,26 +373,14 @@ fun PrismTaskNavGraph(
             // [autoStartVoice] above — speech recognition starts inline
             // without a navigate() call.
             WidgetLaunchAction.VoiceInput -> Unit
-            WidgetLaunchAction.OpenHabits -> {
-                val habitIndex = bottomNavItems.indexOfFirst {
-                    it.route == PrismTaskRoute.HabitList.route
-                }
-                if (habitIndex >= 0) {
-                    pagerState.scrollToPage(habitIndex)
-                } else {
-                    Unit
-                }
-            }
-            WidgetLaunchAction.OpenTimer -> {
-                val timerIndex = bottomNavItems.indexOfFirst {
-                    it.route == PrismTaskRoute.Timer.route
-                }
-                if (timerIndex >= 0) {
-                    pagerState.scrollToPage(timerIndex)
-                } else {
-                    Unit
-                }
-            }
+            WidgetLaunchAction.OpenHabits ->
+                bottomNavItems
+                    .indexOfFirst { it.route == PrismTaskRoute.HabitList.route }
+                    .let { idx -> if (idx >= 0) pagerState.scrollToPage(idx) }
+            WidgetLaunchAction.OpenTimer ->
+                bottomNavItems
+                    .indexOfFirst { it.route == PrismTaskRoute.Timer.route }
+                    .let { idx -> if (idx >= 0) pagerState.scrollToPage(idx) }
         }
     }
 
