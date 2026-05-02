@@ -190,7 +190,7 @@ private fun OverflowMenu(onViewLog: () -> Unit, onDelete: (() -> Unit)?) {
             DropdownMenuItem(
                 text = { Text("View Run History") },
                 onClick = {
-                    expanded = false;
+                    expanded = false
                 onViewLog()
                 }
             )
@@ -198,7 +198,7 @@ private fun OverflowMenu(onViewLog: () -> Unit, onDelete: (() -> Unit)?) {
                 DropdownMenuItem(
                     text = { Text("Delete Rule") },
                     onClick = {
-                        expanded = false;
+                        expanded = false
                     onDelete()
                     }
                 )
