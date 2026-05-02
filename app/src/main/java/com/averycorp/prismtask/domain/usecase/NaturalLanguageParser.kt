@@ -47,7 +47,14 @@ data class ParsedTask(
      * enum name so ViewModels can route it to TaskEntity.lifeCategory. Null
      * when no category tag was present (or the classifier will take over).
      */
-    val lifeCategory: String? = null
+    val lifeCategory: String? = null,
+    /**
+     * Reward / output mode extracted from `#work-mode`, `#play-mode`, or
+     * `#relax-mode`. Stored as the [com.averycorp.prismtask.domain.model.TaskMode]
+     * enum name. Orthogonal to [lifeCategory] — see `docs/WORK_PLAY_RELAX.md`.
+     * Null when no mode tag was present.
+     */
+    val taskMode: String? = null
 )
 
 @Singleton
@@ -279,6 +286,24 @@ constructor(
         if (hyphenatedSelfCare) {
             lifeCategory = "SELF_CARE"
             text = selfCareRegex.replace(text, "")
+        }
+
+        // 1a-bis. Hyphenated task-mode tags (#work-mode / #play-mode /
+        // #relax-mode). Stripped before the generic #\w+ regex so the dash
+        // doesn't terminate matching mid-token. Mode tags are intentionally
+        // NOT pushed into the regular tag list — mode is a separate dimension
+        // (see docs/WORK_PLAY_RELAX.md), not a tag.
+        var taskMode: String? = null
+        val modeRegex = Regex("""(?i)(?:^|(?<=\s))#(work|play|relax)[-_]mode(?=\s|$)""")
+        val modeMatch = modeRegex.find(text)
+        if (modeMatch != null) {
+            taskMode = when (modeMatch.groupValues[1].lowercase(Locale.ROOT)) {
+                "work" -> "WORK"
+                "play" -> "PLAY"
+                "relax" -> "RELAX"
+                else -> null
+            }
+            text = modeRegex.replace(text, "")
         }
 
         // 1. Tags — #word but not C# (must be preceded by space or at start)
@@ -581,7 +606,8 @@ constructor(
             projectName = projectName,
             priority = priority,
             recurrenceHint = recurrenceHint,
-            lifeCategory = lifeCategory
+            lifeCategory = lifeCategory,
+            taskMode = taskMode
         )
     }
 

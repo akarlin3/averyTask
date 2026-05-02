@@ -125,6 +125,17 @@ data class LifeCategoryCustomKeywords(
     val health: String = ""
 )
 
+/**
+ * Per-mode extra keywords (CSV) appended to the built-in
+ * [com.averycorp.prismtask.domain.usecase.TaskModeClassifier] list.
+ * See `docs/WORK_PLAY_RELAX.md` § Inference rules.
+ */
+data class TaskModeCustomKeywords(
+    val work: String = "",
+    val play: String = "",
+    val relax: String = ""
+)
+
 /** Day-of-week (1=Mon..7=Sun) and clock time for weekly summary workers. */
 data class WeeklySummarySchedule(
     // 7 = Sunday.
@@ -299,6 +310,11 @@ constructor(
         private val CK_SELFCARE = stringPreferencesKey("custom_keywords_selfcare")
         private val CK_HEALTH = stringPreferencesKey("custom_keywords_health")
 
+        // B16 — task-mode custom keywords (Work / Play / Relax)
+        private val MODE_CK_WORK = stringPreferencesKey("mode_custom_keywords_work")
+        private val MODE_CK_PLAY = stringPreferencesKey("mode_custom_keywords_play")
+        private val MODE_CK_RELAX = stringPreferencesKey("mode_custom_keywords_relax")
+
         // C1 — weekly summary schedule
         private val WS_DAY = intPreferencesKey("weekly_summary_day_of_week")
         private val WS_TASK_HR = intPreferencesKey("weekly_summary_task_hour")
@@ -460,6 +476,14 @@ constructor(
         )
     }
 
+    fun getTaskModeCustomKeywords(): Flow<TaskModeCustomKeywords> = context.advancedTuningDataStore.data.map {
+        TaskModeCustomKeywords(
+            work = it[MODE_CK_WORK] ?: "",
+            play = it[MODE_CK_PLAY] ?: "",
+            relax = it[MODE_CK_RELAX] ?: ""
+        )
+    }
+
     suspend fun setUrgencyBands(bands: UrgencyBands) {
         context.advancedTuningDataStore.edit {
             it[URGENCY_BAND_CRITICAL] = bands.critical
@@ -575,6 +599,14 @@ constructor(
             it[CK_PERSONAL] = k.personal
             it[CK_SELFCARE] = k.selfCare
             it[CK_HEALTH] = k.health
+        }
+    }
+
+    suspend fun setTaskModeCustomKeywords(k: TaskModeCustomKeywords) {
+        context.advancedTuningDataStore.edit {
+            it[MODE_CK_WORK] = k.work
+            it[MODE_CK_PLAY] = k.play
+            it[MODE_CK_RELAX] = k.relax
         }
     }
 

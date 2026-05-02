@@ -2120,7 +2120,26 @@ val MIGRATION_69_70 = object : Migration(69, 70) {
     }
 }
 
-const val CURRENT_DB_VERSION = 70
+/**
+ * v70 → v71 — Adds `task_mode` to `tasks` for the Work / Play / Relax
+ * mode classifier (orthogonal to `life_category` per
+ * `docs/WORK_PLAY_RELAX.md`).
+ *
+ * Pure additive migration. Existing rows backfill to NULL, which the
+ * domain layer reads as `TaskMode.UNCATEGORIZED` via
+ * `TaskMode.fromStorage(...)`. No retroactive auto-classification — the
+ * mode classifier only runs on new tasks created after the feature
+ * ships, so a user's archived history is not silently re-tagged.
+ *
+ * Audit: `docs/audits/WORK_PLAY_RELAX_AUDIT.md` (PR #1059).
+ */
+val MIGRATION_70_71 = object : Migration(70, 71) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `tasks` ADD COLUMN `task_mode` TEXT")
+    }
+}
+
+const val CURRENT_DB_VERSION = 71
 
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
@@ -2191,5 +2210,6 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_66_67,
     MIGRATION_67_68,
     MIGRATION_68_69,
-    MIGRATION_69_70
+    MIGRATION_69_70,
+    MIGRATION_70_71
 )

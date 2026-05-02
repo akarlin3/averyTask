@@ -63,6 +63,7 @@ import com.averycorp.prismtask.data.preferences.SortPreferences
 import com.averycorp.prismtask.data.preferences.SuggestionConfig
 import com.averycorp.prismtask.data.preferences.TabPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
+import com.averycorp.prismtask.data.preferences.TaskModeCustomKeywords
 import com.averycorp.prismtask.data.preferences.TemplatePreferences
 import com.averycorp.prismtask.data.preferences.ThemePreferences
 import com.averycorp.prismtask.data.preferences.TimerPreferences
@@ -1689,6 +1690,9 @@ constructor(
         }
         a.getAsJsonObject("lifeCategoryKeywords")?.let {
             p.setLifeCategoryCustomKeywords(gson.fromJson(it, LifeCategoryCustomKeywords::class.java))
+        }
+        a.getAsJsonObject("taskModeKeywords")?.let {
+            p.setTaskModeCustomKeywords(gson.fromJson(it, TaskModeCustomKeywords::class.java))
         }
         a.getAsJsonObject("weeklySummary")?.let {
             p.setWeeklySummarySchedule(gson.fromJson(it, WeeklySummarySchedule::class.java))

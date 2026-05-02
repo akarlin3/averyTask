@@ -14,7 +14,7 @@ import {
   type DocumentData,
 } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase';
-import type { LifeCategory, Task, TaskStatus } from '@/types/task';
+import type { LifeCategory, Task, TaskMode, TaskStatus } from '@/types/task';
 import {
   timestampToDateStr,
   timestampToTimeStr,
@@ -72,6 +72,7 @@ function docToTask(docId: string, data: DocumentData, uid: string): Task {
     tags: [],
     tag_ids: tagIds,
     life_category: parseLifeCategory(data.lifeCategory),
+    task_mode: parseTaskMode(data.taskMode),
     user_overrode_quadrant: data.userOverrodeQuadrant === true,
     is_flagged: data.isFlagged === true,
   };
@@ -84,6 +85,19 @@ function parseLifeCategory(value: unknown): LifeCategory | null {
     case 'PERSONAL':
     case 'SELF_CARE':
     case 'HEALTH':
+    case 'UNCATEGORIZED':
+      return value;
+    default:
+      return null;
+  }
+}
+
+function parseTaskMode(value: unknown): TaskMode | null {
+  if (typeof value !== 'string') return null;
+  switch (value) {
+    case 'WORK':
+    case 'PLAY':
+    case 'RELAX':
     case 'UNCATEGORIZED':
       return value;
     default:
@@ -123,6 +137,7 @@ function taskCreateToDoc(
   data: Partial<Task> & { title: string } & {
     isFlagged?: boolean;
     lifeCategory?: string | null;
+    taskMode?: string | null;
     eisenhowerReason?: string | null;
     userOverrodeQuadrant?: boolean;
   },
@@ -164,6 +179,11 @@ function taskCreateToDoc(
   if (data.isFlagged !== undefined) doc.isFlagged = data.isFlagged;
   if (data.lifeCategory !== undefined && data.lifeCategory !== null) {
     doc.lifeCategory = data.lifeCategory;
+  }
+  // Mode: same omit-on-null semantics as lifeCategory to avoid clobbering
+  // Android-side state (see docs/WORK_PLAY_RELAX.md § Defaults & migration).
+  if (data.taskMode !== undefined && data.taskMode !== null) {
+    doc.taskMode = data.taskMode;
   }
   if (data.eisenhowerReason !== undefined) doc.eisenhowerReason = data.eisenhowerReason;
   if (data.userOverrodeQuadrant !== undefined) {
@@ -226,6 +246,7 @@ function taskUpdateToDoc(data: Record<string, unknown>): Record<string, unknown>
   }
   if (data.eisenhowerReason !== undefined) doc.eisenhowerReason = data.eisenhowerReason;
   if (data.lifeCategory !== undefined) doc.lifeCategory = data.lifeCategory;
+  if (data.taskMode !== undefined) doc.taskMode = data.taskMode;
   if (data.isFlagged !== undefined) doc.isFlagged = data.isFlagged;
   if (data.tag_ids !== undefined && Array.isArray(data.tag_ids)) {
     doc.tagIds = (data.tag_ids as string[]).filter((x) => typeof x === 'string');

@@ -210,6 +210,7 @@ constructor(
         projectId: Long? = null,
         parentTaskId: Long? = null,
         lifeCategory: String? = null,
+        taskMode: String? = null,
         reminderOffset: Long? = null,
         recurrenceRule: String? = null,
         estimatedDuration: Int? = null
@@ -227,6 +228,7 @@ constructor(
                 parentTaskId = parentTaskId,
                 sortOrder = nextSortOrder,
                 lifeCategory = lifeCategory,
+                taskMode = taskMode,
                 reminderOffset = reminderOffset,
                 recurrenceRule = recurrenceRule,
                 estimatedDuration = estimatedDuration,

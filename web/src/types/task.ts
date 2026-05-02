@@ -33,6 +33,11 @@ export interface Task {
   tag_ids?: string[];
   /** Optional Work-Life Balance category. See `LifeCategory`. */
   life_category?: LifeCategory | null;
+  /**
+   * Optional reward / output mode (Work / Play / Relax). Orthogonal to
+   * `life_category` — see `docs/WORK_PLAY_RELAX.md`.
+   */
+  task_mode?: TaskMode | null;
   /** Whether the user manually pinned an Eisenhower quadrant. Round-tripped
    *  from Android so web doesn't undo the pin on the next save. */
   user_overrode_quadrant?: boolean;
@@ -63,6 +68,12 @@ export interface TaskCreate {
    * clobbered.
    */
   lifeCategory?: LifeCategory | null;
+  /**
+   * Reward / output mode — must match Android `TaskMode` enum names
+   * (`WORK` | `PLAY` | `RELAX` | `UNCATEGORIZED`). Same omit-when-null
+   * Firestore semantics as `lifeCategory` to avoid clobbering Android.
+   */
+  taskMode?: TaskMode | null;
 }
 
 export interface TaskUpdate {
@@ -86,11 +97,15 @@ export interface TaskUpdate {
   estimated_duration?: number;
   isFlagged?: boolean;
   lifeCategory?: LifeCategory | null;
+  taskMode?: TaskMode | null;
   project_id?: string;
 }
 
 /** Mirrors the Android `LifeCategory` enum (`domain/model/LifeCategory.kt`). */
 export type LifeCategory = 'WORK' | 'PERSONAL' | 'SELF_CARE' | 'HEALTH' | 'UNCATEGORIZED';
+
+/** Mirrors the Android `TaskMode` enum (`domain/model/TaskMode.kt`). */
+export type TaskMode = 'WORK' | 'PLAY' | 'RELAX' | 'UNCATEGORIZED';
 
 export interface SubtaskCreate {
   title: string;

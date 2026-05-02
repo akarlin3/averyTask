@@ -28,9 +28,11 @@ import com.averycorp.prismtask.data.repository.TaskTemplateRepository
 import com.averycorp.prismtask.data.repository.TaskTimingRepository
 import com.averycorp.prismtask.domain.model.LifeCategory
 import com.averycorp.prismtask.domain.model.RecurrenceRule
+import com.averycorp.prismtask.domain.model.TaskMode
 import com.averycorp.prismtask.domain.usecase.BoundaryDecision
 import com.averycorp.prismtask.domain.usecase.BoundaryEnforcer
 import com.averycorp.prismtask.domain.usecase.LifeCategoryClassifier
+import com.averycorp.prismtask.domain.usecase.TaskModeClassifier
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -156,6 +158,19 @@ constructor(
     private val lifeCategoryClassifier = LifeCategoryClassifier()
 
     /**
+     * Reward / output mode for this task. `null` means "Auto" — the save
+     * path will run [TaskModeClassifier] to guess one before persisting.
+     * Orthogonal to [lifeCategory] (see `docs/WORK_PLAY_RELAX.md`).
+     */
+    var taskMode by mutableStateOf<TaskMode?>(null)
+        private set
+
+    var taskModeManuallySet by mutableStateOf(false)
+        private set
+
+    private val taskModeClassifier = TaskModeClassifier()
+
+    /**
      * Boundary-rule decision for the task currently being edited. The save
      * path checks this and bubbles a [BoundaryDecision.Block] up to the UI
      * via [pendingBoundaryBlock]; [BoundaryDecision.Suggest] pre-fills the
@@ -221,6 +236,7 @@ constructor(
     private var initialNotes: String = ""
     private var initialSelectedTagIds: Set<Long> = emptySet()
     private var initialLifeCategory: LifeCategory? = null
+    private var initialTaskMode: TaskMode? = null
 
     val projects: StateFlow<List<ProjectEntity>> = projectRepository
         .getAllProjects()
@@ -312,6 +328,8 @@ constructor(
         selectedTagIds = emptySet()
         lifeCategory = null
         lifeCategoryManuallySet = false
+        taskMode = null
+        taskModeManuallySet = false
         titleError = false
         pendingSubtasks.clear()
         nextPendingSubtaskId = 1L
@@ -346,6 +364,9 @@ constructor(
                         val loadedCategory = LifeCategory.fromStorage(task.lifeCategory)
                         lifeCategory = loadedCategory.takeIf { it != LifeCategory.UNCATEGORIZED }
                         lifeCategoryManuallySet = lifeCategory != null
+                        val loadedMode = TaskMode.fromStorage(task.taskMode)
+                        taskMode = loadedMode.takeIf { it != TaskMode.UNCATEGORIZED }
+                        taskModeManuallySet = taskMode != null
                         snapshotInitialValuesFromTask(task, tagIds)
                     } else {
                         snapshotInitialValuesForCreate(projectId, initialDate)
@@ -398,6 +419,9 @@ constructor(
         initialLifeCategory = LifeCategory.fromStorage(task.lifeCategory).takeIf {
             it != LifeCategory.UNCATEGORIZED
         }
+        initialTaskMode = TaskMode.fromStorage(task.taskMode).takeIf {
+            it != TaskMode.UNCATEGORIZED
+        }
     }
 
     private fun snapshotInitialValuesForCreate(projectId: Long?, initialDate: Long?) {
@@ -414,6 +438,7 @@ constructor(
         initialNotes = ""
         initialSelectedTagIds = emptySet()
         initialLifeCategory = null
+        initialTaskMode = null
     }
 
     val hasUnsavedChanges: Boolean
@@ -431,7 +456,8 @@ constructor(
                     estimatedDuration != initialEstimatedDuration ||
                     notes != initialNotes ||
                     selectedTagIds != initialSelectedTagIds ||
-                    lifeCategory != initialLifeCategory
+                    lifeCategory != initialLifeCategory ||
+                    taskMode != initialTaskMode
                 )
 
     fun onTitleChange(value: String) {
@@ -512,6 +538,15 @@ constructor(
     }
 
     /**
+     * Set the [TaskMode] chip. Passing `null` switches back to "Auto" mode
+     * — the classifier will run at save time to guess one.
+     */
+    fun onTaskModeChange(value: TaskMode?) {
+        taskMode = value
+        taskModeManuallySet = value != null
+    }
+
+    /**
      * Resolve the final life_category value to persist:
      *  - If the user picked one, use it.
      *  - Otherwise run the keyword classifier on title + description.
@@ -523,6 +558,18 @@ constructor(
             return lifeCategory?.name ?: LifeCategory.UNCATEGORIZED.name
         }
         val guess = lifeCategoryClassifier.classify(title, description.ifBlank { null })
+        return guess.name
+    }
+
+    /**
+     * Resolve the final task_mode value to persist. Same shape as
+     * [resolveLifeCategoryForSave] but for the orthogonal mode dimension.
+     */
+    internal fun resolveTaskModeForSave(): String {
+        if (taskModeManuallySet && taskMode != null) {
+            return taskMode?.name ?: TaskMode.UNCATEGORIZED.name
+        }
+        val guess = taskModeClassifier.classify(title, description.ifBlank { null })
         return guess.name
     }
 
@@ -713,6 +760,7 @@ constructor(
             val trimmedNotes = notes.trim().ifEmpty { null }
             val recurrenceJson = recurrenceRule?.let { RecurrenceConverter.toJson(it) }
             val resolvedLifeCategory = resolveLifeCategoryForSave()
+            val resolvedTaskMode = resolveTaskModeForSave()
             val existing = existingTask
             val savedId: Long
             if (existing != null) {
@@ -729,7 +777,8 @@ constructor(
                         recurrenceRule = recurrenceJson,
                         estimatedDuration = estimatedDuration,
                         notes = trimmedNotes,
-                        lifeCategory = resolvedLifeCategory
+                        lifeCategory = resolvedLifeCategory,
+                        taskMode = resolvedTaskMode
                     )
                 )
                 savedId = existing.id
@@ -743,6 +792,7 @@ constructor(
                     projectId = projectId,
                     parentTaskId = parentTaskId,
                     lifeCategory = resolvedLifeCategory,
+                    taskMode = resolvedTaskMode,
                     reminderOffset = reminderOffset,
                     recurrenceRule = recurrenceJson,
                     estimatedDuration = estimatedDuration
