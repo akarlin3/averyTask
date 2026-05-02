@@ -16,13 +16,13 @@ package com.averycorp.prismtask.ui.screens.medication.components
 internal data class MinuteFieldUpdate(
     val text: String,
     val newMinutes: Int?,
-    val outOfRange: Boolean,
+    val outOfRange: Boolean
 )
 
 internal fun applyMinuteFieldEdit(
     raw: String,
     minMinutes: Int,
-    maxMinutes: Int,
+    maxMinutes: Int
 ): MinuteFieldUpdate {
     val sanitized = raw.filter { it.isDigit() }.take(4)
     val parsed = sanitized.toIntOrNull()
@@ -30,6 +30,6 @@ internal fun applyMinuteFieldEdit(
     return MinuteFieldUpdate(
         text = sanitized,
         newMinutes = if (inRange) parsed else null,
-        outOfRange = parsed != null && !inRange,
+        outOfRange = parsed != null && !inRange
     )
 }
