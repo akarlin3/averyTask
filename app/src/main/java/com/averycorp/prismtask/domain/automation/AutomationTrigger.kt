@@ -61,7 +61,7 @@ sealed class AutomationTrigger(val type: String) {
     }
 
     /** No automatic firing — must be invoked via "Run Now" from the UI. */
-    object Manual : AutomationTrigger(TYPE) {
+    object Manual : AutomationTrigger("MANUAL") {
         const val TYPE = "MANUAL"
     }
 
