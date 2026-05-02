@@ -269,8 +269,11 @@ class MutateMedicationActionHandler @Inject constructor(
 
         val nextArchived = mutate.updates["isArchived"] as? Boolean
         if (nextArchived != null) {
-            if (nextArchived) medicationRepository.archive(medication.id)
-            else medicationRepository.unarchive(medication.id)
+            if (nextArchived) {
+                medicationRepository.archive(medication.id)
+            } else {
+                medicationRepository.unarchive(medication.id)
+            }
             didSomething = true
         }
 
