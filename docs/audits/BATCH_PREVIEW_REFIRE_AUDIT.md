@@ -345,10 +345,47 @@ mechanism — STOP and re-audit with logcat.
 
 ## Phase 3 — Bundle summary
 
-(Filled in after Phase 2 PR merges.)
+**PR #1049** — `fix(batch): close BatchPreview re-fire after Apply` —
+squash-merged to `main` 2026-05-02 04:02 UTC, SHA `92d404e7`. Auto-merge
+landed it after `test`, `e2e`, `web-lint-and-test`, `autofix`, and
+`maybe-label` cleared green; `connected-tests` / `cross-device-tests`
+correctly skipped (no instrumentation surface touched).
+
+**Scope as shipped:** matches the Phase 2 plan exactly — terminal
+`BatchPreviewState.Applied` added, `approve()` success transitions to it,
+`loadPreview` re-entry guard widened to bail in `Loading` / `Committing`
+/ `Applied` and in `Loaded` when the `commandText` matches; Error
+intentionally falls through so Retry still works. No incidental cleanups.
+
+**Test coverage delta:** 4 new tests in `BatchPreviewViewModelTest` (10
+total in the file; full unit-test suite green pre-merge):
+
+- `approve_success_transitionsToAppliedTerminalState` — closes C-2.
+- `loadPreview_doesNotReParseWhenStateIsApplied` — closes the audit's
+  CAUSE-C symptom under the same-VM Path P1 hypothesis.
+- `loadPreview_doesNotReParseWhenStateIsLoadedSameCommand` — closes the
+  A6 side-finding (exclusion-clobber on duplicate parse).
+- `loadPreview_reParsesWhenStateIsLoadedButCommandTextDiffers` — regression
+  guard so the new short-circuit doesn't over-block legitimate re-parses.
+
+**Phase 3.1–3.4 on-device verification (S25 Ultra) is owed by Avery.** Unit
+tests exercise the CAUSE-C state-machine guard but cannot prove the runtime
+trigger pinning. If 3.2 (non-idempotent path: `add tag urgent to all tasks
+tagged work` → exactly 2 tags per task, no re-fire) fails on-device, the
+audit's CAUSE-C verdict was wrong and Path P2 (re-navigation, fresh VM) is
+the actual mechanism — that's the explicit re-audit signal.
+
+**Memory entry candidates:** *probably skip.* The fix shape (terminal-state
++ widened re-entry guard) is a generic Compose-Navigation pattern, not
+surprising or codebase-specific. Worth promoting to a memory only if the
+same defect class shows up on another nav-arg-driven screen.
+
+**Schedule for next audit:** none queued. If Phase 3.2 fails on-device,
+re-audit with logcat under the same scope slug + `_v2` suffix.
 
 ---
 
 ## Phase 4 — Claude Chat handoff
 
-(Filled in after Phase 3 closes.)
+(Emitted in the agent transcript at hand-off time — fenced markdown block
+sized for paste-into-Claude.ai.)
