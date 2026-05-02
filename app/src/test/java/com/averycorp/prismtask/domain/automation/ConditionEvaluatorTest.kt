@@ -45,64 +45,95 @@ class ConditionEvaluatorTest {
 
     @Test fun eqOnString_matches() {
         val ctx = ctxWithTask(title = "buy milk")
-        assertTrue(evaluator.evaluate(
-            AutomationCondition.Compare(Op.EQ, "task.title", "buy milk"), ctx
-        ))
-        assertFalse(evaluator.evaluate(
-            AutomationCondition.Compare(Op.EQ, "task.title", "wash dishes"), ctx
-        ))
+        assertTrue(
+            evaluator.evaluate(
+                AutomationCondition.Compare(Op.EQ, "task.title", "buy milk"),
+                ctx
+            )
+        )
+        assertFalse(
+            evaluator.evaluate(
+                AutomationCondition.Compare(Op.EQ, "task.title", "wash dishes"),
+                ctx
+            )
+        )
     }
 
     @Test fun gteOnPriority() {
         val ctx = ctxWithTask(priority = 4)
-        assertTrue(evaluator.evaluate(
-            AutomationCondition.Compare(Op.GTE, "task.priority", 3), ctx
-        ))
-        assertFalse(evaluator.evaluate(
-            AutomationCondition.Compare(Op.GTE, "task.priority", 5), ctx
-        ))
+        assertTrue(
+            evaluator.evaluate(
+                AutomationCondition.Compare(Op.GTE, "task.priority", 3),
+                ctx
+            )
+        )
+        assertFalse(
+            evaluator.evaluate(
+                AutomationCondition.Compare(Op.GTE, "task.priority", 5),
+                ctx
+            )
+        )
     }
 
     @Test fun ltOnDueDateUsesNowToken() {
         val ctx = ctxWithTask(dueDate = now - 1_000)
         // task.dueDate < @now
-        assertTrue(evaluator.evaluate(
-            AutomationCondition.Compare(Op.LT, "task.dueDate", mapOf("@now" to null)), ctx
-        ))
+        assertTrue(
+            evaluator.evaluate(
+                AutomationCondition.Compare(Op.LT, "task.dueDate", mapOf("@now" to null)),
+                ctx
+            )
+        )
     }
 
     @Test fun containsOnTags_caseInsensitive() {
         val ctx = ctxWithTask(tags = listOf("#urgent", "work"))
-        assertTrue(evaluator.evaluate(
-            AutomationCondition.Compare(Op.CONTAINS, "task.tags", "#URGENT"), ctx
-        ))
-        assertFalse(evaluator.evaluate(
-            AutomationCondition.Compare(Op.CONTAINS, "task.tags", "#chill"), ctx
-        ))
+        assertTrue(
+            evaluator.evaluate(
+                AutomationCondition.Compare(Op.CONTAINS, "task.tags", "#URGENT"),
+                ctx
+            )
+        )
+        assertFalse(
+            evaluator.evaluate(
+                AutomationCondition.Compare(Op.CONTAINS, "task.tags", "#chill"),
+                ctx
+            )
+        )
     }
 
     @Test fun existsOnCompletedAt() {
         val withCompletion = ctxWithTask(completedAt = 12345L)
         val withoutCompletion = ctxWithTask(completedAt = null)
-        assertTrue(evaluator.evaluate(
-            AutomationCondition.Compare(Op.EXISTS, "task.completedAt"), withCompletion
-        ))
-        assertFalse(evaluator.evaluate(
-            AutomationCondition.Compare(Op.EXISTS, "task.completedAt"), withoutCompletion
-        ))
+        assertTrue(
+            evaluator.evaluate(
+                AutomationCondition.Compare(Op.EXISTS, "task.completedAt"),
+                withCompletion
+            )
+        )
+        assertFalse(
+            evaluator.evaluate(
+                AutomationCondition.Compare(Op.EXISTS, "task.completedAt"),
+                withoutCompletion
+            )
+        )
     }
 
     @Test fun samplePromptCondition_matchesUrgentOverdueIncomplete() {
         // (priority>=3 OR tags contains #urgent) AND NOT EXISTS completedAt
-        val sample = AutomationCondition.And(listOf(
-            AutomationCondition.Or(listOf(
-                AutomationCondition.Compare(Op.GTE, "task.priority", 3),
-                AutomationCondition.Compare(Op.CONTAINS, "task.tags", "#urgent")
-            )),
-            AutomationCondition.Not(
-                AutomationCondition.Compare(Op.EXISTS, "task.completedAt")
+        val sample = AutomationCondition.And(
+            listOf(
+                AutomationCondition.Or(
+                    listOf(
+                        AutomationCondition.Compare(Op.GTE, "task.priority", 3),
+                        AutomationCondition.Compare(Op.CONTAINS, "task.tags", "#urgent")
+                    )
+                ),
+                AutomationCondition.Not(
+                    AutomationCondition.Compare(Op.EXISTS, "task.completedAt")
+                )
             )
-        ))
+        )
         // Match: high-priority incomplete
         assertTrue(evaluator.evaluate(sample, ctxWithTask(priority = 4, completedAt = null)))
         // Match: tagged incomplete
@@ -117,9 +148,63 @@ class ConditionEvaluatorTest {
         val ctx = ctxWithTask(priority = 3)
         // priority is a number; CONTAINS on a number is a type mismatch.
         // Evaluator should not throw and should return false.
-        assertFalse(evaluator.evaluate(
-            AutomationCondition.Compare(Op.CONTAINS, "task.priority", "xyz"), ctx
-        ))
+        assertFalse(
+            evaluator.evaluate(
+                AutomationCondition.Compare(Op.CONTAINS, "task.priority", "xyz"),
+                ctx
+            )
+        )
+    }
+
+    @Test fun eventDayOfWeek_resolvesFromOccurredAt() {
+        // 2026-05-02 is a Saturday (verified at audit time).
+        val saturdayMillis = java.time.LocalDateTime
+            .of(2026, 5, 2, 12, 0)
+            .atZone(java.time.ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+        val ctx = EvaluationContext(
+            event = AutomationEvent.TaskCreated(taskId = 1L, occurredAt = saturdayMillis),
+            now = saturdayMillis
+        )
+        assertTrue(
+            evaluator.evaluate(
+                AutomationCondition.Compare(Op.EQ, "event.dayOfWeek", "SATURDAY"),
+                ctx
+            )
+        )
+        assertFalse(
+            evaluator.evaluate(
+                AutomationCondition.Compare(Op.EQ, "event.dayOfWeek", "MONDAY"),
+                ctx
+            )
+        )
+    }
+
+    @Test fun taskCreatedAt_resolvesAndComparesNumeric() {
+        val task = TaskEntity(
+            id = 1L,
+            title = "x",
+            createdAt = 5_000L,
+            updatedAt = 0L
+        )
+        val ctx = EvaluationContext(
+            event = AutomationEvent.TaskUpdated(taskId = 1L, occurredAt = now),
+            task = task,
+            now = now
+        )
+        assertTrue(
+            evaluator.evaluate(
+                AutomationCondition.Compare(Op.LT, "task.createdAt", 10_000L),
+                ctx
+            )
+        )
+        assertFalse(
+            evaluator.evaluate(
+                AutomationCondition.Compare(Op.GT, "task.createdAt", 10_000L),
+                ctx
+            )
+        )
     }
 
     @Test fun habitFieldsResolveOnHabitEvent() {
@@ -130,10 +215,12 @@ class ConditionEvaluatorTest {
             habitStreak = 14,
             now = now
         )
-        val condition = AutomationCondition.And(listOf(
-            AutomationCondition.Compare(Op.GTE, "habit.streakCount", 7),
-            AutomationCondition.Compare(Op.EQ, "habit.category", "self-care")
-        ))
+        val condition = AutomationCondition.And(
+            listOf(
+                AutomationCondition.Compare(Op.GTE, "habit.streakCount", 7),
+                AutomationCondition.Compare(Op.EQ, "habit.category", "self-care")
+            )
+        )
         assertTrue(evaluator.evaluate(condition, ctx))
     }
 }

@@ -18,13 +18,13 @@ import com.averycorp.prismtask.data.repository.SchoolworkRepository
 import com.averycorp.prismtask.data.seed.AutomationSampleRulesSeeder
 import com.averycorp.prismtask.data.seed.TemplateSeeder
 import com.averycorp.prismtask.domain.automation.AutomationEngine
-import com.averycorp.prismtask.workers.AutomationTimeTickWorker
 import com.averycorp.prismtask.notifications.MedicationClockRescheduler
 import com.averycorp.prismtask.notifications.MedicationIntervalRescheduler
 import com.averycorp.prismtask.notifications.MedicationReminderScheduler
 import com.averycorp.prismtask.notifications.NotificationWorkerScheduler
 import com.averycorp.prismtask.widget.WidgetUpdateManager
 import com.averycorp.prismtask.workers.AutoArchiveWorker
+import com.averycorp.prismtask.workers.AutomationTimeTickWorker
 import com.averycorp.prismtask.workers.CalendarSyncScheduler
 import com.averycorp.prismtask.workers.DailyResetWorker
 import com.google.firebase.auth.FirebaseAuth
@@ -460,7 +460,8 @@ class PrismTaskApplication :
         }
         try {
             val workRequest = PeriodicWorkRequestBuilder<AutomationTimeTickWorker>(
-                15, TimeUnit.MINUTES
+                15,
+                TimeUnit.MINUTES
             ).build()
             WorkManager.getInstance(this).enqueueUniquePeriodicWork(
                 "automation_time_tick",

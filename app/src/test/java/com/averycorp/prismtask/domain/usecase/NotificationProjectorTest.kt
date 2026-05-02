@@ -319,8 +319,10 @@ class NotificationProjectorTest {
         val now = baseInstant(2026, Calendar.MAY, 1, 6, 0)
         val morningSlot = slot(id = 31L, name = "Morning", idealTime = "07:30")
         val vitamin = medication(
-            id = 201L, name = "Vitamin D",
-            scheduleMode = "TIMES_OF_DAY", timesOfDay = "morning"
+            id = 201L,
+            name = "Vitamin D",
+            scheduleMode = "TIMES_OF_DAY",
+            timesOfDay = "morning"
         )
         coEvery { medicationDao.getActiveOnce() } returns listOf(vitamin)
         coEvery { medicationDao.getByIdOnce(201L) } returns vitamin
@@ -342,8 +344,11 @@ class NotificationProjectorTest {
         val now = baseInstant(2026, Calendar.MAY, 1, 10, 0)
         val lastDose = baseInstant(2026, Calendar.MAY, 1, 9, 0)
         val intervalSlot = slot(
-            id = 41L, name = "Rolling", idealTime = "00:00",
-            reminderMode = "INTERVAL", reminderIntervalMinutes = 90
+            id = 41L,
+            name = "Rolling",
+            idealTime = "00:00",
+            reminderMode = "INTERVAL",
+            reminderIntervalMinutes = 90
         )
         coEvery { medicationSlotDao.getActiveOnce() } returns listOf(intervalSlot)
         coEvery { medicationSlotDao.getMedicationIdsForSlotOnce(41L) } returns emptyList()
@@ -362,8 +367,11 @@ class NotificationProjectorTest {
     fun `slot INTERVAL bootstraps to now plus interval when no dose exists`() = runBlocking {
         val now = baseInstant(2026, Calendar.MAY, 1, 10, 0)
         val intervalSlot = slot(
-            id = 42L, name = "Rolling", idealTime = "00:00",
-            reminderMode = "INTERVAL", reminderIntervalMinutes = 60
+            id = 42L,
+            name = "Rolling",
+            idealTime = "00:00",
+            reminderMode = "INTERVAL",
+            reminderIntervalMinutes = 60
         )
         coEvery { medicationSlotDao.getActiveOnce() } returns listOf(intervalSlot)
         coEvery { medicationSlotDao.getMedicationIdsForSlotOnce(42L) } returns emptyList()
