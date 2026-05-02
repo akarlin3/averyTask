@@ -646,6 +646,9 @@ private fun WeeklySummaryGroup(vm: AdvancedTuningViewModel) {
         IntSliderRow("Evening summary hour", state.eveningSummaryHour, 0..23, valueFormatter = { "$it:00" }) {
             vm.setWeeklySummary(state.copy(eveningSummaryHour = it))
         }
+        TimeRow("Weekly analytics", state.analyticsSummaryHour, state.analyticsSummaryMinute) { h, m ->
+            vm.setWeeklySummary(state.copy(analyticsSummaryHour = h, analyticsSummaryMinute = m))
+        }
     }
 }
 

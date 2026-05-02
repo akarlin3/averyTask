@@ -153,7 +153,9 @@ class AdvancedTuningRoundTripTest {
                 habitSummaryMinute = 45,
                 reviewHour = 19,
                 reviewMinute = 30,
-                eveningSummaryHour = 21
+                eveningSummaryHour = 21,
+                analyticsSummaryHour = 17,
+                analyticsSummaryMinute = 45
             )
         assertEquals(v, roundTrip(v))
     }
