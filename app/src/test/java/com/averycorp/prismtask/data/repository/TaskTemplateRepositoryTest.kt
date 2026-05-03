@@ -681,6 +681,8 @@ class TaskTemplateRepositoryTest {
         override suspend fun getTagIdsForTaskOnce(taskId: Long): List<Long> =
             tagIdsByTask[taskId]?.toList() ?: emptyList()
 
+        override suspend fun getTagNamesForTaskOnce(taskId: Long): List<String> = unsupported()
+
         override fun getAllTags(): Flow<List<TagEntity>> = unsupported()
 
         override fun getTagById(id: Long): Flow<TagEntity?> = unsupported()

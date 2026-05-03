@@ -50,7 +50,9 @@ class AutomationTemplateLibraryViewModel @Inject constructor(
         }
     }
 
-    fun setQuery(value: String) { _query.value = value }
+    fun setQuery(value: String) {
+        _query.value = value
+    }
 
     fun importTemplate(templateId: String) {
         viewModelScope.launch {

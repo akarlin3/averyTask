@@ -275,6 +275,11 @@ private class RunnerFakeMedDao : MedicationDao {
         if (idx >= 0) rows[idx] = rows[idx].copy(isArchived = true, updatedAt = now)
     }
 
+    override suspend fun unarchive(id: Long, now: Long) {
+        val idx = rows.indexOfFirst { it.id == id }
+        if (idx >= 0) rows[idx] = rows[idx].copy(isArchived = false, updatedAt = now)
+    }
+
     override suspend fun delete(medication: MedicationEntity) {
         rows.removeAll { it.id == medication.id }
     }

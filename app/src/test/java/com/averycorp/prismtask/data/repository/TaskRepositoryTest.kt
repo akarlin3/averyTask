@@ -928,6 +928,8 @@ class TaskRepositoryTest {
         override suspend fun getTagIdsForTaskOnce(taskId: Long): List<Long> =
             crossRefs.filter { it.taskId == taskId }.map { it.tagId }
 
+        override suspend fun getTagNamesForTaskOnce(taskId: Long): List<String> = emptyList()
+
         override fun getAllTags(): Flow<List<TagEntity>> = flowOf(emptyList())
 
         override fun getTagById(id: Long): Flow<TagEntity?> = flowOf(null)
