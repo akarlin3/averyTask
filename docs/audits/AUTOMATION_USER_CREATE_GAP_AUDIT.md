@@ -343,3 +343,133 @@ first, then PRs #2 and #3 in parallel worktrees, then PR #4 last.
       strongest ratio.
 - [x] DEFERRED items listed so they're not re-litigated.
 - [x] Anti-patterns called out separately from PROCEED items.
+
+## Phase 3 — Bundle summary
+
+All four fan-out PRs opened with squash auto-merge enabled the same
+session as Phase 1 landed. Each is gated only on CI; no review
+sign-off required (solo-dev convention).
+
+| Audit item(s) | PR | Branch | Status | Net LOC |
+|---------------|----|--------|--------|---------|
+| A1 + A2 + A3 + A5 + A10 | [#1069](https://github.com/averycorp/prismTask/pull/1069) | `feat/automation-rule-edit-screen` | Auto-merge enabled | +796 / -17 |
+| A6 | [#1070](https://github.com/averycorp/prismTask/pull/1070) | `feat/automation-sync-routing` | Auto-merge enabled | +42 / 0 |
+| A7 | [#1071](https://github.com/averycorp/prismTask/pull/1071) | (agent-shipped) | Auto-merge enabled | +backend +app, agent reports 30 new tests green |
+| A8 + A9 | [#1072](https://github.com/averycorp/prismTask/pull/1072) | `feat/automation-rich-editor` | Auto-merge enabled | +364 / -47 |
+
+**A10 (`apply.batch` un-stub) closed for free** during the PR #1
+cherry-pick — `AiActionHandlers.kt` auto-merged from the orphan
+commit, bringing in `ApplyBatchActionHandler`'s real
+`BatchOperationsRepository.applyBatch` delegation. Verified by
+inspecting the merged result before commit.
+
+**Drift surfaced during rebase (audit miss):** the orphan commit
+`4aa9ad96` was authored before PR #1057 added `DayOfWeekTime` to the
+`AutomationTrigger` sealed class. The rule-edit `ViewModel`'s
+exhaustive `when` would not have compiled. The audit's "the work is
+done, just rebase" framing under-counted the drift cost by ~30 LOC
+for the new `DAY_OF_WEEK_TIME` `TriggerKind` + day picker UI. Still
+came in well under "write the edit screen from scratch."
+
+**Re-baselined wall-clock estimate** (single solo-dev session,
+including the rebase + 4 PRs + this Phase 3 update): ~3 hours from
+audit-doc commit to last PR opened. The agent-parallelization for
+A7 (PR #3) saved ~45 min of serial work.
+
+**Memory entry candidates** (none promoted — no surprises beyond the
+already-saved `feedback_no_deferrals_if_not_there_fix_it.md` written
+at audit start). Possible future-audit lesson worth noting in the
+`anti-patterns` section if a similar pattern recurs:
+- *Audits that assume "rebase + ship" should explicitly inspect
+  `git log --since` between when the orphan commit was authored and
+  current main, looking for sealed-class additions that would
+  violate exhaustive `when` checks.*
+
+**Schedule for next audit.** None scheduled. Cross-device automation
+sync (A6 ship) creates a new surface that may need a small follow-up
+audit on cross-device template-import semantics (does importing the
+same template on two devices create a duplicate? Should it dedup by
+`templateKey`?). Inline checkpoint, not a fresh mega-audit. The
+existing audit doc at
+`docs/audits/AUTOMATION_STARTER_LIBRARY_ARCHITECTURE.md` § "Schedule
+for next audit" already flagged this — defer to that audit's
+follow-up rather than spinning a new one.
+
+## Phase 4 — Claude Chat handoff summary
+
+```markdown
+# Automation: cannot create new automations — audit handoff
+
+**Scope.** Operator complaint: "Automation doesn't allow for the
+making of new automations." Verified premise on the prismTask Android
+app (`com.averycorp.prismtask`, branch `main`): the v1.7+ Automation
+feature shipped in PRs #1056 + #1057 has a rule list, run history,
+and a starter-template library, but no "+" FAB, no Edit overflow,
+and no in-app rule editor at all. The architecture doc
+(`docs/audits/AUTOMATION_ENGINE_ARCHITECTURE.md` § A7, § A9) parked
+the editor as a "v1.1 follow-up." Operator rule for this audit:
+DEFERRED is not an option — if it isn't there, fix it.
+
+**Highest-leverage finding.** A complete v1.1 follow-up commit
+(`4aa9ad96` on `origin/claude/automation-rules-engine-j32o8`,
+~787 LOC) was written but never opened as a PR after #1056 merged.
+The work was sitting orphan on a branch nobody re-opened.
+
+**Verdicts.**
+
+| Item | Verdict | Finding |
+|------|---------|---------|
+| A1 — No "create from scratch" UI | RED | No FAB on `AutomationRuleListScreen.kt:51-100`; no edit route in `NavGraph.kt:271-281` |
+| A2 — No edit-existing-rule UI | RED | Overflow only has View Log + Delete; root cause shared with A1 |
+| A3 — Empty-state copy hides the gap | YELLOW | Mentioned only library/seed; no hint of authoring |
+| A4 — Imported rules disabled-only | YELLOW | Resolves automatically once A1 + A2 ship |
+| A5 — Orphan commit was never PR'd | RED (process) | SHA `4aa9ad96`; needs rebase + 3 conflict resolutions |
+| A6 — SyncService routing missing | RED | Mapper ships in orphan; routing absent — imported rules strand in `SyncTracker` |
+| A7 — Backend `/ai/automation/*` endpoints | RED | Handler doc-comments specify the contract; route absent on `backend/app/routers/ai.py` |
+| A8 — AND/OR/NOT condition tree editor | RED | Disk supports it; UI was single-Compare leaf only |
+| A9 — Composed-trigger picker | RED | Disk supports it; UI was raw text-field for parent-rule id |
+| A10 — `apply.batch` un-stub | RED | Closes for free during rebase per orphan-commit body |
+
+**Shipped.**
+
+- #1066 — audit doc (this file)
+- #1069 — A1 + A2 + A3 + A5 + A10: orphan rule-edit screen + FAB + edit overflow + reworded empty-state + DayOfWeekTime drift fix
+- #1070 — A6: SyncService routing for `automation_rule` mirroring the boundary_rule pattern
+- #1071 — A7: backend endpoints + on-device handler wiring (agent-shipped, 30 new tests)
+- #1072 — A8 + A9: recursive AND/OR/NOT condition tree editor + composed-trigger picker with cycle-detection
+
+All four shipped via squash auto-merge; CI is the only gate.
+
+**Non-obvious findings (pick up cold).**
+
+1. The orphan v1.1 commit was already exhaustive (787 LOC) but
+   pre-dated PR #1057's `DayOfWeekTime` trigger. A naive cherry-pick
+   does not compile (`AutomationRuleEditViewModel.kt:131`'s
+   exhaustive `when`). Always inspect sealed-class additions in
+   `git log --since=<orphan-author-date>` before promising "rebase
+   only."
+2. PR #1057 and the orphan commit both un-stubbed
+   `MutateMedicationActionHandler` to incompatible shapes (orphan:
+   batch-delegation; PR #1057: simple repo calls). Kept HEAD's
+   shape; orphan's batch-delegation shape was rejected as a design
+   regression.
+3. Cycle detection in the composed-trigger picker is intentionally
+   only 1-step (excludes self + immediate descendants). Deeper
+   cycles still abort at fire time per `AutomationEngine` § A6.
+   This is the "safety boundary" choice — depth-N detection on
+   every save would also have to walk `N`-deep into the rule graph
+   on every keystroke.
+
+**Open questions for the operator.**
+
+1. Should the AI-action library templates that previously logged
+   "Skipped: backend pending" be auto-enabled now that PR #1071
+   wires the backend? Default-disabled (current PR #1057 UX) is the
+   safer choice but may surprise users who imported them and see
+   them stay quiet.
+2. Cross-device sync of imported templates can produce duplicates
+   if the same template is imported on two devices before sync.
+   Dedup-by-`templateKey` is one fix; the existing
+   `AUTOMATION_STARTER_LIBRARY_ARCHITECTURE.md` § "Schedule for
+   next audit" calls this out for a follow-up audit.
+```
