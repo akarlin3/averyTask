@@ -91,6 +91,16 @@ sealed class PrismTaskRoute(
         fun createRoute(projectId: Long): String = "project_detail?projectId=$projectId"
     }
 
+    /**
+     * v1.7 PrismTask-Timeline-Class read-only roadmap view (audit § P10
+     * option b). Phases + tasks + risk register + external anchors for
+     * a single project. Distinct from [Timeline] (the daily time-block
+     * view) per the audit's naming-collision flag.
+     */
+    data object ProjectRoadmap : PrismTaskRoute("project_roadmap?projectId={projectId}") {
+        fun createRoute(projectId: Long): String = "project_roadmap?projectId=$projectId"
+    }
+
     data object Settings : PrismTaskRoute("settings")
 
     data object TagManagement : PrismTaskRoute("tag_management")
