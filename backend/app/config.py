@@ -46,6 +46,13 @@ class Settings(BaseSettings):
         "https://web-prismtask-production.up.railway.app",
         "https://app.prismtask.app",
     ]
+    # Emails auto-promoted to admin (is_admin=True) on register / sign-in.
+    # Matched case-insensitively. Operators can override via the
+    # ADMIN_EMAILS env var (comma-separated).
+    ADMIN_EMAILS: list[str] = [
+        "avery.karlin@gmail.com",
+        "averycheese@gmail.com",
+    ]
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
@@ -53,6 +60,19 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             return [origin.strip() for origin in v.split(",") if origin.strip()]
         return v
+
+    @field_validator("ADMIN_EMAILS", mode="before")
+    @classmethod
+    def _parse_admin_emails(cls, v: object) -> object:
+        if isinstance(v, str):
+            return [email.strip() for email in v.split(",") if email.strip()]
+        return v
+
+    def is_admin_email(self, email: str | None) -> bool:
+        if not email:
+            return False
+        normalized = email.strip().lower()
+        return any(normalized == allowed.strip().lower() for allowed in self.ADMIN_EMAILS)
 
     @property
     def is_production(self) -> bool:
