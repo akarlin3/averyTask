@@ -39,7 +39,6 @@ function task(partial: Partial<Task> & { id: string; project_id: string }): Task
     // propagation here it gets dropped and every fractional case
     // collapses to 0.
     progress_percent: partial.progress_percent ?? null,
-    phase_id: partial.phase_id ?? null,
   };
 }
 
