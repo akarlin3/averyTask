@@ -11,6 +11,10 @@ from app.middleware.auth import get_active_user
 from app.middleware.rate_limit import RateLimiter, daily_ai_rate_limiter
 from app.models import Habit, User
 from app.schemas.ai import (
+    AutomationCompleteRequest,
+    AutomationCompleteResponse,
+    AutomationSummarizeRequest,
+    AutomationSummarizeResponse,
     BatchParseRequest,
     BatchParseResponse,
     ChatActionPayload,
@@ -96,6 +100,12 @@ batch_parse_rate_limiter = RateLimiter(max_requests=10, window_seconds=3600)
 # back-and-forth: ~30 turns/min covers typing-fast users and the
 # server-side daily cap (DailyAIRateLimiter PRO=100) is the real budget.
 chat_rate_limiter = RateLimiter(max_requests=30, window_seconds=60)
+# A7 automation actions — fired from the on-device automation engine.
+# Rules can fan out to many actions per trigger; cap at 30/min per IP to
+# absorb a reasonable burst (e.g. a "morning routine" rule that triggers
+# multiple ai.complete + ai.summarize handlers) while still keeping the
+# server-side daily AI budget the real ceiling.
+automation_action_rate_limiter = RateLimiter(max_requests=30, window_seconds=60)
 
 
 def _require_firebase_uid(user: User) -> str:
@@ -845,3 +855,89 @@ async def chat(
         conversation_id=data.conversation_id,
         tokens_used=tokens_used,
     )
+
+
+# ---------------------------------------------------------------------------
+# A7 — Automation action AI (ai.complete / ai.summarize)
+# ---------------------------------------------------------------------------
+#
+# Two endpoints invoked by the on-device automation engine. They live
+# under the existing ``/ai/`` router prefix so they automatically inherit:
+#   * the PII-egress AI gate (``require_ai_features_enabled``)
+#   * the Pro-tier daily AI rate limiter (per-user budget)
+#   * the auth dependency
+#
+# The on-device handlers (``AiCompleteActionHandler`` /
+# ``AiSummarizeActionHandler``) own the master-AI-toggle short-circuit and
+# the result-mapping (HTTP 451 -> ActionResult.Skipped, others ->
+# ActionResult.Error). The router stays uniform with its siblings.
+
+
+@router.post("/automation/complete", response_model=AutomationCompleteResponse)
+async def automation_complete(
+    data: AutomationCompleteRequest,
+    request: Request,
+    current_user: User = Depends(get_active_user),
+):
+    """`ai.complete` automation action — free-form Anthropic completion.
+
+    Called from the on-device engine when a rule's action chain includes
+    ``ai.complete``. The rule author's prompt is forwarded verbatim along
+    with optional opaque trigger context.
+    """
+    automation_action_rate_limiter.check(request)
+    tier = current_user.effective_tier
+    daily_ai_rate_limiter.check(current_user.id, tier)
+
+    try:
+        from app.services.ai_productivity import (
+            generate_automation_completion as ai_complete,
+        )
+
+        text = ai_complete(
+            prompt=data.prompt,
+            context=data.context,
+            tier=tier,
+        )
+    except RuntimeError:
+        raise HTTPException(status_code=503, detail="AI service temporarily unavailable")
+    except ValueError:
+        raise HTTPException(status_code=500, detail="AI returned an invalid response")
+
+    return AutomationCompleteResponse(text=text)
+
+
+@router.post("/automation/summarize", response_model=AutomationSummarizeResponse)
+async def automation_summarize(
+    data: AutomationSummarizeRequest,
+    request: Request,
+    current_user: User = Depends(get_active_user),
+):
+    """`ai.summarize` automation action — scoped activity summary.
+
+    Called from the on-device engine when a rule's action chain includes
+    ``ai.summarize``. ``scope`` is one of a small closed set the client
+    knows how to label ("today", "week", "month", etc.); ``max_items`` is
+    the cap on entities the prompt can mention.
+    """
+    automation_action_rate_limiter.check(request)
+    tier = current_user.effective_tier
+    daily_ai_rate_limiter.check(current_user.id, tier)
+
+    try:
+        from app.services.ai_productivity import (
+            generate_automation_summary as ai_summary,
+        )
+
+        summary = ai_summary(
+            scope=data.scope,
+            max_items=data.max_items,
+            context=data.context,
+            tier=tier,
+        )
+    except RuntimeError:
+        raise HTTPException(status_code=503, detail="AI service temporarily unavailable")
+    except ValueError:
+        raise HTTPException(status_code=500, detail="AI returned an invalid response")
+
+    return AutomationSummarizeResponse(summary=summary)

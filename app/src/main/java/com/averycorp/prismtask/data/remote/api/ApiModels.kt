@@ -818,3 +818,31 @@ data class HabitCorrelationsResponse(
 )
 
 // endregion
+
+// region Automation action AI (A7)
+//
+// `ai.complete` and `ai.summarize` automation action handlers route through
+// these schemas. Routes live under the existing `/ai/` prefix so they
+// inherit `AiFeatureGateInterceptor`'s 451 short-circuit when the master
+// AI toggle is off — no `AI_PATH_PREFIXES` update required.
+
+data class AutomationCompleteRequest(
+    val prompt: String,
+    val context: Map<String, @JvmSuppressWildcards Any?>? = null
+)
+
+data class AutomationCompleteResponse(
+    val text: String
+)
+
+data class AutomationSummarizeRequest(
+    val scope: String,
+    @SerializedName("max_items") val maxItems: Int = 50,
+    val context: Map<String, @JvmSuppressWildcards Any?>? = null
+)
+
+data class AutomationSummarizeResponse(
+    val summary: String
+)
+
+// endregion

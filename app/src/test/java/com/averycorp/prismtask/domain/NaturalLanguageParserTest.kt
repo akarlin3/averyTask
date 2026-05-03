@@ -200,6 +200,16 @@ class NaturalLanguageParserTest {
 
         override suspend fun getHabitCorrelations(): HabitCorrelationsResponse =
             error("not used in offline parser tests")
+
+        override suspend fun automationComplete(
+            request: com.averycorp.prismtask.data.remote.api.AutomationCompleteRequest
+        ): com.averycorp.prismtask.data.remote.api.AutomationCompleteResponse =
+            error("not used in offline parser tests")
+
+        override suspend fun automationSummarize(
+            request: com.averycorp.prismtask.data.remote.api.AutomationSummarizeRequest
+        ): com.averycorp.prismtask.data.remote.api.AutomationSummarizeResponse =
+            error("not used in offline parser tests")
     }
 
     private fun dateMillis(date: LocalDate): Long =
