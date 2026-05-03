@@ -242,7 +242,8 @@ private fun TriggerSection(draft: RuleDraft, vm: AutomationRuleEditViewModel) {
                             options = candidates.map { it.name to it.id.toString() }
                         ) { vm.setComposedParentRuleId(it) }
                         Text(
-                            "Cycles of length 5+ abort at fire time. The picker hides the rule being edited and any rule that already chains off it.",
+                            "Cycles of length 5+ abort at fire time. The picker hides the rule " +
+                                "being edited and any rule that already chains off it.",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
