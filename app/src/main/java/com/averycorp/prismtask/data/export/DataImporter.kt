@@ -30,6 +30,7 @@ import com.averycorp.prismtask.data.preferences.BatchUndoConfig
 import com.averycorp.prismtask.data.preferences.BuiltInSortOrders
 import com.averycorp.prismtask.data.preferences.BurnoutWeights
 import com.averycorp.prismtask.data.preferences.CoachingPreferences
+import com.averycorp.prismtask.data.preferences.CognitiveLoadCustomKeywords
 import com.averycorp.prismtask.data.preferences.CustomLeisureActivity
 import com.averycorp.prismtask.data.preferences.DailyEssentialsPreferences
 import com.averycorp.prismtask.data.preferences.DashboardPreferences
@@ -41,7 +42,6 @@ import com.averycorp.prismtask.data.preferences.GoodEnoughTimerConfig
 import com.averycorp.prismtask.data.preferences.HabitListPreferences
 import com.averycorp.prismtask.data.preferences.HabitReminderFallback
 import com.averycorp.prismtask.data.preferences.LeisurePreferences
-import com.averycorp.prismtask.data.preferences.CognitiveLoadCustomKeywords
 import com.averycorp.prismtask.data.preferences.LifeCategoryCustomKeywords
 import com.averycorp.prismtask.data.preferences.MedicationPreferences
 import com.averycorp.prismtask.data.preferences.MedicationScheduleMode
