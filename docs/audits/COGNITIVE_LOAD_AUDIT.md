@@ -470,10 +470,74 @@ Sorted by wall-clock-savings ÷ implementation-cost, descending.
 
 ## Phase 3 — bundle summary
 
-(Pending Phase 2; will be appended after PR merges.)
+(Appended pre-merge per CLAUDE.md § Repo conventions
+"Audit-first Phase 3 + 4 fire pre-merge".)
+
+**PRs opened in this session:**
+
+| PR | Title | LOC | Scope vs original prompt | CI status (at handoff) |
+|----|-------|-----|---------------------------|-------------------------|
+| #1084 | feat(load): Cognitive Load — Phase 1 audit + EASY/MEDIUM/HARD orthogonal task dimension | +1,656 / −9 across 22 files (479-line audit doc + 1,177-line implementation) | Single mega-PR carrying both the Phase 1 audit doc and the Phase 2 implementation. Matches the prompt's scope: TaskEntity-only, descriptive-only v1, 3-tier EASY/MEDIUM/HARD with tie-break EASY>MEDIUM>HARD, web field+sync (no UI editor), no backend Haiku route, no overload worker. | Pending — autofix / lint-and-test / web-lint-and-test / test / maybe-label all in_progress at handoff time; connected-tests / cross-device-tests skipped (path/emulator gating). |
+
+**Measured impact:** not measurable until merge (no migration, classifier,
+or balance computation runs in production until v1.8.x ships). The
+columns + classifier + tracker + selector all default to UNCATEGORIZED
+on first roll-out, so existing users see zero behavior change until
+they manually tag tasks.
+
+**Re-baselined wall-clock-per-PR estimate:** the WPR template (PR #1059
+audit + PR #1061 implementation) shipped over two days. Cognitive Load
+shipped audit + implementation in a single session because the template
+was already in place — confirms the "second copy of an established
+shape costs ~half the first" heuristic. Future orthogonal-dimension
+PRs (e.g. an Energy / Time-of-Day / Mood axis if scoped) should plan
+on the same single-session shape.
+
+**Memory entry candidates:**
+
+1. **Audit-first Phase 3 + 4 pre-merge override** — captured in
+   `CLAUDE.md` § Repo conventions during this session. Future audit-first
+   runs in this repo should fire Phase 3 + 4 as soon as the impl PR is
+   opened, not after merge.
+2. **Mega-PR template clones cost ~half the original.** When PR #N
+   establishes a parallel-axis pattern (orthogonal column + classifier +
+   balance tracker + NLP + UI selector + web parity), PR #N+1 cloning
+   the same shape with a different enum is closer to a same-session
+   landing than a multi-day landing. Anti-pattern: scoping such a clone
+   as a multi-PR fan-out — it expands wall-clock without de-risking,
+   because the template is already proven.
+
+**Schedule for next audit:** none currently scoped. The defer list
+below seeds Phase F+1 candidates if the operator wants follow-ups.
+
+**Defers (audit doc only — not auto-filed as timeline items per
+defer-minimization principle):**
+
+- Backend Haiku route + `Depends(require_ai_features_enabled)` for
+  AI-inferred load.
+- Web UI editor surface for picking load (mirrors WPR A6 deferral).
+- `CognitiveLoadOverloadCheckWorker` if user research justifies a
+  prescriptive bidirectional-imbalance notification.
+- Per-load streak strictness composing with `DailyForgivenessStreakCore`.
+- Habit / project / medication classification by load.
+- Today balance bar / weekly report load section (lands once load
+  data exists in DB).
+- `MultiAxisBalanceTracker<T>` refactor — three parallel trackers
+  (`BalanceTracker`, `ModeBalanceTracker`, `CognitiveLoadBalanceTracker`)
+  share ~85% of their cutoff/ratio code. Operator's own PR if/when
+  the duplication bites.
+- `DayBoundary.kt` dedup (`util/` and `core/time/` both exist).
+
+**Phase F kickoff impact:** Cognitive Load ships before the May 15
+kickoff if PR #1084 merges in the next 12 days. If CI flakes or
+review surfaces a re-scope, falls back to v1.8.x post-kickoff at the
+same shape WPR landed (v1.8.18, post-its-own-audit-STOP override).
 
 ---
 
 ## Phase 4 — Claude Chat handoff summary
 
-(Pending Phase 3; will be appended at handoff time.)
+(Emitted at PR-open time per CLAUDE.md § Repo conventions
+"Audit-first Phase 3 + 4 fire pre-merge". Block printed in this
+session's terminal; copy-paste into a fresh Claude.ai conversation
+to pick up the thread cold.)
