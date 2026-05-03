@@ -28,6 +28,17 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE project_id = :projectId")
     suspend fun getTasksByProjectOnce(projectId: Long): List<TaskEntity>
 
+    @Query(
+        "SELECT * FROM tasks WHERE phase_id = :phaseId ORDER BY sort_order ASC, created_at ASC"
+    )
+    suspend fun getTasksForPhaseOnce(phaseId: Long): List<TaskEntity>
+
+    @Query(
+        "SELECT * FROM tasks WHERE project_id = :projectId AND phase_id IS NULL " +
+            "ORDER BY sort_order ASC, created_at ASC"
+    )
+    suspend fun getUnphasedTasksForProjectOnce(projectId: Long): List<TaskEntity>
+
     @Query("DELETE FROM tasks WHERE project_id = :projectId")
     suspend fun deleteTasksByProjectId(projectId: Long)
 

@@ -20,11 +20,18 @@ import androidx.room.PrimaryKey
             parentColumns = ["id"],
             childColumns = ["parent_task_id"],
             onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = ProjectPhaseEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["phase_id"],
+            onDelete = ForeignKey.SET_NULL
         )
     ],
     indices = [
         Index("project_id"),
         Index("parent_task_id"),
+        Index("phase_id"),
         Index("due_date"),
         Index("is_completed"),
         Index("priority"),
@@ -122,5 +129,25 @@ data class TaskEntity(
     val revisionLocked: Boolean = false,
     /** Cumulative editing time in minutes (for Good Enough Timer tracking). */
     @ColumnInfo(name = "cumulative_edit_minutes", defaultValue = "0")
-    val cumulativeEditMinutes: Int = 0
+    val cumulativeEditMinutes: Int = 0,
+    /**
+     * Phase this task belongs to within its project. Nullable; legacy
+     * tasks and tasks not under a project are unaffected. FK is
+     * SET_NULL so deleting a phase reparents tasks to "no phase"
+     * rather than dropping them. Audit:
+     * `docs/audits/PRISMTASK_TIMELINE_CLASS_AUDIT.md` § "Investigation
+     * items 9".
+     */
+    @ColumnInfo(name = "phase_id")
+    val phaseId: Long? = null,
+    /**
+     * Per-item fractional progress, 0–100. NULL means legacy/binary
+     * semantics (the row's [isCompleted] is the source of truth);
+     * non-null means the row is fractional. Audit P9 picked option
+     * (a): only tasks under a project use this column, so the cascade
+     * to the 60+ `.isCompleted` callers stays at zero. Burndown reads
+     * `progress_percent ?: (if isCompleted then 100 else 0)`.
+     */
+    @ColumnInfo(name = "progress_percent")
+    val progressPercent: Int? = null
 )
