@@ -17,16 +17,20 @@ package com.averycorp.prismtask.domain.model
 enum class TaskState {
     /** Open task with no due date or due in the future. */
     Pending,
+
     /** Open task whose due date has passed and no blockers prevent action. */
     Overdue,
+
     /**
      * Open task with at least one un-completed blocker. Surfaces with a
      * "waiting on …" hint and is excluded from the overdue/missed pool
      * that the forgiveness streak walker sees.
      */
     BlockedByDependency,
+
     /** Task carries `is_completed = 1`. */
     Completed,
+
     /** Task carries an `archived_at` value. */
     Archived
 }
