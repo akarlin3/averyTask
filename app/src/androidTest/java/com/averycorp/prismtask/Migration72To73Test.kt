@@ -109,8 +109,7 @@ class Migration72To73Test {
 
         var count = -1
         db.query("SELECT COUNT(*) FROM task_dependencies").use { c ->
-            c.moveToFirst()
-            count = c.getInt(0)
+            c.moveToFirst(); count = c.getInt(0)
         }
         assertEquals(1, count)
         helper.close()
@@ -131,8 +130,7 @@ class Migration72To73Test {
 
         var count = -1
         db.query("SELECT COUNT(*) FROM task_dependencies").use { c ->
-            c.moveToFirst()
-            count = c.getInt(0)
+            c.moveToFirst(); count = c.getInt(0)
         }
         assertEquals("CASCADE removed orphaned edge", 0, count)
         helper.close()
