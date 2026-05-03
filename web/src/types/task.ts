@@ -43,6 +43,15 @@ export interface Task {
   user_overrode_quadrant?: boolean;
   /** Whether the task is flagged. Round-tripped from Android. */
   is_flagged?: boolean;
+  /**
+   * PrismTask-Timeline-Class scope (audit § P9 option a). 0–100
+   * fractional progress; null preserves the legacy binary semantics
+   * (`status === 'done'` is the source of truth). Only tasks under a
+   * project use this column.
+   */
+  progress_percent?: number | null;
+  /** Phase id (string Firestore doc id) when the task lives under a phase. */
+  phase_id?: string | null;
 }
 
 export interface TaskCreate {

@@ -359,23 +359,35 @@ async def compute_project_burndown(
     )
     total_tasks = total_result.scalar() or 0
 
-    # Completed tasks count
-    completed_result = await db.execute(
-        select(func.count()).select_from(Task).where(
-            Task.project_id == project_id,
-            Task.status == TaskStatus.DONE,
-        )
-    )
-    completed_tasks = completed_result.scalar() or 0
-
-    # Fetch all tasks with their created_at and completed_at
+    # Fetch all non-cancelled tasks with the columns burndown needs.
+    # PrismTask-Timeline-Class scope (audit § P9 option a): each task
+    # contributes ``progress_percent / 100`` to the completed total when
+    # set; otherwise it falls back to the legacy binary check. Tasks not
+    # under a project never set progress_percent, so existing burndown
+    # callers see no behavior change.
     tasks_result = await db.execute(
-        select(Task.created_at, Task.completed_at, Task.status).where(
+        select(
+            Task.created_at,
+            Task.completed_at,
+            Task.status,
+            Task.progress_percent,
+        ).where(
             Task.project_id == project_id,
             Task.status != TaskStatus.CANCELLED,
         )
     )
     all_tasks = tasks_result.all()
+
+    def task_progress_fraction(task) -> float:
+        """Returns the completed fraction for a single task, in [0.0, 1.0]."""
+        if task.progress_percent is not None:
+            return max(0.0, min(1.0, task.progress_percent / 100.0))
+        return 1.0 if task.status == TaskStatus.DONE else 0.0
+
+    # Total completed contribution across all tasks (sums to total_tasks
+    # when every row is binary-DONE; less when fractional rows are mid-progress).
+    completed_total = sum(task_progress_fraction(t) for t in all_tasks)
+    completed_tasks = round(completed_total, 2)
 
     # Build day-by-day burndown
     burndown = []
@@ -387,13 +399,21 @@ async def compute_project_burndown(
             if t.created_at is not None and t.created_at.date() <= current
         )
 
-        # Count tasks completed by end of this day
-        tasks_done = sum(
-            1 for t in all_tasks
-            if t.completed_at is not None and t.completed_at.date() <= current
+        # Sum of completed fractions for tasks "completed" by end of this
+        # day. A fractional task is treated as fully contributing once
+        # its completed_at lands; the time-axis is binary even though the
+        # per-task contribution is fractional. (Per-day fractional progress
+        # would require a `task_progress_log` table — out of scope.)
+        completed_cumulative = round(
+            sum(
+                task_progress_fraction(t)
+                for t in all_tasks
+                if t.completed_at is not None and t.completed_at.date() <= current
+            ),
+            2,
         )
 
-        remaining = tasks_existing - tasks_done
+        remaining = round(tasks_existing - completed_cumulative, 2)
 
         # Tasks added today
         added_today = sum(
@@ -404,18 +424,18 @@ async def compute_project_burndown(
         burndown.append({
             "date": current,
             "remaining": remaining,
-            "completed_cumulative": tasks_done,
+            "completed_cumulative": completed_cumulative,
             "added": added_today,
         })
 
         current += timedelta(days=1)
 
-    # Calculate velocity (tasks completed per day over the range)
+    # Calculate velocity (fractional tasks completed per day over the range)
     days_elapsed = (end_date - start_date).days + 1
-    velocity = round(completed_tasks / days_elapsed, 1) if days_elapsed > 0 else 0.0
+    velocity = round(completed_total / days_elapsed, 1) if days_elapsed > 0 else 0.0
 
-    # Projected completion
-    remaining_now = total_tasks - completed_tasks
+    # Projected completion (fractional remaining; rounded for the response shape)
+    remaining_now = round(total_tasks - completed_total, 2)
     projected_completion = None
     is_on_track = True
     if velocity > 0 and remaining_now > 0:

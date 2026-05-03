@@ -46,9 +46,30 @@ function parseDateInput(iso: string): Date {
 
 export interface BurndownInput {
   project: Pick<Project, 'id' | 'title' | 'due_date'>;
-  tasks: Pick<Task, 'id' | 'project_id' | 'status' | 'created_at' | 'completed_at'>[];
+  tasks: Pick<
+    Task,
+    'id' | 'project_id' | 'status' | 'created_at' | 'completed_at' | 'progress_percent'
+  >[];
   startIso: string;
   endIso: string;
+}
+
+/**
+ * Returns the completed fraction for a single task in [0, 1].
+ *
+ * PrismTask-Timeline-Class scope (audit § P9 option a): tasks under
+ * a project may carry a 0–100 ``progress_percent``; everywhere else
+ * the legacy binary ``status === 'done'`` check still holds. Mirror
+ * of `analytics.task_progress_fraction` on the backend.
+ */
+function taskProgressFraction(task: {
+  status: string;
+  progress_percent?: number | null;
+}): number {
+  if (task.progress_percent != null) {
+    return Math.max(0, Math.min(1, task.progress_percent / 100));
+  }
+  return task.status === 'done' ? 1 : 0;
 }
 
 export function computeProjectBurndown({
@@ -62,13 +83,18 @@ export function computeProjectBurndown({
   );
 
   const totalTasks = projectTasks.length;
-  const completedTasks = projectTasks.filter((t) => t.status === 'done').length;
+  const completedTotal = projectTasks.reduce(
+    (sum, t) => sum + taskProgressFraction(t),
+    0,
+  );
+  const completedTasks = Math.round(completedTotal * 100) / 100;
 
-  // Pre-compute per-task created + completed date-only values so the
-  // per-day inner loop doesn't re-parse on every iteration.
+  // Pre-compute per-task created + completed date-only values + the
+  // task's progress fraction so the per-day inner loop doesn't re-parse.
   const taskDates = projectTasks.map((t) => ({
     created: toDateOnly(t.created_at),
     completed: toDateOnly(t.completed_at),
+    fraction: taskProgressFraction(t),
   }));
 
   const startDate = parseDateInput(startIso);
@@ -82,17 +108,20 @@ export function computeProjectBurndown({
   ) {
     const dayMs = d.getTime();
     let existing = 0;
-    let done = 0;
+    let completedCumulative = 0;
     let added = 0;
     for (const td of taskDates) {
       if (td.created && td.created.getTime() <= dayMs) existing += 1;
-      if (td.completed && td.completed.getTime() <= dayMs) done += 1;
+      if (td.completed && td.completed.getTime() <= dayMs) {
+        completedCumulative += td.fraction;
+      }
       if (td.created && td.created.getTime() === dayMs) added += 1;
     }
+    const completedRounded = Math.round(completedCumulative * 100) / 100;
     burndown.push({
       date: formatDate(d),
-      remaining: existing - done,
-      completed_cumulative: done,
+      remaining: Math.round((existing - completedCumulative) * 100) / 100,
+      completed_cumulative: completedRounded,
       added,
     });
   }
@@ -102,9 +131,9 @@ export function computeProjectBurndown({
     Math.round((endDate.getTime() - startDate.getTime()) / DAY_MS) + 1,
   );
   const velocity =
-    daysElapsed > 0 ? Math.round((completedTasks / daysElapsed) * 10) / 10 : 0;
+    daysElapsed > 0 ? Math.round((completedTotal / daysElapsed) * 10) / 10 : 0;
 
-  const remainingNow = totalTasks - completedTasks;
+  const remainingNow = Math.round((totalTasks - completedTotal) * 100) / 100;
   let projectedCompletion: string | null = null;
   let isOnTrack = true;
   if (velocity > 0 && remainingNow > 0) {
