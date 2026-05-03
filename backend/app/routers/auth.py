@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 from app.middleware.auth import get_current_user
 from app.middleware.rate_limit import auth_rate_limiter
@@ -32,6 +33,17 @@ DELETION_GRACE_DAYS = 30
 _VALID_INITIATED_FROM = {"android", "web", "email"}
 
 
+def _apply_admin_allowlist(user: User) -> None:
+    """Promote a user to admin if their email is in ADMIN_EMAILS.
+
+    Idempotent and one-way: a user already in the list stays admin, but
+    removing them from the env-var list does NOT demote them — admin
+    revocation must be done manually in the DB.
+    """
+    if not user.is_admin and settings.is_admin_email(user.email):
+        user.is_admin = True
+
+
 def _as_utc(dt: datetime) -> datetime:
     """Ensure a datetime is timezone-aware in UTC.
 
@@ -56,6 +68,7 @@ async def register(request: Request, user_data: UserCreate, db: AsyncSession = D
         name=user_data.name,
         hashed_password=hash_password(user_data.password),
     )
+    _apply_admin_allowlist(user)
     db.add(user)
     await db.flush()
     await db.refresh(user)
@@ -75,6 +88,9 @@ async def login(request: Request, credentials: UserLogin, db: AsyncSession = Dep
 
     if not user or not verify_password(credentials.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    _apply_admin_allowlist(user)
+    await db.flush()
 
     token_data = {"sub": str(user.id), "email": user.email}
     return Token(
@@ -130,8 +146,12 @@ async def firebase_login(
             )
             db.add(user)
 
+        _apply_admin_allowlist(user)
         await db.flush()
         await db.refresh(user)
+    else:
+        _apply_admin_allowlist(user)
+        await db.flush()
 
     token_data = {"sub": str(user.id), "email": user.email}
     return Token(

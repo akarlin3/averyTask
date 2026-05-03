@@ -176,3 +176,107 @@ async def test_firebase_login_no_email(mock_verify, client: AsyncClient):
     )
     assert resp.status_code == 400
     assert resp.json()["detail"] == "Firebase account has no email"
+
+
+# --- Admin allowlist tests ---
+
+
+@pytest.mark.asyncio
+async def test_register_promotes_allowlisted_email_to_admin(client: AsyncClient):
+    resp = await client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "averycheese@gmail.com",
+            "name": "Avery",
+            "password": "pass123",
+        },
+    )
+    assert resp.status_code == 201
+    headers = {"Authorization": f"Bearer {resp.json()['access_token']}"}
+    me = await client.get("/api/v1/auth/me", headers=headers)
+    assert me.status_code == 200
+    assert me.json()["is_admin"] is True
+
+
+@pytest.mark.asyncio
+async def test_register_does_not_promote_non_allowlisted_email(client: AsyncClient):
+    resp = await client.post(
+        "/api/v1/auth/register",
+        json={"email": "rando@example.com", "name": "Rando", "password": "pass123"},
+    )
+    assert resp.status_code == 201
+    headers = {"Authorization": f"Bearer {resp.json()['access_token']}"}
+    me = await client.get("/api/v1/auth/me", headers=headers)
+    assert me.json()["is_admin"] is False
+
+
+@pytest.mark.asyncio
+async def test_login_retroactively_promotes_allowlisted_email(client: AsyncClient):
+    """A user already in the DB without is_admin gets promoted on next login
+    once their email is added to the allowlist."""
+    from sqlalchemy import update
+
+    from app.models import User
+    from tests.conftest import TestSessionLocal
+
+    await client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "averycheese@gmail.com",
+            "name": "Avery",
+            "password": "pass123",
+        },
+    )
+    # Simulate "user existed before being added to the allowlist"
+    async with TestSessionLocal() as session:
+        await session.execute(
+            update(User)
+            .where(User.email == "averycheese@gmail.com")
+            .values(is_admin=False)
+        )
+        await session.commit()
+
+    resp = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "averycheese@gmail.com", "password": "pass123"},
+    )
+    assert resp.status_code == 200
+    headers = {"Authorization": f"Bearer {resp.json()['access_token']}"}
+    me = await client.get("/api/v1/auth/me", headers=headers)
+    assert me.json()["is_admin"] is True
+
+
+@pytest.mark.asyncio
+async def test_admin_email_match_is_case_insensitive(client: AsyncClient):
+    resp = await client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "AveryCheese@Gmail.com",
+            "name": "Avery",
+            "password": "pass123",
+        },
+    )
+    assert resp.status_code == 201
+    headers = {"Authorization": f"Bearer {resp.json()['access_token']}"}
+    me = await client.get("/api/v1/auth/me", headers=headers)
+    assert me.json()["is_admin"] is True
+
+
+@pytest.mark.asyncio
+@patch(
+    "app.routers.auth.verify_firebase_token",
+    return_value={
+        "uid": "firebase-admin-uid",
+        "email": "averycheese@gmail.com",
+        "name": "Avery",
+    },
+)
+async def test_firebase_login_promotes_allowlisted_email(mock_verify, client: AsyncClient):
+    resp = await client.post(
+        "/api/v1/auth/firebase",
+        json={"firebase_token": "fake-id-token"},
+    )
+    assert resp.status_code == 200
+    headers = {"Authorization": f"Bearer {resp.json()['access_token']}"}
+    me = await client.get("/api/v1/auth/me", headers=headers)
+    assert me.json()["is_admin"] is True
