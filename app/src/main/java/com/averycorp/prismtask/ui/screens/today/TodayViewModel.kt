@@ -32,13 +32,13 @@ import com.averycorp.prismtask.data.repository.TagRepository
 import com.averycorp.prismtask.data.repository.TaskRepository
 import com.averycorp.prismtask.data.repository.TaskTemplateRepository
 import com.averycorp.prismtask.domain.usecase.BalanceConfig
-import com.averycorp.prismtask.domain.usecase.CognitiveLoadBalanceConfig
-import com.averycorp.prismtask.domain.usecase.CognitiveLoadBalanceState
-import com.averycorp.prismtask.domain.usecase.CognitiveLoadBalanceTracker
 import com.averycorp.prismtask.domain.usecase.BalanceState
 import com.averycorp.prismtask.domain.usecase.BalanceTracker
 import com.averycorp.prismtask.domain.usecase.BurnoutResult
 import com.averycorp.prismtask.domain.usecase.BurnoutScorer
+import com.averycorp.prismtask.domain.usecase.CognitiveLoadBalanceConfig
+import com.averycorp.prismtask.domain.usecase.CognitiveLoadBalanceState
+import com.averycorp.prismtask.domain.usecase.CognitiveLoadBalanceTracker
 import com.averycorp.prismtask.domain.usecase.DailyEssentialsUiState
 import com.averycorp.prismtask.domain.usecase.DailyEssentialsUseCase
 import com.averycorp.prismtask.domain.usecase.HabitTodayVisibilityResolver
