@@ -156,6 +156,25 @@ interface PrismTaskApi {
         @Body request: CoachingRequest
     ): CoachingResponse
 
+    /**
+     * `ai.complete` automation action. AI-gated via [AiFeatureGateInterceptor]
+     * (the `/ai/` prefix is already covered — no list update needed). Returns
+     * 451 when the master AI toggle is off, 503 when Anthropic is unavailable.
+     */
+    @POST("api/v1/ai/automation/complete")
+    suspend fun automationComplete(
+        @Body request: AutomationCompleteRequest
+    ): AutomationCompleteResponse
+
+    /**
+     * `ai.summarize` automation action. Same 451/503 contract as
+     * [automationComplete].
+     */
+    @POST("api/v1/ai/automation/summarize")
+    suspend fun automationSummarize(
+        @Body request: AutomationSummarizeRequest
+    ): AutomationSummarizeResponse
+
     @GET("api/v1/export/json")
     suspend fun exportJson(): ResponseBody
 

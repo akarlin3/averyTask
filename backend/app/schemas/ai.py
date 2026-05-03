@@ -531,3 +531,64 @@ class ChatResponse(BaseModel):
     actions: list[ChatActionPayload] = Field(default_factory=list)
     conversation_id: str
     tokens_used: Optional[ChatTokensUsed] = None
+
+
+# --- Automation Action AI (A7) ---
+#
+# Two endpoints invoked by the on-device automation engine when a rule's
+# action chain includes ``ai.complete`` or ``ai.summarize``. Both are
+# deliberately tiny — the rule author writes a free-form prompt (complete)
+# or names a scope identifier (summarize), and the backend returns a
+# single text blob the handler stores on the firing log.
+#
+# Routed under the existing ``/ai/`` prefix so they automatically inherit
+# the PII-egress AI gate, the Pro-tier daily AI rate limiter, and the
+# router-level tier+auth dependencies. Adding them does NOT require
+# touching ``AiFeatureGateInterceptor.AI_PATH_PREFIXES`` on the client.
+
+
+class AutomationCompleteRequest(BaseModel):
+    """`ai.complete` action — free-form Anthropic completion.
+
+    The on-device handler passes the rule author's prompt verbatim and
+    optionally an opaque ``context`` dict carrying the trigger event
+    (entity payload, fired-at timestamp, etc.). The backend forwards both
+    to Haiku and returns the model's response as plain text.
+    """
+
+    prompt: str = Field(min_length=1, max_length=4000)
+    # Free-form passthrough — keys depend on the trigger entity type
+    # (task/habit/medication/etc). Validated only at the pydantic boundary
+    # since Haiku is the consumer; the router never inspects keys.
+    context: Optional[dict[str, Any]] = None
+
+
+class AutomationCompleteResponse(BaseModel):
+    text: str
+
+
+# Closed set of summary scopes the client knows how to label. Keep this
+# in sync with the Android handler's enum if a new scope is added.
+_AUTOMATION_SUMMARIZE_SCOPE_PATTERN = (
+    "^(today|tomorrow|yesterday|week|next_week|month|overdue|inbox|custom)$"
+)
+
+
+class AutomationSummarizeRequest(BaseModel):
+    """`ai.summarize` action — scoped summary of recent activity.
+
+    ``scope`` is one of a small closed set ("today" / "week" / "month" /
+    etc.) the client passes literally; the backend uses it to phrase the
+    Haiku prompt. ``max_items`` caps how many entities the prompt can
+    consider — also enforced server-side as a sanity bound.
+    """
+
+    scope: str = Field(pattern=_AUTOMATION_SUMMARIZE_SCOPE_PATTERN)
+    max_items: int = Field(default=50, ge=1, le=500)
+    # Optional opaque passthrough — the engine forwards trigger context the
+    # same way ai.complete does. The backend doesn't inspect keys.
+    context: Optional[dict[str, Any]] = None
+
+
+class AutomationSummarizeResponse(BaseModel):
+    summary: str

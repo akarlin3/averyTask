@@ -256,4 +256,14 @@ class FakePrismTaskApi : PrismTaskApi {
 
     override suspend fun getHabitCorrelations(): com.averycorp.prismtask.data.remote.api.HabitCorrelationsResponse =
         error("Not used in offline tests")
+
+    override suspend fun automationComplete(
+        request: com.averycorp.prismtask.data.remote.api.AutomationCompleteRequest
+    ): com.averycorp.prismtask.data.remote.api.AutomationCompleteResponse =
+        error("Not used in offline tests")
+
+    override suspend fun automationSummarize(
+        request: com.averycorp.prismtask.data.remote.api.AutomationSummarizeRequest
+    ): com.averycorp.prismtask.data.remote.api.AutomationSummarizeResponse =
+        error("Not used in offline tests")
 }

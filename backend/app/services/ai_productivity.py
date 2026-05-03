@@ -1107,3 +1107,108 @@ def generate_chat_response(
             logger.error(f"Chat AI error: {type(e).__name__}: {e}")
             raise
     raise ValueError(f"Failed to parse chat response: {last_error}")
+
+
+# ---------------------------------------------------------------------------
+# A7 — Automation action AI (ai.complete / ai.summarize)
+# ---------------------------------------------------------------------------
+#
+# Plain-text completions for the on-device automation engine. Both
+# functions deliberately skip the JSON envelope used elsewhere: the
+# results are stored verbatim on the firing log and rendered straight to
+# the user, so a tighter prompt + raw text response is the right fit.
+
+
+_AUTOMATION_COMPLETE_SYSTEM_PROMPT = (
+    "You are an assistant invoked from a user's PrismTask automation rule. "
+    "Respond to the user's prompt directly and concisely (1-3 sentences "
+    "unless the prompt explicitly asks for more). The response is rendered "
+    "as plain text in the rule's firing log — no markdown headings, no "
+    "bullet lists unless the user asks. If the rule supplies a context "
+    "object describing the trigger entity, ground your answer in that "
+    "context."
+)
+
+
+def generate_automation_completion(
+    prompt: str,
+    context: dict | None = None,
+    tier: str = "PRO",
+) -> str:
+    """Run a free-form Anthropic completion for an ``ai.complete`` action.
+
+    Returns the assistant's reply as plain text. Raises ``RuntimeError``
+    if the Anthropic client can't be constructed (missing key or import),
+    and re-raises other transport errors.
+    """
+    client = _get_client()
+    model = get_model("automation_complete")
+
+    user_block: dict = {"prompt": prompt}
+    if context:
+        user_block["context"] = context
+    user_payload = json.dumps(user_block, default=str, indent=2)
+
+    try:
+        ai_message = client.messages.create(
+            model=model,
+            max_tokens=1024,
+            system=_AUTOMATION_COMPLETE_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": user_payload}],
+        )
+        text = ai_message.content[0].text.strip()
+        # Defensive strip: some Haiku replies add stray quotes or trailing
+        # whitespace.
+        return text.strip('"').strip()
+    except Exception as e:
+        logger.error(
+            f"Automation complete AI error: {type(e).__name__}: {e}"
+        )
+        raise
+
+
+_AUTOMATION_SUMMARIZE_SYSTEM_PROMPT = (
+    "You are an assistant invoked from a user's PrismTask automation rule. "
+    "Summarize the user's PrismTask activity for the named scope ('today', "
+    "'week', 'month', etc.) in 1-3 sentences. Lead with what got done, "
+    "follow with what's outstanding, and close with one concrete next "
+    "step if the data warrants it. Plain text — no markdown, no bullet "
+    "lists. If a context object is supplied, ground the summary in it; "
+    "otherwise produce a generic encouragement that respects the scope."
+)
+
+
+def generate_automation_summary(
+    scope: str,
+    max_items: int = 50,
+    context: dict | None = None,
+    tier: str = "PRO",
+) -> str:
+    """Run a scoped Anthropic summary for an ``ai.summarize`` action.
+
+    The handler passes a ``scope`` identifier ("today" / "week" / etc.)
+    and a hard cap on how many entities the prompt can mention. Returns
+    the assistant's summary as plain text.
+    """
+    client = _get_client()
+    model = get_model("automation_summarize")
+
+    user_block: dict = {"scope": scope, "max_items": int(max_items)}
+    if context:
+        user_block["context"] = context
+    user_payload = json.dumps(user_block, default=str, indent=2)
+
+    try:
+        ai_message = client.messages.create(
+            model=model,
+            max_tokens=1024,
+            system=_AUTOMATION_SUMMARIZE_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": user_payload}],
+        )
+        text = ai_message.content[0].text.strip()
+        return text.strip('"').strip()
+    except Exception as e:
+        logger.error(
+            f"Automation summarize AI error: {type(e).__name__}: {e}"
+        )
+        raise
