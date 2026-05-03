@@ -163,6 +163,62 @@ private fun TriggerSection(draft: RuleDraft, vm: AutomationRuleEditViewModel) {
                         modifier = Modifier.weight(1f)
                     )
                 }
+                TriggerKind.DAY_OF_WEEK_TIME -> {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedTextField(
+                            value = draft.timeHour.toString(),
+                            onValueChange = { vm.setTimeHour(it.toIntOrNull() ?: 0) },
+                            label = { Text("Hour (0-23)") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        OutlinedTextField(
+                            value = draft.timeMinute.toString(),
+                            onValueChange = { vm.setTimeMinute(it.toIntOrNull() ?: 0) },
+                            label = { Text("Minute (0-59)") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "Days",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        AutomationRuleEditViewModel.DAYS_OF_WEEK.forEach { day ->
+                            val selected = day in draft.daysOfWeek
+                            OutlinedButton(
+                                onClick = { vm.toggleDayOfWeek(day) },
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = day.take(2),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (selected) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    }
+                                )
+                            }
+                        }
+                    }
+                    if (draft.daysOfWeek.isEmpty()) {
+                        Text(
+                            "Pick at least one day",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                }
                 TriggerKind.MANUAL -> Text(
                     "Use \"Run Now\" from the rules list to fire this rule.",
                     style = MaterialTheme.typography.bodySmall,

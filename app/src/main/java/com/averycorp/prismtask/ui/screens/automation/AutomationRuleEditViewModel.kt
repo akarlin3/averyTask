@@ -61,8 +61,12 @@ class AutomationRuleEditViewModel @Inject constructor(
             isBuiltIn = row.isBuiltIn,
             triggerKind = triggerKindOf(trigger),
             entityEventKind = (trigger as? AutomationTrigger.EntityEvent)?.eventKind ?: ENTITY_EVENT_KINDS.first(),
-            timeHour = (trigger as? AutomationTrigger.TimeOfDay)?.hour ?: 7,
-            timeMinute = (trigger as? AutomationTrigger.TimeOfDay)?.minute ?: 0,
+            timeHour = (trigger as? AutomationTrigger.TimeOfDay)?.hour
+                ?: (trigger as? AutomationTrigger.DayOfWeekTime)?.hour ?: 7,
+            timeMinute = (trigger as? AutomationTrigger.TimeOfDay)?.minute
+                ?: (trigger as? AutomationTrigger.DayOfWeekTime)?.minute ?: 0,
+            daysOfWeek = (trigger as? AutomationTrigger.DayOfWeekTime)?.daysOfWeek
+                ?: emptySet(),
             composedParentRuleId = (trigger as? AutomationTrigger.Composed)?.parentRuleId?.toString().orEmpty(),
             conditionEnabled = condition is AutomationCondition.Compare,
             conditionField = (condition as? AutomationCondition.Compare)?.field ?: CONDITION_FIELDS.first(),
@@ -80,6 +84,10 @@ class AutomationRuleEditViewModel @Inject constructor(
     fun setEntityEventKind(value: String) = _draft.update { it.copy(entityEventKind = value) }
     fun setTimeHour(hour: Int) = _draft.update { it.copy(timeHour = hour.coerceIn(0, 23)) }
     fun setTimeMinute(minute: Int) = _draft.update { it.copy(timeMinute = minute.coerceIn(0, 59)) }
+    fun toggleDayOfWeek(day: String) = _draft.update { d ->
+        val next = d.daysOfWeek.toMutableSet().apply { if (!add(day)) remove(day) }
+        d.copy(daysOfWeek = next)
+    }
     fun setComposedParentRuleId(value: String) = _draft.update { it.copy(composedParentRuleId = value) }
 
     fun setConditionEnabled(value: Boolean) = _draft.update { it.copy(conditionEnabled = value) }
@@ -131,6 +139,7 @@ class AutomationRuleEditViewModel @Inject constructor(
     private fun triggerKindOf(t: AutomationTrigger?): TriggerKind = when (t) {
         is AutomationTrigger.EntityEvent -> TriggerKind.ENTITY_EVENT
         is AutomationTrigger.TimeOfDay -> TriggerKind.TIME_OF_DAY
+        is AutomationTrigger.DayOfWeekTime -> TriggerKind.DAY_OF_WEEK_TIME
         AutomationTrigger.Manual -> TriggerKind.MANUAL
         is AutomationTrigger.Composed -> TriggerKind.COMPOSED
         null -> TriggerKind.ENTITY_EVENT
@@ -159,6 +168,9 @@ class AutomationRuleEditViewModel @Inject constructor(
             "HabitStreakHit",
             "MedicationLogged"
         )
+        val DAYS_OF_WEEK = listOf(
+            "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"
+        )
         val CONDITION_FIELDS = listOf(
             "task.priority",
             "task.dueDate",
@@ -176,6 +188,7 @@ class AutomationRuleEditViewModel @Inject constructor(
 enum class TriggerKind(val label: String) {
     ENTITY_EVENT("When an event happens"),
     TIME_OF_DAY("Daily at a time"),
+    DAY_OF_WEEK_TIME("Weekly on chosen days"),
     MANUAL("Run only when I tap"),
     COMPOSED("After another rule fires")
 }
@@ -190,6 +203,7 @@ data class RuleDraft(
     val entityEventKind: String = "TaskCreated",
     val timeHour: Int = 7,
     val timeMinute: Int = 0,
+    val daysOfWeek: Set<String> = emptySet(),
     val composedParentRuleId: String = "",
     val conditionEnabled: Boolean = false,
     val conditionField: String = "task.priority",
@@ -200,6 +214,8 @@ data class RuleDraft(
     fun toTrigger(): AutomationTrigger? = when (triggerKind) {
         TriggerKind.ENTITY_EVENT -> AutomationTrigger.EntityEvent(entityEventKind)
         TriggerKind.TIME_OF_DAY -> AutomationTrigger.TimeOfDay(timeHour, timeMinute)
+        TriggerKind.DAY_OF_WEEK_TIME -> daysOfWeek.takeIf { it.isNotEmpty() }
+            ?.let { AutomationTrigger.DayOfWeekTime(it, timeHour, timeMinute) }
         TriggerKind.MANUAL -> AutomationTrigger.Manual
         TriggerKind.COMPOSED -> composedParentRuleId.toLongOrNull()?.let { AutomationTrigger.Composed(it) }
     }
