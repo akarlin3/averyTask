@@ -2249,7 +2249,10 @@ constructor(
             val phaseLocalId = phaseCloudId?.let { syncMetadataDao.getLocalId(it, "project_phase") }
             if (localId == null) {
                 val anchor = SyncMapper.mapToExternalAnchor(
-                    data, projectLocalId, phaseLocalId, cloudId = cloudId
+                    data,
+                    projectLocalId,
+                    phaseLocalId,
+                    cloudId = cloudId
                 )
                 val newId = externalAnchorDao.insert(anchor)
                 syncMetadataDao.upsert(
@@ -2266,7 +2269,11 @@ constructor(
                 if (localRow == null || remoteUpdatedAt > localRow.updatedAt) {
                     externalAnchorDao.update(
                         SyncMapper.mapToExternalAnchor(
-                            data, projectLocalId, phaseLocalId, localId, cloudId = cloudId
+                            data,
+                            projectLocalId,
+                            phaseLocalId,
+                            localId,
+                            cloudId = cloudId
                         )
                     )
                     syncMetadataDao.clearPendingAction(localId, "external_anchor")

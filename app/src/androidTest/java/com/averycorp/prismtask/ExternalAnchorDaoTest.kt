@@ -105,17 +105,26 @@ class ExternalAnchorDaoTest {
         val phaseB = phaseDao.insert(ProjectPhaseEntity(projectId = projectId, title = "B"))
         dao.insert(
             ExternalAnchorEntity(
-                projectId = projectId, phaseId = phaseA, label = "in-A", anchorJson = "{}"
+                projectId = projectId,
+                phaseId = phaseA,
+                label = "in-A",
+                anchorJson = "{}"
             )
         )
         dao.insert(
             ExternalAnchorEntity(
-                projectId = projectId, phaseId = phaseB, label = "in-B", anchorJson = "{}"
+                projectId = projectId,
+                phaseId = phaseB,
+                label = "in-B",
+                anchorJson = "{}"
             )
         )
         dao.insert(
             ExternalAnchorEntity(
-                projectId = projectId, phaseId = null, label = "no-phase", anchorJson = "{}"
+                projectId = projectId,
+                phaseId = null,
+                label = "no-phase",
+                anchorJson = "{}"
             )
         )
         assertEquals(1, dao.getAnchorsForPhaseOnce(phaseA).size)

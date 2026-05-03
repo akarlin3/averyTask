@@ -98,7 +98,8 @@ object ExternalAnchorJsonAdapter {
                 else -> {
                     // Forward-compat: unknown discriminator silently drops
                     // the row rather than crashing the pull / decode path.
-                    @Suppress("UNUSED_VARIABLE") val unused = t
+                    @Suppress("UNUSED_VARIABLE")
+                    val unused = t
                     null
                 }
             }

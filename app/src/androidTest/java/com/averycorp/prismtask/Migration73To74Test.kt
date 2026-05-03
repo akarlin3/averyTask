@@ -118,7 +118,8 @@ class Migration73To74Test {
         db.execSQL("DELETE FROM `projects` WHERE id = 1")
         var count = -1
         db.query("SELECT COUNT(*) FROM external_anchors").use { c ->
-            c.moveToFirst(); count = c.getInt(0)
+            c.moveToFirst()
+            count = c.getInt(0)
         }
         assertEquals("CASCADE removed orphan anchor", 0, count)
 
