@@ -352,21 +352,21 @@ jobs:
             });
       - name: Upload lint report
         if: always() && steps.relevance.outputs.android == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: lint-report
           path: app/build/reports/lint-results-debug.html
           retention-days: 7
       - name: Upload detekt report
         if: always() && steps.relevance.outputs.android == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: detekt-report
           path: app/build/reports/detekt/
           retention-days: 7
       - name: Upload test results
         if: always() && steps.relevance.outputs.android == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-results
           path: app/build/test-results/
