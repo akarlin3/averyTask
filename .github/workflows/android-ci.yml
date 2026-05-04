@@ -324,7 +324,7 @@ jobs:
           echo "All ${#xmls[@]} JUnit XML reports clean."
       - name: Post failure details to PR
         if: failure() && github.event_name == 'pull_request' && steps.relevance.outputs.android == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
