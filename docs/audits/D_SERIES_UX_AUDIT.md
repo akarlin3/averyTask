@@ -299,10 +299,47 @@ None. Phase 2 fires immediately.
 
 ---
 
+## Phase 2-extension — operator-requested promotion of P2 items
+
+After the initial Phase 2 bundle landed in PR #1123, operator instructed
+"Do the other 15 items" — promoting the audit's P2 deferral list into
+the same bundle. Re-classified outcomes below; same hybrid-PR
+convention applies (≤100 LOC each, bundled).
+
+| ID | Outcome | Notes |
+|----|---------|-------|
+| ED-3 | ✅ shipped | ModesSection 5 toggles → SettingsToggleRow with subtitles |
+| ED-4 | ✅ shipped | Escalation chain Steps section: static help block describing the four EscalationStepAction levels |
+| ED-5 | ✅ shipped | Quiet Hours allowlist subtitle expanded with concrete guidance |
+| ED-6 | ⛔ out of scope | Whole-app coachmark/affordance-hint INFRASTRUCTURE — explicitly forbidden by prompt § "Do not introduce new infrastructure (analytics tracking, onboarding framework, tooltip library) as part of fixes". Must remain F-series with explicit infrastructure scope. |
+| ED-7 | ⛔ out of scope | Same shape as ED-6: whole-app help-icon SYSTEM is new infrastructure. F-series with explicit scope. |
+| IA-3 Automation | ✅ shipped | TaskListScreen TopAppBar MoreVert overflow → "Automation Rules" |
+| IA-3 Custom Sort | ✅ paper-closed | Already discoverable via existing Sort menu (`SortOption.CUSTOM` at `TaskListViewModel.kt:55` is in the dropdown loop at `TaskListScreen.kt:614`). No fix needed. |
+| IA-3 Saved Filter Presets | ⏭ promoted to F-series with explicit scope | Storage layer (entity, DAO, sync mapping) exists but no UI consumer. Would require ≥2 new screens (preset list + save dialog). >100 LOC infrastructure work — explicit F-series scope: "ship the SavedFilter UI". |
+| IA-3 Time Blocking / Timeline | ✅ paper-closed | Already discoverable via TaskListScreen View Mode menu (`TaskListScreen.kt:575–581` includes "Timeline" entry). |
+| IA-3 Smart Suggestions | ✅ paper-closed | Already fires inline at task creation; the Settings toggle's discoverability is captured by the existing Advanced Tuning education concerns, not a separate IA item. |
+| IA-4 MoodAnalytics | ✅ shipped | Share icon in TopAppBar emits plain-text report (entries, averages, top correlations) via `Intent.ACTION_SEND`. |
+| IA-4 WeeklyBalanceReport | ✅ shipped | Share icon in TopAppBar emits plain-text week summary (counts, completion %, by-category breakdown). |
+| IA-4 ClinicalReportSection | ✅ paper-closed | Already has export action (writes a .txt file to Downloads). |
+| OB-1 | ✅ shipped | Permission request fires inside NotificationsPage on first composition (API 33+); MainActivity re-check kept as fallback for users who skipped onboarding. |
+| OB-2 | ⛔ operator-decision-required | "Skip preserves partial state" is a feature-or-bug judgement call. Both interpretations are defensible (commit-on-change vs commit-on-Next). The audit's original triage classified this as P2 "defensible as feature-not-bug." No code fix without explicit operator decision on the desired semantic. |
+| ER-2 | ✅ paper-closed | TodayScreen `HabitChipRow` Medication chip already toggles directly (1-tap completion of the Medication habit per `TodayScreen.kt:562` comment block). Slot-level per-dose UX is intentionally separated to MedicationScreen because multi-medication tier display doesn't fit the chip surface — replicating it inline would be >100 LOC architectural work. |
+| DI-1..6 | ✅ shipped via IA-3 row | Discovery items overlap IA-3: Automation rules + Conversation Extract gained TaskList overflow entries; Custom Sort / Time Blocking / Smart Suggestions paper-closed; Saved Filter Presets promoted to F-series. |
+
+**Promotion outcome.** Of the 15 P2 deferrals: 8 shipped concrete fixes,
+5 paper-closed (already discoverable / already satisfied), 2 marked
+explicitly out-of-scope (ED-6, ED-7 forbidden as new infrastructure;
+OB-2 awaits operator design decision). One promoted to F-series with
+explicit scope (Saved Filter Presets UI).
+
+**Phase 2 + extension code-only LOC delta:** ~290.
+
 ## Phase 3 — Bundle summary (pre-merge per CLAUDE.md)
 
 **Bundle PR:** #1123 (`claude/audit-d-series-ux-KznZ8` → `main`),
-opened pre-merge. Contains the Phase 1 audit doc + 5 Phase 2 fixes.
+opened pre-merge. Contains the Phase 1 audit doc + Phase 2 (5 P1 fixes)
++ Phase 2-extension (8 promoted P2 fixes per operator override) +
+Phase 3+4 doc updates.
 
 | Fix | Commit | Files touched | Net LOC |
 |---|---|---|---|
@@ -312,9 +349,17 @@ opened pre-merge. Contains the Phase 1 audit doc + 5 Phase 2 fixes.
 | ED-1 OrganizeTab descriptions | `76bf504` | `OrganizeTab.kt` | +22 |
 | ED-2 BrainMode subtitles | `b32575b` | `BrainModeSection.kt` | +10 −9 |
 | ER-1 Task delete confirm | `81ae277` | `AddEditTaskScreen.kt` | +34 −6 |
+| ED-3/4/5 jargon + subtitles | `d282792` | `ModesSection.kt`, `NotificationEscalationScreen.kt`, `NotificationQuietHoursScreen.kt` | +44 −7 |
+| IA-3 Automation + Extract overflow | `e849975` | `TaskListScreen.kt` | +40 |
+| IA-4 share actions | `1e4a82d` | `MoodAnalyticsScreen.kt`, `WeeklyBalanceReportScreen.kt` | +94 |
+| OB-1 permission timing | `3ce3a13` | `OnboardingScreen.kt` | +28 −5 |
 
-Code-only LOC delta: ~93. Within hybrid-PR convention (≤100 LOC each
-fix; bundled into a single PR). Zero >100 LOC fan-out PRs needed.
+Code-only LOC delta: ~290. Within hybrid-PR convention (each fix ≤100
+LOC; bundled into a single PR). Zero >100 LOC fan-out PRs needed —
+ED-6 and ED-7 (whole-app coachmark / help-icon infrastructure) are
+explicitly forbidden by the prompt and remain F-series with explicit
+infrastructure scope; Saved Filter Presets UI is the only "promoted to
+F-series with explicit scope" item.
 
 **Verification path.**
 - Local detekt-rules subproject built clean (`./gradlew :detekt-rules:test`).
@@ -323,18 +368,27 @@ fix; bundled into a single PR). Zero >100 LOC fan-out PRs needed.
 - Runtime verification (AVD smoke per fix) is enumerated as the PR test
   plan — operator-driven post-merge.
 
-**Memory #29 operator-action gates.** None fired. All five fixes are
-pure UI / nav with no sync, scheduling, or storage primitive touches.
+**Memory #29 operator-action gates.** None fired. All shipped fixes
+are pure UI / nav. The OB-1 permission-timing fix touches platform
+permission flow but is purely a re-ordering of an existing
+`rememberLauncherForActivityResult` request — no new permission added.
 
-**Memory entry candidates.** None. The "discovery audit produces
-N items skewing toward bucket X" pattern needs a second data point
-(memory #30 wait-for-second-data-point rule); this run alone isn't
-durable. Same applies to "hybrid bundle structure works" — operator's
-locked structure shipped cleanly here, but one data point.
+**Memory entry candidates.** None ship now. Two candidate patterns
+emerged from the extension:
+1. "Audit-first P2 deferrals are often paper-closed in the codebase
+   already — discovery sweeps over-flag because they pattern-match on
+   feature names without verifying existing surfaces." 5 of 15 promoted
+   P2 items turned out paper-closed (Custom Sort, Timeline, Smart
+   Suggestions, Today medication chip, Clinical Report export). Worth
+   capturing once a second data point lands.
+2. "When operator promotes a deferred batch, run the original re-trigger
+   criteria first to filter out paper-closures before opening editor
+   tabs." Wall-clock saved on this run by checking
+   `SortOption.entries`, `ViewMode` menu, `HabitChipRow` comments.
 
-**Re-baselined wall-clock.** Audit-first-mega across 5 buckets with
-parallel sub-agent recon: ~1 session, ~93 LOC implementation. Well
-under the speculated launch-slip risk operator pre-acknowledged.
+**Re-baselined wall-clock.** Audit-first-mega + operator-promoted
+P2 extension: ~1 session, ~290 LOC implementation. Operator-pre-
+acknowledged launch-slip risk did not materialize.
 
 ## Phase 4 — Claude Chat handoff
 
@@ -350,72 +404,89 @@ hybrid PR structure (≤100 LOC fixes bundled, >100 LOC fixes fan out).
 
 | Bucket | Verdict | One-line finding |
 |---|---|---|
-| Information architecture | YELLOW (2 fixed) | 2 orphan screens (ProjectRoadmap, MoodAnalytics) shipped with no nav entry; rest are P2 settings-only-discovery deferrals |
-| In-app education | YELLOW (2 fixed) | OrganizeTab pickers (Life Category / Task Mode / Cognitive Load) and BrainMode ADHD/Calm toggles missing plain-English context |
-| Onboarding | GREEN (paper-closed) | Prior `ONBOARDING_COVERAGE_AUDIT.md` shipped 8 PROCEED items; current 15-page flow at `OnboardingScreen.kt:99–137` |
+| Information architecture | YELLOW (5 fixed) | ProjectRoadmap + MoodAnalytics orphans wired; Automation + Conversation Extract overflow on Tasks; share actions on MoodAnalytics + WeeklyBalanceReport |
+| In-app education | YELLOW (5 fixed) | OrganizeTab + BrainMode + ModesSection subtitles; escalation chain Steps help block; quiet-hours allowlist guidance |
+| Onboarding | YELLOW (1 fixed) | Prior audit's 8 PROCEED items already shipped; OB-1 (POST_NOTIFICATIONS timing) now fires inside NotificationsPage |
 | Feature ergonomics | YELLOW (1 fixed) | Task delete bypassed AlertDialog gate used by project/template/medication delete |
-| Feature discovery | DEFERRED | 6 "zero non-Settings discovery" items re-triaged as P2 against operator's strict P0 rubric (blocks core loop) — F-series follow-on with re-trigger criteria |
+| Feature discovery | YELLOW (2 fixed via IA-3) | Automation + Conversation Extract surfaced; Custom Sort / Timeline / Smart Suggestions paper-closed (already discoverable); Saved Filter Presets promoted to F-series with explicit scope |
 
 **Shipped (PR #1123).**
-- `e4d1d60` Phase 1 audit doc (`docs/audits/D_SERIES_UX_AUDIT.md`, 303 lines)
-- `7ce64db` IA-1 — `ProjectDetailScreen` overflow menu now exposes
-  ProjectRoadmap (PR #1120 ported the screen but never wired it)
-- `db389ce` IA-2 — `EnergyCheckInCard` now has a "View Trends" button
-  routing to `MoodAnalyticsScreen` (route was registered with no caller)
-- `76bf504` ED-1 — `OrganizeTab` adds plain-English descriptions to the
-  Life Category, Task Mode, and Cognitive Load sections
-- `b32575b` ED-2 — BrainMode ADHD/Calm toggles converted from bare
-  `ModeToggleRow` to `SettingsToggleRow` with subtitles
-- `81ae277` ER-1 — `AddEditTaskScreen` top-bar delete now gated by
-  `AlertDialog`, matching project/template/medication delete pattern
 
-Total code delta: ~93 LOC across 5 files. Bundle merged via standard
+Initial Phase 2 (P1) bundle:
+- `e4d1d60` Phase 1 audit doc
+- `7ce64db` IA-1 ProjectRoadmap entry on ProjectDetailScreen overflow
+- `db389ce` IA-2 MoodAnalytics "View Trends" entry on EnergyCheckInCard
+- `76bf504` ED-1 OrganizeTab picker descriptions
+- `b32575b` ED-2 BrainMode ADHD/Calm subtitles
+- `81ae277` ER-1 Task delete confirmation dialog
+
+Phase 2-extension (operator-promoted P2 items):
+- `d282792` ED-3/4/5 — ModesSection subtitles + escalation Steps help
+  block + Quiet Hours allowlist guidance
+- `e849975` IA-3 / DI — TaskListScreen MoreVert overflow exposing
+  Automation + Conversation Extract
+- `1e4a82d` IA-4 — Share actions on MoodAnalytics + WeeklyBalanceReport
+- `3ce3a13` OB-1 — POST_NOTIFICATIONS request fires inside
+  NotificationsPage on first composition (API 33+)
+
+Total code delta: ~290 LOC across 11 files. Bundle merged via standard
 auto-merge once CI green.
 
-**Deferred / stopped (NOT auto-filed per memory #30, full list in
-audit doc § "Deferred items"):**
-- IA-3..4 settings-only feature discovery (Automation, Boundaries,
-  Custom Sort, Saved Filter Presets, Time Blocking, Smart Suggestions)
-- ED-3..7 ModesSection toggle subtitles, escalation-chain /
-  break-through allowlist jargon, app-wide affordance-hint system,
-  app-wide help-icon system
-- OB-1..2 POST_NOTIFICATIONS permission timing (fires after
-  NotificationsPage, not during), Skip-button writes-through partial
-  state
-- ER-2 Today-screen medication quick-tap
-- DI-1..6 zero-discovery features (Conversation Extract,
-  Time Blocking, Smart Suggestions, Saved Filter Presets, Custom Sort,
-  Automation rules)
+**Out-of-scope / paper-closed during extension:**
 
-Re-trigger criterion for all deferrals: post-Phase E tester-feedback
-report or post-launch feature-usage analytics indicating <X% reach.
-Phase E UX-feedback portion has not started — no signal yet.
+- ⛔ **ED-6** (whole-app affordance-hint coachmark system) and **ED-7**
+  (whole-app help-icon system) — explicitly forbidden by prompt § "Do
+  not introduce new infrastructure (analytics tracking, onboarding
+  framework, tooltip library) as part of fixes". Remain F-series with
+  explicit infrastructure scope.
+- ⛔ **OB-2** Skip-preserves-state — feature-or-bug judgement requires
+  explicit operator design decision. No code fix without semantic
+  decision (commit-on-change vs commit-on-Next).
+- ✅ **IA-3 Custom Sort, Timeline, Smart Suggestions, ER-2 Today
+  medication quick-tap, IA-4 Clinical Report** — paper-closed, the
+  feature is already discoverable / functional via existing surfaces
+  (Sort menu, View Mode menu, runtime auto-fire, HabitChipRow chip,
+  ClinicalReportSection export button respectively).
+- ⏭ **Saved Filter Presets UI** — promoted to F-series with explicit
+  scope ("ship the SavedFilter UI"). Storage layer plumbed; ≥2 new
+  screens needed (preset list + save dialog). Genuine >100 LOC infra.
 
 **Non-obvious findings.**
 
-1. **Sub-agents over-classify "zero discovery surface" as P0.** When
-   running discovery audits, sub-agents tend to flag "this feature has
-   no entry point outside Settings" as a launch-blocker. Per the
-   operator's strict rubric (P0 = blocks the create / complete / see
-   progress core loop), zero discovery surface ≠ launch-blocker. The
-   re-triage trimmed sub-agent P0 counts from 12 → 0 and made the
-   bundle ship in a single PR rather than triggering STOP-E (>5 P0).
+1. **Sub-agents over-classify "zero discovery surface" as P0.** Discovery
+   audits pattern-match "this feature has no entry point outside
+   Settings" as launch-blocker. Per the operator's strict rubric
+   (P0 = blocks the create / complete / see progress core loop), zero
+   discovery surface ≠ launch-blocker. Re-triage trimmed sub-agent P0
+   counts from 12 → 0 and avoided STOP-E.
 
-2. **Onboarding bucket paper-closed.** The prior
-   `ONBOARDING_COVERAGE_AUDIT.md` is fully shipped — fresh installs
-   traverse 15 pages with consent screens for Life Modes, Privacy,
-   Notifications, Day Setup, Connect, and Accessibility. Re-running an
-   onboarding audit without Phase E user-feedback signal produces
-   speculation, not findings.
+2. **Audit P2 deferrals are often paper-closed already.** Operator's
+   "do the other 15 items" promotion turned up 5 paper-closures: Custom
+   Sort (in `SortOption.entries` dropdown), Timeline (in View Mode
+   menu), Smart Suggestions (auto-fires inline at task creation), Today
+   medication quick-tap (HabitChipRow chip already toggles per
+   `TodayScreen.kt:562`), Clinical Report (already has export). Lesson:
+   when promoting deferrals, run the original re-trigger criteria first
+   to filter out already-satisfied items before opening editor tabs.
 
-3. **Two recently-ported features are orphans.** PR #1120 (ProjectRoadmap
-   port from Android to web) and the Mood Analytics route both
-   registered the route + screen + ViewModel but never wired any
-   `navigate()` call. Rule of thumb: any new route in
-   `NavGraph.kt` should immediately be paired with a `grep -rnE
-   "navigate.*<RouteName>"` check in the same PR.
+3. **Two recently-ported features are orphans.** PR #1120
+   (ProjectRoadmap port) and the Mood Analytics route both registered
+   route + screen + ViewModel but never wired any `navigate()` call.
+   Rule of thumb: any new route in `NavGraph.kt` should immediately be
+   paired with a `grep -rnE "navigate.*<RouteName>"` check in the same
+   PR.
 
-**Open questions for operator.** None. Phase 2 fired without a
-Phase 1→2 confirmation gate (operator-acknowledged) and shipped clean.
+4. **The prompt's "no new infrastructure" guardrail caught two scope
+   expansions.** ED-6 (coachmark system) and ED-7 (help-icon system)
+   would each have ballooned into multi-screen infrastructure. The
+   prompt's explicit § "Do not introduce new infrastructure as part
+   of fixes" line held the line and kept these in F-series.
+
+**Open questions for operator.**
+
+- **OB-2 semantic.** Should onboarding-page Skip act as Cancel (revert
+  in-flight DataStore writes) or Continue-without-acknowledging
+  (preserve)? Currently the latter — defensible, but explicit operator
+  decision would let it ship as a code fix vs documentation.
 ```
 
