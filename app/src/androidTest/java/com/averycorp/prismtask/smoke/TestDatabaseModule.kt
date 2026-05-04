@@ -153,6 +153,25 @@ object TestDatabaseModule {
     @Provides
     fun provideAutomationLogDao(database: PrismTaskDatabase) = database.automationLogDao()
 
+    // PrismTask-timeline-class scope (PR-1/2/3): production DatabaseModule
+    // gained the four new DAOs below; mirror them here so the
+    // @TestInstallIn replacement of DatabaseModule keeps the androidTest
+    // Hilt graph buildable. Without these, every instrumentation test
+    // that injects ProjectRepository / TaskDependencyRepository /
+    // ExternalAnchorRepository fails at hiltJavaCompileDebugAndroidTest
+    // with "Dagger/MissingBinding".
+    @Provides
+    fun provideProjectPhaseDao(database: PrismTaskDatabase) = database.projectPhaseDao()
+
+    @Provides
+    fun provideProjectRiskDao(database: PrismTaskDatabase) = database.projectRiskDao()
+
+    @Provides
+    fun provideTaskDependencyDao(database: PrismTaskDatabase) = database.taskDependencyDao()
+
+    @Provides
+    fun provideExternalAnchorDao(database: PrismTaskDatabase) = database.externalAnchorDao()
+
     @Provides
     @Singleton
     fun provideGson(): com.google.gson.Gson = com.google.gson.Gson()
