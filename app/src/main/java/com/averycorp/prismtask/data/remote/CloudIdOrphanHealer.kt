@@ -5,6 +5,7 @@ import com.averycorp.prismtask.data.local.dao.BoundaryRuleDao
 import com.averycorp.prismtask.data.local.dao.CheckInLogDao
 import com.averycorp.prismtask.data.local.dao.CustomSoundDao
 import com.averycorp.prismtask.data.local.dao.DailyEssentialSlotCompletionDao
+import com.averycorp.prismtask.data.local.dao.ExternalAnchorDao
 import com.averycorp.prismtask.data.local.dao.FocusReleaseLogDao
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
@@ -22,6 +23,8 @@ import com.averycorp.prismtask.data.local.dao.MoodEnergyLogDao
 import com.averycorp.prismtask.data.local.dao.NlpShortcutDao
 import com.averycorp.prismtask.data.local.dao.NotificationProfileDao
 import com.averycorp.prismtask.data.local.dao.ProjectDao
+import com.averycorp.prismtask.data.local.dao.ProjectPhaseDao
+import com.averycorp.prismtask.data.local.dao.ProjectRiskDao
 import com.averycorp.prismtask.data.local.dao.ProjectTemplateDao
 import com.averycorp.prismtask.data.local.dao.SavedFilterDao
 import com.averycorp.prismtask.data.local.dao.SchoolworkDao
@@ -30,6 +33,7 @@ import com.averycorp.prismtask.data.local.dao.SyncMetadataDao
 import com.averycorp.prismtask.data.local.dao.TagDao
 import com.averycorp.prismtask.data.local.dao.TaskCompletionDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
+import com.averycorp.prismtask.data.local.dao.TaskDependencyDao
 import com.averycorp.prismtask.data.local.dao.TaskTemplateDao
 import com.averycorp.prismtask.data.local.dao.WeeklyReviewDao
 import com.averycorp.prismtask.data.local.entity.SyncMetadataEntity
@@ -166,6 +170,11 @@ constructor(
     private val medicationSlotDao: MedicationSlotDao,
     private val medicationSlotOverrideDao: MedicationSlotOverrideDao,
     private val medicationTierStateDao: MedicationTierStateDao,
+    // PrismTask-timeline-class scope, PR-1.
+    private val projectPhaseDao: ProjectPhaseDao,
+    private val projectRiskDao: ProjectRiskDao,
+    private val taskDependencyDao: TaskDependencyDao,
+    private val externalAnchorDao: ExternalAnchorDao,
     private val logger: PrismSyncLogger
 ) {
     /**
@@ -269,6 +278,26 @@ constructor(
         }
         healFamily("milestones", "milestone", fetcher) {
             milestoneDao.getAllMilestonesOnce().mapNotNull { entity ->
+                entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
+            }
+        }
+        healFamily("project_phases", "project_phase", fetcher) {
+            projectPhaseDao.getAllPhasesOnce().mapNotNull { entity ->
+                entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
+            }
+        }
+        healFamily("project_risks", "project_risk", fetcher) {
+            projectRiskDao.getAllRisksOnce().mapNotNull { entity ->
+                entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
+            }
+        }
+        healFamily("task_dependencies", "task_dependency", fetcher) {
+            taskDependencyDao.getAllOnce().mapNotNull { entity ->
+                entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
+            }
+        }
+        healFamily("external_anchors", "external_anchor", fetcher) {
+            externalAnchorDao.getAllOnce().mapNotNull { entity ->
                 entity.cloudId?.takeIf { it.isNotBlank() }?.let { CloudIdRow(entity.id, it) }
             }
         }

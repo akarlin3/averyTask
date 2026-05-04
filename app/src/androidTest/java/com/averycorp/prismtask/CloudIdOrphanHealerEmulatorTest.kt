@@ -310,6 +310,10 @@ class CloudIdOrphanHealerEmulatorTest {
                     medicationSlotDao = db.medicationSlotDao(),
                     medicationSlotOverrideDao = db.medicationSlotOverrideDao(),
                     medicationTierStateDao = db.medicationTierStateDao(),
+                    projectPhaseDao = db.projectPhaseDao(),
+                    projectRiskDao = db.projectRiskDao(),
+                    taskDependencyDao = db.taskDependencyDao(),
+                    externalAnchorDao = db.externalAnchorDao(),
                     logger = logger
                 )
                 return Device(db, healer, userId, firestore)

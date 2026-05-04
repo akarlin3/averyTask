@@ -520,6 +520,10 @@ class TaskTemplateRepositoryTest {
         override suspend fun getSubtasksOnce(parentTaskId: Long): List<TaskEntity> =
             tasks.filter { it.parentTaskId == parentTaskId }.sortedBy { it.sortOrder }
 
+        override suspend fun getTasksForPhaseOnce(phaseId: Long): List<TaskEntity> = unsupported()
+
+        override suspend fun getUnphasedTasksForProjectOnce(projectId: Long): List<TaskEntity> = unsupported()
+
         override suspend fun getTasksInHorizonOnce(
             startMillis: Long,
             endMillis: Long

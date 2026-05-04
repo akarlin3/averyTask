@@ -2158,7 +2158,190 @@ val MIGRATION_71_72 = object : Migration(71, 72) {
     }
 }
 
-const val CURRENT_DB_VERSION = 72
+/**
+ * v72 → v73 — PrismTask-timeline-class scope, PR-1 (foundation).
+ *
+ * Adds two new tables and two `tasks` columns so projects can carry
+ * phases (with date ranges + version anchors) and a risk register, and
+ * so tasks can carry phase membership and a fractional progress percent
+ * (P9 option a — only authored on tasks under a project; legacy tasks
+ * keep `progress_percent = NULL` and continue to use `is_completed` as
+ * the source of truth).
+ *
+ * All four schema changes are pure-additive:
+ *  * `project_phases` — child of `projects` (FK CASCADE).
+ *  * `project_risks` — child of `projects` (FK CASCADE).
+ *  * `tasks.phase_id` — FK SET_NULL to `project_phases.id`; phase
+ *    deletion does not cascade-delete tasks.
+ *  * `tasks.progress_percent` — nullable INTEGER in `0..100`.
+ *
+ * Audit: `docs/audits/PRISMTASK_TIMELINE_CLASS_AUDIT.md`. Recovery
+ * strategy mirrors PR #1056 — fall through to
+ * `fallbackToDestructiveMigration` if the migration fails on a tester
+ * device; Firestore pull restores data on next sign-in.
+ */
+val MIGRATION_72_73 = object : Migration(72, 73) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // project_phases
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `project_phases` (
+              `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+              `cloud_id` TEXT,
+              `project_id` INTEGER NOT NULL,
+              `title` TEXT NOT NULL,
+              `description` TEXT,
+              `color_key` TEXT,
+              `start_date` INTEGER,
+              `end_date` INTEGER,
+              `version_anchor` TEXT,
+              `version_note` TEXT,
+              `order_index` INTEGER NOT NULL DEFAULT 0,
+              `completed_at` INTEGER,
+              `created_at` INTEGER NOT NULL,
+              `updated_at` INTEGER NOT NULL,
+              FOREIGN KEY(`project_id`) REFERENCES `projects`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_project_phases_cloud_id` ON `project_phases` (`cloud_id`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_project_phases_project_id` ON `project_phases` (`project_id`)"
+        )
+
+        // project_risks
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `project_risks` (
+              `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+              `cloud_id` TEXT,
+              `project_id` INTEGER NOT NULL,
+              `title` TEXT NOT NULL,
+              `level` TEXT NOT NULL DEFAULT 'MEDIUM',
+              `mitigation` TEXT,
+              `resolved_at` INTEGER,
+              `created_at` INTEGER NOT NULL,
+              `updated_at` INTEGER NOT NULL,
+              FOREIGN KEY(`project_id`) REFERENCES `projects`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_project_risks_cloud_id` ON `project_risks` (`cloud_id`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_project_risks_project_id` ON `project_risks` (`project_id`)"
+        )
+
+        // tasks.phase_id (FK SET_NULL) + tasks.progress_percent
+        db.execSQL(
+            "ALTER TABLE `tasks` ADD COLUMN `phase_id` INTEGER " +
+                "REFERENCES `project_phases`(`id`) ON DELETE SET NULL"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_tasks_phase_id` ON `tasks` (`phase_id`)"
+        )
+        db.execSQL("ALTER TABLE `tasks` ADD COLUMN `progress_percent` INTEGER")
+    }
+}
+
+/**
+ * v73 → v74 — PrismTask-timeline-class scope, PR-2 (dependencies).
+ *
+ * Adds the `task_dependencies` table representing directed
+ * `(blocker, blocked)` edges between tasks. Both columns CASCADE on
+ * task deletion so a removed task takes its incoming + outgoing edges
+ * with it. Unique `(blocker, blocked)` index prevents duplicate edges;
+ * cycle prevention happens at the domain layer via
+ * `DependencyCycleGuard` (mirror of the AutomationEngine lineage check
+ * from PR #1056).
+ *
+ * Pure-additive migration. Audit:
+ * `docs/audits/PRISMTASK_TIMELINE_CLASS_AUDIT.md`.
+ */
+val MIGRATION_73_74 = object : Migration(73, 74) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `task_dependencies` (
+              `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+              `cloud_id` TEXT,
+              `blocker_task_id` INTEGER NOT NULL,
+              `blocked_task_id` INTEGER NOT NULL,
+              `created_at` INTEGER NOT NULL,
+              FOREIGN KEY(`blocker_task_id`) REFERENCES `tasks`(`id`)
+                ON UPDATE NO ACTION ON DELETE CASCADE,
+              FOREIGN KEY(`blocked_task_id`) REFERENCES `tasks`(`id`)
+                ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_task_dependencies_blocker_task_id_blocked_task_id` " +
+                "ON `task_dependencies` (`blocker_task_id`, `blocked_task_id`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_task_dependencies_blocked_task_id` " +
+                "ON `task_dependencies` (`blocked_task_id`)"
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_task_dependencies_cloud_id` " +
+                "ON `task_dependencies` (`cloud_id`)"
+        )
+    }
+}
+
+/**
+ * v74 → v75 — PrismTask-timeline-class scope, PR-3 (external anchors).
+ *
+ * Adds the `external_anchors` table — a polymorphic anchor (calendar
+ * deadline / numeric threshold / boolean gate) attached to a project
+ * and optionally a phase within that project. The variant payload is
+ * JSON-serialized via `ExternalAnchorJsonAdapter`, mirroring the
+ * AutomationEngine's sealed-class round-trip pattern (PR #1056).
+ *
+ * `project_id` CASCADEs (anchors are project-scoped); `phase_id` is
+ * SET_NULL so deleting a phase doesn't drop a still-relevant
+ * project-level anchor. Pure-additive migration.
+ */
+val MIGRATION_74_75 = object : Migration(74, 75) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `external_anchors` (
+              `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+              `cloud_id` TEXT,
+              `project_id` INTEGER NOT NULL,
+              `phase_id` INTEGER,
+              `label` TEXT NOT NULL,
+              `anchor_json` TEXT NOT NULL,
+              `created_at` INTEGER NOT NULL,
+              `updated_at` INTEGER NOT NULL,
+              FOREIGN KEY(`project_id`) REFERENCES `projects`(`id`)
+                ON UPDATE NO ACTION ON DELETE CASCADE,
+              FOREIGN KEY(`phase_id`) REFERENCES `project_phases`(`id`)
+                ON UPDATE NO ACTION ON DELETE SET NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_external_anchors_cloud_id` " +
+                "ON `external_anchors` (`cloud_id`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_external_anchors_project_id` " +
+                "ON `external_anchors` (`project_id`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_external_anchors_phase_id` " +
+                "ON `external_anchors` (`phase_id`)"
+        )
+    }
+}
+
+const val CURRENT_DB_VERSION = 75
 
 val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_1_2,
@@ -2231,5 +2414,8 @@ val ALL_MIGRATIONS: Array<Migration> = arrayOf(
     MIGRATION_68_69,
     MIGRATION_69_70,
     MIGRATION_70_71,
-    MIGRATION_71_72
+    MIGRATION_71_72,
+    MIGRATION_72_73,
+    MIGRATION_73_74,
+    MIGRATION_74_75
 )

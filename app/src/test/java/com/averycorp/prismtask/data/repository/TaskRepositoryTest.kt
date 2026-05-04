@@ -650,6 +650,16 @@ class TaskRepositoryTest {
         override suspend fun getTaskByIdOnce(id: Long): TaskEntity? =
             tasks.firstOrNull { it.id == id }
 
+        override suspend fun getTasksForPhaseOnce(phaseId: Long): List<TaskEntity> =
+            tasks
+                .filter { it.phaseId == phaseId && it.archivedAt == null }
+                .sortedWith(compareBy({ it.sortOrder }, { it.createdAt }))
+
+        override suspend fun getUnphasedTasksForProjectOnce(projectId: Long): List<TaskEntity> =
+            tasks
+                .filter { it.projectId == projectId && it.phaseId == null && it.archivedAt == null }
+                .sortedWith(compareBy({ it.sortOrder }, { it.createdAt }))
+
         override suspend fun getIdByCloudId(cloudId: String): Long? =
             tasks.firstOrNull { it.cloudId == cloudId }?.id
 

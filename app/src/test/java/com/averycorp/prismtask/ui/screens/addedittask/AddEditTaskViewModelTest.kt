@@ -230,6 +230,8 @@ class AddEditTaskViewModelTest {
                 any(),
                 any(),
                 any(),
+                any(),
+                any(),
                 any()
             )
         }
@@ -239,6 +241,7 @@ class AddEditTaskViewModelTest {
     fun saveTask_createMode_invokesRepositoryWithFields() = runTest {
         coEvery {
             taskRepository.addTask(
+                any(),
                 any(),
                 any(),
                 any(),
@@ -276,6 +279,7 @@ class AddEditTaskViewModelTest {
                 parentTaskId = null,
                 lifeCategory = any(),
                 taskMode = any(),
+                cognitiveLoad = any(),
                 reminderOffset = any(),
                 recurrenceRule = any(),
                 estimatedDuration = any()

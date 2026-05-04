@@ -4,6 +4,8 @@ import androidx.lifecycle.SavedStateHandle
 import com.averycorp.prismtask.data.local.dao.MilestoneDao
 import com.averycorp.prismtask.data.local.dao.ProjectAggregateRow
 import com.averycorp.prismtask.data.local.dao.ProjectDao
+import com.averycorp.prismtask.data.local.dao.ProjectPhaseDao
+import com.averycorp.prismtask.data.local.dao.ProjectRiskDao
 import com.averycorp.prismtask.data.local.dao.ProjectWithCount
 import com.averycorp.prismtask.data.local.entity.MilestoneEntity
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
@@ -117,7 +119,15 @@ class ProjectsPaneViewModelTest {
         savedStateHandle: SavedStateHandle
     ): ProjectsPaneViewModel {
         val syncTracker: SyncTracker = mockk(relaxed = true)
-        val repository = ProjectRepository(projectDao, syncTracker, milestoneDao)
+        // PR-1 (#1085) extended ProjectRepository with phase + risk
+        // DAOs; this view-model test doesn't exercise either path.
+        val repository = ProjectRepository(
+            projectDao,
+            syncTracker,
+            milestoneDao,
+            mockk<ProjectPhaseDao>(relaxed = true),
+            mockk<ProjectRiskDao>(relaxed = true)
+        )
         return ProjectsPaneViewModel(repository, savedStateHandle)
     }
 

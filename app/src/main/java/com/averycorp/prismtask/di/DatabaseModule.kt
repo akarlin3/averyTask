@@ -12,6 +12,7 @@ import com.averycorp.prismtask.data.local.dao.CalendarSyncDao
 import com.averycorp.prismtask.data.local.dao.CheckInLogDao
 import com.averycorp.prismtask.data.local.dao.CustomSoundDao
 import com.averycorp.prismtask.data.local.dao.DailyEssentialSlotCompletionDao
+import com.averycorp.prismtask.data.local.dao.ExternalAnchorDao
 import com.averycorp.prismtask.data.local.dao.FocusReleaseLogDao
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
@@ -29,6 +30,8 @@ import com.averycorp.prismtask.data.local.dao.MoodEnergyLogDao
 import com.averycorp.prismtask.data.local.dao.NlpShortcutDao
 import com.averycorp.prismtask.data.local.dao.NotificationProfileDao
 import com.averycorp.prismtask.data.local.dao.ProjectDao
+import com.averycorp.prismtask.data.local.dao.ProjectPhaseDao
+import com.averycorp.prismtask.data.local.dao.ProjectRiskDao
 import com.averycorp.prismtask.data.local.dao.ProjectTemplateDao
 import com.averycorp.prismtask.data.local.dao.SavedFilterDao
 import com.averycorp.prismtask.data.local.dao.SchoolworkDao
@@ -37,6 +40,7 @@ import com.averycorp.prismtask.data.local.dao.SyncMetadataDao
 import com.averycorp.prismtask.data.local.dao.TagDao
 import com.averycorp.prismtask.data.local.dao.TaskCompletionDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
+import com.averycorp.prismtask.data.local.dao.TaskDependencyDao
 import com.averycorp.prismtask.data.local.dao.TaskTemplateDao
 import com.averycorp.prismtask.data.local.dao.TaskTimingDao
 import com.averycorp.prismtask.data.local.dao.UsageLogDao
@@ -197,6 +201,18 @@ object DatabaseModule {
 
     @Provides
     fun provideAutomationLogDao(database: PrismTaskDatabase): AutomationLogDao = database.automationLogDao()
+
+    @Provides
+    fun provideProjectPhaseDao(database: PrismTaskDatabase): ProjectPhaseDao = database.projectPhaseDao()
+
+    @Provides
+    fun provideProjectRiskDao(database: PrismTaskDatabase): ProjectRiskDao = database.projectRiskDao()
+
+    @Provides
+    fun provideTaskDependencyDao(database: PrismTaskDatabase): TaskDependencyDao = database.taskDependencyDao()
+
+    @Provides
+    fun provideExternalAnchorDao(database: PrismTaskDatabase): ExternalAnchorDao = database.externalAnchorDao()
 }
 
 /**

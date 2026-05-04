@@ -53,7 +53,7 @@ class MultiCreateViewModelTest {
 
         every { proFeatureGate.hasAccess(any()) } returns true
         coEvery {
-            taskRepository.addTask(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+            taskRepository.addTask(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
         } returns 1L
         every { projectRepository.getAllProjects() } returns flowOf(emptyList())
         coEvery { projectRepository.addProject(any(), any(), any()) } returns 99L

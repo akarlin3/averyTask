@@ -11,6 +11,7 @@ import com.averycorp.prismtask.data.local.dao.CalendarSyncDao
 import com.averycorp.prismtask.data.local.dao.CheckInLogDao
 import com.averycorp.prismtask.data.local.dao.CustomSoundDao
 import com.averycorp.prismtask.data.local.dao.DailyEssentialSlotCompletionDao
+import com.averycorp.prismtask.data.local.dao.ExternalAnchorDao
 import com.averycorp.prismtask.data.local.dao.FocusReleaseLogDao
 import com.averycorp.prismtask.data.local.dao.HabitCompletionDao
 import com.averycorp.prismtask.data.local.dao.HabitDao
@@ -28,6 +29,8 @@ import com.averycorp.prismtask.data.local.dao.MoodEnergyLogDao
 import com.averycorp.prismtask.data.local.dao.NlpShortcutDao
 import com.averycorp.prismtask.data.local.dao.NotificationProfileDao
 import com.averycorp.prismtask.data.local.dao.ProjectDao
+import com.averycorp.prismtask.data.local.dao.ProjectPhaseDao
+import com.averycorp.prismtask.data.local.dao.ProjectRiskDao
 import com.averycorp.prismtask.data.local.dao.ProjectTemplateDao
 import com.averycorp.prismtask.data.local.dao.SavedFilterDao
 import com.averycorp.prismtask.data.local.dao.SchoolworkDao
@@ -36,6 +39,7 @@ import com.averycorp.prismtask.data.local.dao.SyncMetadataDao
 import com.averycorp.prismtask.data.local.dao.TagDao
 import com.averycorp.prismtask.data.local.dao.TaskCompletionDao
 import com.averycorp.prismtask.data.local.dao.TaskDao
+import com.averycorp.prismtask.data.local.dao.TaskDependencyDao
 import com.averycorp.prismtask.data.local.dao.TaskTemplateDao
 import com.averycorp.prismtask.data.local.dao.TaskTimingDao
 import com.averycorp.prismtask.data.local.dao.UsageLogDao
@@ -52,6 +56,7 @@ import com.averycorp.prismtask.data.local.entity.CourseCompletionEntity
 import com.averycorp.prismtask.data.local.entity.CourseEntity
 import com.averycorp.prismtask.data.local.entity.CustomSoundEntity
 import com.averycorp.prismtask.data.local.entity.DailyEssentialSlotCompletionEntity
+import com.averycorp.prismtask.data.local.entity.ExternalAnchorEntity
 import com.averycorp.prismtask.data.local.entity.FocusReleaseLogEntity
 import com.averycorp.prismtask.data.local.entity.HabitCompletionEntity
 import com.averycorp.prismtask.data.local.entity.HabitEntity
@@ -70,6 +75,8 @@ import com.averycorp.prismtask.data.local.entity.MoodEnergyLogEntity
 import com.averycorp.prismtask.data.local.entity.NlpShortcutEntity
 import com.averycorp.prismtask.data.local.entity.NotificationProfileEntity
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
+import com.averycorp.prismtask.data.local.entity.ProjectPhaseEntity
+import com.averycorp.prismtask.data.local.entity.ProjectRiskEntity
 import com.averycorp.prismtask.data.local.entity.ProjectTemplateEntity
 import com.averycorp.prismtask.data.local.entity.SavedFilterEntity
 import com.averycorp.prismtask.data.local.entity.SelfCareLogEntity
@@ -78,6 +85,7 @@ import com.averycorp.prismtask.data.local.entity.StudyLogEntity
 import com.averycorp.prismtask.data.local.entity.SyncMetadataEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
 import com.averycorp.prismtask.data.local.entity.TaskCompletionEntity
+import com.averycorp.prismtask.data.local.entity.TaskDependencyEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.local.entity.TaskTagCrossRef
 import com.averycorp.prismtask.data.local.entity.TaskTemplateEntity
@@ -130,7 +138,11 @@ import com.averycorp.prismtask.data.local.entity.WeeklyReviewEntity
         MedicationTierStateEntity::class,
         TaskTimingEntity::class,
         AutomationRuleEntity::class,
-        AutomationLogEntity::class
+        AutomationLogEntity::class,
+        ProjectPhaseEntity::class,
+        ProjectRiskEntity::class,
+        TaskDependencyEntity::class,
+        ExternalAnchorEntity::class
     ],
     version = CURRENT_DB_VERSION,
     exportSchema = false
@@ -211,4 +223,12 @@ abstract class PrismTaskDatabase : RoomDatabase() {
     abstract fun automationRuleDao(): AutomationRuleDao
 
     abstract fun automationLogDao(): AutomationLogDao
+
+    abstract fun projectPhaseDao(): ProjectPhaseDao
+
+    abstract fun projectRiskDao(): ProjectRiskDao
+
+    abstract fun taskDependencyDao(): TaskDependencyDao
+
+    abstract fun externalAnchorDao(): ExternalAnchorDao
 }
