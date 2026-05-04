@@ -3,6 +3,8 @@ package com.averycorp.prismtask.data.repository
 import com.averycorp.prismtask.data.local.dao.MilestoneDao
 import com.averycorp.prismtask.data.local.dao.ProjectAggregateRow
 import com.averycorp.prismtask.data.local.dao.ProjectDao
+import com.averycorp.prismtask.data.local.dao.ProjectPhaseDao
+import com.averycorp.prismtask.data.local.dao.ProjectRiskDao
 import com.averycorp.prismtask.data.local.dao.ProjectWithCount
 import com.averycorp.prismtask.data.local.entity.MilestoneEntity
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
@@ -39,7 +41,18 @@ class ProjectRepositoryTest {
         milestoneDao = FakeMilestoneDao()
         projectDao.milestoneSource = milestoneDao
         syncTracker = mockk(relaxed = true)
-        repo = ProjectRepository(projectDao, syncTracker, milestoneDao)
+        // PR-1 (#1085) added projectPhaseDao + projectRiskDao to the
+        // ProjectRepository constructor. These tests don't exercise the
+        // phase/risk paths, so relaxed mocks keep the call sites that
+        // do compile while phase/risk-specific tests live in their own
+        // files (see ProjectPhaseDaoTest / ProjectRiskDaoTest).
+        repo = ProjectRepository(
+            projectDao,
+            syncTracker,
+            milestoneDao,
+            mockk<ProjectPhaseDao>(relaxed = true),
+            mockk<ProjectRiskDao>(relaxed = true)
+        )
     }
 
     // ---------------------------------------------------------------------
