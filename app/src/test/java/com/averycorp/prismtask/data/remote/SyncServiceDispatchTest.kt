@@ -478,8 +478,14 @@ class SyncServiceDispatchTest {
         // when used as `sortedBy { pushOrderPriorityOf(...) }` — projects
         // before tags before others before task_completions.
         val mixed = listOf(
-            "task_completion", "tag", "task", "project", "habit",
-            "task_completion", "project", "tag"
+            "task_completion",
+            "tag",
+            "task",
+            "project",
+            "habit",
+            "task_completion",
+            "project",
+            "tag"
         )
         val sorted = mixed.sortedBy { SyncService.pushOrderPriorityOf(it) }
         // First two slots: projects.
