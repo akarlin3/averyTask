@@ -194,7 +194,7 @@ jobs:
 
       - name: Upload emulator logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: firebase-emulator-log
           path: ${{ runner.temp }}/firebase-emulators.log
@@ -203,7 +203,7 @@ jobs:
 
       - name: Upload instrumented test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: connected-test-results
           path: |
@@ -382,7 +382,7 @@ jobs:
 
       - name: Upload cross-device test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cross-device-test-results
           path: |
