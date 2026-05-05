@@ -11,6 +11,7 @@ import com.averycorp.prismtask.domain.usecase.DateShortcuts
 import com.averycorp.prismtask.domain.usecase.LifeCategoryClassifier
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -20,12 +21,29 @@ class TaskTemplateRepository
 constructor(
     private val templateDao: TaskTemplateDao,
     private val taskDao: TaskDao,
-    private val tagDao: TagDao
+    private val tagDao: TagDao,
+    private val advancedTuningPreferences: com.averycorp.prismtask.data.preferences.AdvancedTuningPreferences
 ) {
-    private val lifeCategoryClassifier = LifeCategoryClassifier()
+    /** Latest snapshot of user-supplied life-category keywords; see TaskRepository for the pattern. */
+    @Volatile
+    private var latestLifeCategoryCustomKeywords: com.averycorp.prismtask.data.preferences.LifeCategoryCustomKeywords =
+        com.averycorp.prismtask.data.preferences.LifeCategoryCustomKeywords()
+
+    private val keywordScope = kotlinx.coroutines.CoroutineScope(
+        kotlinx.coroutines.Dispatchers.IO + kotlinx.coroutines.SupervisorJob()
+    )
+
+    init {
+        keywordScope.launch {
+            advancedTuningPreferences.getLifeCategoryCustomKeywords().collect {
+                latestLifeCategoryCustomKeywords = it
+            }
+        }
+    }
 
     private fun resolveTemplateLifeCategory(title: String, description: String?, taskId: Long): String {
-        val guess = lifeCategoryClassifier.classify(title, description)
+        val classifier = LifeCategoryClassifier.withCustomKeywords(latestLifeCategoryCustomKeywords)
+        val guess = classifier.classify(title, description)
         val source = if (guess == LifeCategory.UNCATEGORIZED) "default" else "classifier"
         android.util.Log.i(
             "PrismSync",

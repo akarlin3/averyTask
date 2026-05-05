@@ -48,6 +48,8 @@ class TaskRepositoryTest {
     private lateinit var taskCompletionRepository: TaskCompletionRepository
     private lateinit var eisenhowerClassifier: EisenhowerClassifier
     private lateinit var userPreferences: UserPreferencesDataStore
+    private lateinit var advancedTuningPreferences:
+        com.averycorp.prismtask.data.preferences.AdvancedTuningPreferences
     private lateinit var repo: TaskRepository
 
     @Before
@@ -65,6 +67,14 @@ class TaskRepositoryTest {
         userPreferences = mockk {
             every { eisenhowerFlow } returns flowOf(EisenhowerPrefs(autoClassifyEnabled = false))
         }
+        // Default custom keywords are blank — tests that exercise the
+        // life-category resolver fall back to DEFAULT_KEYWORDS, matching
+        // the behavior before keyword wiring was added.
+        advancedTuningPreferences = mockk {
+            every { getLifeCategoryCustomKeywords() } returns flowOf(
+                com.averycorp.prismtask.data.preferences.LifeCategoryCustomKeywords()
+            )
+        }
         coEvery { eisenhowerClassifier.classify(any()) } returns
             Result.failure(IllegalStateException("stub"))
         repo =
@@ -79,7 +89,8 @@ class TaskRepositoryTest {
                 taskCompletionRepository,
                 eisenhowerClassifier,
                 userPreferences,
-                com.averycorp.prismtask.domain.automation.AutomationEventBus()
+                com.averycorp.prismtask.domain.automation.AutomationEventBus(),
+                advancedTuningPreferences
             )
     }
 

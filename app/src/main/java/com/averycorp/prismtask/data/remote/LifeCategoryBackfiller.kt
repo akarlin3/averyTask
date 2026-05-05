@@ -1,9 +1,11 @@
 package com.averycorp.prismtask.data.remote
 
 import com.averycorp.prismtask.data.local.dao.TaskDao
+import com.averycorp.prismtask.data.preferences.AdvancedTuningPreferences
 import com.averycorp.prismtask.data.preferences.BuiltInSyncPreferences
 import com.averycorp.prismtask.domain.model.LifeCategory
 import com.averycorp.prismtask.domain.usecase.LifeCategoryClassifier
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -31,10 +33,9 @@ class LifeCategoryBackfiller
 constructor(
     private val taskDao: TaskDao,
     private val builtInSyncPreferences: BuiltInSyncPreferences,
-    private val syncTracker: SyncTracker
+    private val syncTracker: SyncTracker,
+    private val advancedTuningPreferences: AdvancedTuningPreferences
 ) {
-    private val classifier = LifeCategoryClassifier()
-
     suspend fun runIfNeeded() {
         if (builtInSyncPreferences.isLifeCategoryBackfillDone()) return
         try {
@@ -45,6 +46,14 @@ constructor(
                 builtInSyncPreferences.setLifeCategoryBackfillDone(true)
                 return
             }
+
+            // Built once per backfill run — keywords don't change mid-run, and
+            // this picks up any custom keywords the user added before the
+            // first app launch after migrating from a build that didn't
+            // honor them.
+            val classifier = LifeCategoryClassifier.withCustomKeywords(
+                advancedTuningPreferences.getLifeCategoryCustomKeywords().first()
+            )
 
             val now = System.currentTimeMillis()
             var classified = 0

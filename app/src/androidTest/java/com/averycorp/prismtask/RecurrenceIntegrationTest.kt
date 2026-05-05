@@ -73,7 +73,12 @@ class RecurrenceIntegrationTest {
             userPreferences = mockk<UserPreferencesDataStore> {
                 every { eisenhowerFlow } returns flowOf(EisenhowerPrefs(autoClassifyEnabled = false))
             },
-            automationEventBus = com.averycorp.prismtask.domain.automation.AutomationEventBus()
+            automationEventBus = com.averycorp.prismtask.domain.automation.AutomationEventBus(),
+            advancedTuningPreferences = mockk(relaxed = true) {
+                every { getLifeCategoryCustomKeywords() } returns flowOf(
+                    com.averycorp.prismtask.data.preferences.LifeCategoryCustomKeywords()
+                )
+            }
         )
     }
 

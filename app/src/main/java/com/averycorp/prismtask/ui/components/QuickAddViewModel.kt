@@ -84,7 +84,22 @@ constructor(
     val templateDisambiguation: StateFlow<List<TaskTemplateEntity>?> =
         _templateDisambiguation.asStateFlow()
 
-    private val lifeCategoryClassifier = LifeCategoryClassifier()
+    /**
+     * Live snapshot of the user's custom life-category keywords. The
+     * classifier is rebuilt from this on every quick-add classification
+     * so newly-added keywords (Settings → Advanced Tuning) take effect on
+     * the very next quick-add submission.
+     */
+    private val lifeCategoryCustomKeywords:
+        StateFlow<com.averycorp.prismtask.data.preferences.LifeCategoryCustomKeywords> =
+        advancedTuningPreferences.getLifeCategoryCustomKeywords().stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            com.averycorp.prismtask.data.preferences.LifeCategoryCustomKeywords()
+        )
+
+    private fun lifeCategoryClassifier(): LifeCategoryClassifier =
+        LifeCategoryClassifier.withCustomKeywords(lifeCategoryCustomKeywords.value)
     private val batchIntentDetector = BatchIntentDetector()
     private val multiCreateDetector = MultiCreateDetector()
 
@@ -506,7 +521,7 @@ constructor(
                 // If NLP didn't pick up a category tag, fall back to the
                 // keyword classifier so Today's balance bar still gets data.
                 val resolvedCategory = resolved.lifeCategory ?: run {
-                    val guess = lifeCategoryClassifier.classify(resolved.title)
+                    val guess = lifeCategoryClassifier().classify(resolved.title)
                     if (guess == LifeCategory.UNCATEGORIZED) null else guess.name
                 }
                 val task = TaskEntity(
@@ -603,7 +618,7 @@ constructor(
                     val recurrenceJson = resolved.recurrenceRule?.let { RecurrenceConverter.toJson(it) }
                     val now = System.currentTimeMillis()
                     val resolvedCategory = resolved.lifeCategory ?: run {
-                        val guess = lifeCategoryClassifier.classify(resolved.title)
+                        val guess = lifeCategoryClassifier().classify(resolved.title)
                         if (guess == LifeCategory.UNCATEGORIZED) null else guess.name
                     }
                     val task = TaskEntity(
