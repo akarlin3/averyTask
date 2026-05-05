@@ -163,3 +163,90 @@ explaining "AI review unavailable — showing local summary"
 - **`autoClassifyEnabled` preference applies to background classification
   only.** Explicit user actions should bypass it. Worth a comment on the
   flag's docstring during the fix.
+
+## Phase 3 — Bundle summary
+
+Single PR rather than fan-out: both fixes share the user's one stated
+goal ("Auto buttons should show a failure message if they are unable to
+connect to AI and an upgrade message for Free users") and the operator
+provided a single feature branch `claude/auto-button-messages-oZ0gS`. The
+bundling rule allows one PR when the scope is coherent, which it is here.
+
+| Item | PR | Approach |
+|---|---|---|
+| #3 Reclassify With AI | [#1134](https://github.com/averycorp/prismTask/pull/1134) | `TaskRepository.reclassify` now returns `Result<Unit>`, runs the classifier inline, and bypasses `autoClassifyEnabled` (explicit user tap > background pref). VM Pro-gates first; failures surface via existing `EisenhowerUiState.Error` (banner + Snackbar already wired). |
+| #4 + #5 Coaching errors | [#1134](https://github.com/averycorp/prismTask/pull/1134) | New `CoachingErrorCard` composable (errorContainer palette, dismissible) wired to `coachingViewModel.errorMessage` in DetailsTab. `_errorMessage` was already being set by the VM on `CoachingResult.Error` — the bug was purely on the rendering side. |
+
+Tests added/updated: `EisenhowerViewModelTest` got two new cases
+(free-tier shows upgrade prompt; AI failure surfaces Error state).
+`TaskRepositoryTest.reclassify_clearsOverrideAndFiresClassify` no longer
+needs `enableAutoClassify()` (the explicit path bypasses the pref) and now
+asserts on the returned `Result`. Added
+`reclassify_propagatesClassifierFailure` to lock in the failure path.
+
+**Memory entry candidates:** none — the patterns used are already well
+documented elsewhere (sealed `*UiState`, `Result<T>` from repos,
+upgrade-prompt-as-AlertDialog).
+
+**Anti-pattern carry-over:** the `AddEditTaskViewModel.errorMessages`
+SharedFlow has *no* consumer in `AddEditTaskSheet`. Out of scope for this
+audit (no Auto button surfaces through it) but worth a follow-up — the
+pattern is identical to what we just fixed for Coaching, just with a
+SharedFlow instead of StateFlow.
+
+**Next audit:** none scheduled — the remaining nine Auto buttons are
+already exemplary or close enough.
+
+## Phase 4 — Claude Chat handoff
+
+```markdown
+**Scope.** Auto-button AI-failure and Free-tier upgrade messaging in
+PrismTask Android (branch `claude/auto-button-messages-oZ0gS`,
+PR averycorp/prismtask#1134).
+
+**Verdicts.**
+
+| Item | Verdict | Finding |
+|---|---|---|
+| Timeline > Auto-Block My Day | GREEN | Wired (banner + dialog) via `AiScheduleUiState`. |
+| Eisenhower > Categorize | GREEN | Wired via `EisenhowerUiState`. |
+| Eisenhower > Reclassify With AI | RED | No Pro gate; fire-and-forget classifyInBackground swallows errors. |
+| DetailsTab > Help Me Start | YELLOW | VM sets `_errorMessage` on failure; UI never read it. |
+| DetailsTab > Break It Down | YELLOW | Same as Help Me Start. |
+| Chat / Weekly Planner / Pomodoro / Daily Briefing | GREEN | Each wires snackbar + upgrade dialog. |
+| Habit Correlations > Analyze | GREEN | Exemplary — explicit `HabitCorrelationsOutcome` enum with NotPro / BackendUnavailable / RateLimited / Success. |
+| Weekly Review (auto-load) | GREEN | Falls back to local narrative on AI failure. |
+
+**Shipped.** PR averycorp/prismtask#1134 — single PR bundling both fixes:
+- `TaskRepository.reclassify` returns `Result<Unit>`, runs classifier inline,
+  bypasses `autoClassifyEnabled` (explicit tap > background pref).
+- `EisenhowerViewModel.reclassify` Pro-gates and surfaces failures via
+  existing `EisenhowerUiState.Error` (banner + Snackbar already wired in
+  `EisenhowerScreen.kt`).
+- New `CoachingErrorCard` composable in `ui/components/CoachingCard.kt`
+  wired to `coachingViewModel.errorMessage` in `DetailsTab.kt`.
+- Test deltas in `EisenhowerViewModelTest` (free-tier + AI-failure) and
+  `TaskRepositoryTest` (failure-propagation; dropped `enableAutoClassify()`
+  on the existing reclassify test since the explicit path now bypasses
+  the pref).
+
+**Deferred / stopped.** None — the other nine Auto buttons were already
+correct, so no further work was queued.
+
+**Non-obvious findings.**
+- `autoClassifyEnabled` is a *background-only* preference. The pre-fix
+  `reclassify` flow respected it, so a user with auto-classify off would
+  tap "Reclassify With AI" and silently get nothing. The fix bypasses
+  the pref because an explicit user request should win.
+- `AddEditTaskViewModel.errorMessages` SharedFlow has no consumer in
+  `AddEditTaskSheet`. Identical shape to the Coaching bug we just fixed.
+  Out of scope here (no Auto button surfaces through it) but worth a
+  follow-up.
+- `EisenhowerUiState.Error` is shared between bulk Categorize and
+  per-task Reclassify. Reclassify success now sets `Idle`, which clears
+  any prior Categorize banner — a small side effect but the latest user
+  action wins, which is the right UX.
+
+**Open questions.** None.
+```
+
