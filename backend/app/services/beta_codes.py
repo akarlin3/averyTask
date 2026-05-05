@@ -55,6 +55,23 @@ async def has_active_beta_pro(db: AsyncSession, user_id: int) -> bool:
     return False
 
 
+async def resolve_effective_tier(user, db: AsyncSession) -> str:
+    """Return the user's tier, elevated to ``PRO`` for active beta-pro users.
+
+    ``User.effective_tier`` (the sync property) only knows about the
+    ``is_admin`` flag and the stored ``tier`` column — it cannot reach
+    ``beta_code_redemptions`` without a DB session. Every server-side
+    Pro gate therefore needs to call *this* resolver instead of reading
+    ``current_user.effective_tier`` directly, otherwise beta-tester
+    accounts that ``/auth/me`` happily reports as PRO will still be
+    rejected with 403 by the AI rate limiter and other gates.
+    """
+    base = user.effective_tier
+    if base == "FREE" and await has_active_beta_pro(db, user.id):
+        return "PRO"
+    return base
+
+
 async def redeem_code(
     db: AsyncSession, *, user_id: int, code: str
 ) -> RedeemOutcome:

@@ -45,6 +45,7 @@ from app.schemas.ai import (
     WeeklyReviewResponse,
 )
 from pydantic import ValidationError
+from app.services.beta_codes import resolve_effective_tier
 from app.services.firestore_tasks import (
     TaskDTO,
     fetch_incomplete_tasks,
@@ -158,9 +159,10 @@ async def categorize_eisenhower(
     data: EisenhowerRequest,
     request: Request,
     current_user: User = Depends(get_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     ai_rate_limiter.check(request)
-    tier = current_user.effective_tier
+    tier = await resolve_effective_tier(current_user, db)
     daily_ai_rate_limiter.check(current_user.id, tier)
 
     tasks = await _get_incomplete_tasks(current_user, data.task_ids)
@@ -213,6 +215,7 @@ async def classify_eisenhower_text(
     data: EisenhowerClassifyTextRequest,
     request: Request,
     current_user: User = Depends(get_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Per-task text-based Eisenhower classification.
 
@@ -222,7 +225,7 @@ async def classify_eisenhower_text(
     endpoint — see ``eisenhower_classify_text_rate_limiter``.
     """
     eisenhower_classify_text_rate_limiter.check(request)
-    tier = current_user.effective_tier
+    tier = await resolve_effective_tier(current_user, db)
     daily_ai_rate_limiter.check(current_user.id, tier)
 
     try:
@@ -254,6 +257,7 @@ async def classify_cognitive_load_text(
     data: CognitiveLoadClassifyTextRequest,
     request: Request,
     current_user: User = Depends(get_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Per-task text-based cognitive-load classification.
 
@@ -267,7 +271,7 @@ async def classify_cognitive_load_text(
     See ``docs/COGNITIVE_LOAD.md`` § Inference rules.
     """
     cognitive_load_classify_text_rate_limiter.check(request)
-    tier = current_user.effective_tier
+    tier = await resolve_effective_tier(current_user, db)
     daily_ai_rate_limiter.check(current_user.id, tier)
 
     try:
@@ -296,9 +300,10 @@ async def plan_pomodoro(
     data: PomodoroRequest,
     request: Request,
     current_user: User = Depends(get_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     ai_rate_limiter.check(request)
-    tier = current_user.effective_tier
+    tier = await resolve_effective_tier(current_user, db)
     daily_ai_rate_limiter.check(current_user.id, tier)
 
     tasks = await _get_incomplete_tasks(current_user)
@@ -340,6 +345,7 @@ async def pomodoro_coaching(
     data: PomodoroCoachingRequest,
     request: Request,
     current_user: User = Depends(get_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """A2 Pomodoro+ coaching — pre-session, break-activity, or session-recap.
 
@@ -348,7 +354,7 @@ async def pomodoro_coaching(
     trigger are consulted.
     """
     pomodoro_coaching_rate_limiter.check(request)
-    tier = current_user.effective_tier
+    tier = await resolve_effective_tier(current_user, db)
     daily_ai_rate_limiter.check(current_user.id, tier)
 
     try:
@@ -388,7 +394,7 @@ async def daily_briefing(
     db: AsyncSession = Depends(get_db),
 ):
     briefing_rate_limiter.check(request)
-    tier = current_user.effective_tier
+    tier = await resolve_effective_tier(current_user, db)
     daily_ai_rate_limiter.check(current_user.id, tier)
 
     try:
@@ -455,9 +461,10 @@ async def weekly_plan(
     data: WeeklyPlanRequest,
     request: Request,
     current_user: User = Depends(get_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     weekly_plan_rate_limiter.check(request)
-    tier = current_user.effective_tier
+    tier = await resolve_effective_tier(current_user, db)
     daily_ai_rate_limiter.check(current_user.id, tier)
 
     if data.week_start:
@@ -517,7 +524,7 @@ async def time_block(
     db: AsyncSession = Depends(get_db),
 ):
     time_block_rate_limiter.check(request)
-    tier = current_user.effective_tier
+    tier = await resolve_effective_tier(current_user, db)
     daily_ai_rate_limiter.check(current_user.id, tier)
 
     try:
@@ -675,6 +682,7 @@ async def weekly_review(
     data: WeeklyReviewRequest,
     request: Request,
     current_user: User = Depends(get_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Generate an ADHD-friendly weekly review narrative using a hybrid
@@ -690,7 +698,7 @@ async def weekly_review(
     land. See WeeklyReviewRequest in schemas/ai.py for the v2 contract.
     """
     weekly_review_rate_limiter.check(request)
-    tier = current_user.effective_tier
+    tier = await resolve_effective_tier(current_user, db)
     daily_ai_rate_limiter.check(current_user.id, tier)
 
     uid = _require_firebase_uid(current_user)
@@ -750,6 +758,7 @@ async def extract_from_text(
     data: ExtractFromTextRequest,
     request: Request,
     current_user: User = Depends(get_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Extract structured task candidates from pasted conversation text via
@@ -760,7 +769,7 @@ async def extract_from_text(
     screen enforces the same cap client-side.
     """
     extract_rate_limiter.check(request)
-    tier = current_user.effective_tier
+    tier = await resolve_effective_tier(current_user, db)
     daily_ai_rate_limiter.check(current_user.id, tier)
 
     try:
@@ -797,6 +806,7 @@ async def batch_parse(
     data: BatchParseRequest,
     request: Request,
     current_user: User = Depends(get_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Parse a natural-language batch command into a structured mutation
     plan. The Android client renders the result as a diff-preview screen
@@ -809,7 +819,7 @@ async def batch_parse(
     actually loaded, and matches the WeeklyReviewRequest pattern.
     """
     batch_parse_rate_limiter.check(request)
-    tier = current_user.effective_tier
+    tier = await resolve_effective_tier(current_user, db)
     daily_ai_rate_limiter.check(current_user.id, tier)
 
     user_context_dict = data.user_context.model_dump()
@@ -846,6 +856,7 @@ async def chat(
     data: ChatRequest,
     request: Request,
     current_user: User = Depends(get_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Conversational coaching chat backed by Claude Haiku.
 
@@ -856,7 +867,7 @@ async def chat(
     breakdown / archive) referencing that ID.
     """
     chat_rate_limiter.check(request)
-    tier = current_user.effective_tier
+    tier = await resolve_effective_tier(current_user, db)
     daily_ai_rate_limiter.check(current_user.id, tier)
 
     try:
@@ -926,6 +937,7 @@ async def automation_complete(
     data: AutomationCompleteRequest,
     request: Request,
     current_user: User = Depends(get_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """`ai.complete` automation action — free-form Anthropic completion.
 
@@ -934,7 +946,7 @@ async def automation_complete(
     with optional opaque trigger context.
     """
     automation_action_rate_limiter.check(request)
-    tier = current_user.effective_tier
+    tier = await resolve_effective_tier(current_user, db)
     daily_ai_rate_limiter.check(current_user.id, tier)
 
     try:
@@ -960,6 +972,7 @@ async def automation_summarize(
     data: AutomationSummarizeRequest,
     request: Request,
     current_user: User = Depends(get_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """`ai.summarize` automation action — scoped activity summary.
 
@@ -969,7 +982,7 @@ async def automation_summarize(
     the cap on entities the prompt can mention.
     """
     automation_action_rate_limiter.check(request)
-    tier = current_user.effective_tier
+    tier = await resolve_effective_tier(current_user, db)
     daily_ai_rate_limiter.check(current_user.id, tier)
 
     try:
