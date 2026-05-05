@@ -3,6 +3,9 @@ package com.averycorp.prismtask.ui.screens.addedittask
 import androidx.lifecycle.SavedStateHandle
 import com.averycorp.prismtask.data.local.entity.TaskDependencyEntity
 import com.averycorp.prismtask.data.local.entity.TaskEntity
+import com.averycorp.prismtask.domain.model.CognitiveLoad
+import com.averycorp.prismtask.domain.model.LifeCategory
+import com.averycorp.prismtask.domain.model.TaskMode
 import com.averycorp.prismtask.data.preferences.NotificationPreferences
 import com.averycorp.prismtask.data.preferences.TaskBehaviorPreferences
 import com.averycorp.prismtask.data.preferences.UserPreferencesDataStore
@@ -437,6 +440,89 @@ class AddEditTaskViewModelTest {
             errors.any { it.contains("cycle", ignoreCase = true) }
         )
         collectJob.cancel()
+    }
+
+    // ---------------------------------------------------------------------
+    // Auto-pick (classifier-backed chips on Organize tab)
+    // ---------------------------------------------------------------------
+
+    @Test
+    fun `autoPickLifeCategory picks a chip from the title`() {
+        val vm = newViewModel()
+        vm.initialize(taskId = null, projectId = null, initialDate = null)
+        vm.onTitleChange("Email project status update to manager")
+        vm.autoPickLifeCategory()
+        assertEquals(LifeCategory.WORK, vm.lifeCategory)
+        // Auto-press must NOT flip manuallySet — the boundary-suggestion gate
+        // and subsequent re-picks both depend on it staying false.
+        assertFalse(vm.lifeCategoryManuallySet)
+    }
+
+    @Test
+    fun `autoPickLifeCategory leaves chip empty when title is blank`() {
+        val vm = newViewModel()
+        vm.initialize(taskId = null, projectId = null, initialDate = null)
+        vm.autoPickLifeCategory()
+        assertNull(vm.lifeCategory)
+        assertFalse(vm.lifeCategoryManuallySet)
+    }
+
+    @Test
+    fun `autoPickLifeCategory respects a prior manual pick`() {
+        val vm = newViewModel()
+        vm.initialize(taskId = null, projectId = null, initialDate = null)
+        vm.onLifeCategoryChange(LifeCategory.PERSONAL)
+        assertTrue(vm.lifeCategoryManuallySet)
+
+        vm.onTitleChange("Email project status update to manager")
+        vm.autoPickLifeCategory()
+        // Manual pick wins over auto re-press.
+        assertEquals(LifeCategory.PERSONAL, vm.lifeCategory)
+        assertTrue(vm.lifeCategoryManuallySet)
+    }
+
+    @Test
+    fun `autoPickLifeCategory with force overrides a manual pick`() {
+        val vm = newViewModel()
+        vm.initialize(taskId = null, projectId = null, initialDate = null)
+        vm.onLifeCategoryChange(LifeCategory.PERSONAL)
+        vm.onTitleChange("Email project status update to manager")
+
+        vm.autoPickLifeCategory(force = true)
+        // Force resets manualSet and re-picks from the classifier.
+        assertEquals(LifeCategory.WORK, vm.lifeCategory)
+        assertFalse(vm.lifeCategoryManuallySet)
+    }
+
+    @Test
+    fun `autoPickTaskMode picks a chip from the title`() {
+        val vm = newViewModel()
+        vm.initialize(taskId = null, projectId = null, initialDate = null)
+        vm.onTitleChange("Play board games with friends")
+        vm.autoPickTaskMode()
+        assertEquals(TaskMode.PLAY, vm.taskMode)
+        assertFalse(vm.taskModeManuallySet)
+    }
+
+    @Test
+    fun `autoPickCognitiveLoad picks a chip from the title`() {
+        val vm = newViewModel()
+        vm.initialize(taskId = null, projectId = null, initialDate = null)
+        vm.onTitleChange("Read research paper")
+        vm.autoPickCognitiveLoad()
+        assertEquals(CognitiveLoad.HARD, vm.cognitiveLoad)
+        assertFalse(vm.cognitiveLoadManuallySet)
+    }
+
+    @Test
+    fun `resolveLifeCategoryForSave persists displayed auto-pick`() = runTest {
+        val vm = newViewModel()
+        vm.initialize(taskId = null, projectId = null, initialDate = null)
+        vm.onTitleChange("Email project status update to manager")
+        vm.autoPickLifeCategory()
+
+        // Auto-pick produces a value; save path must persist exactly that.
+        assertEquals(LifeCategory.WORK.name, vm.resolveLifeCategoryForSave())
     }
 
     @Test

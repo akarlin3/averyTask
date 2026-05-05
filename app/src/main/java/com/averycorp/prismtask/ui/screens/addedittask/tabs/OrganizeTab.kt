@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
@@ -41,6 +42,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -85,6 +87,15 @@ internal fun OrganizeTabContent(
     var tagsExpanded by remember { mutableStateOf(false) }
     var showNewTagForm by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    // Auto-press the classifier-backed chips whenever the user lands on the
+    // Organize tab or edits the title/description. Each call short-circuits
+    // when the user has already manually picked that selector's chip.
+    LaunchedEffect(viewModel.title, viewModel.description) {
+        viewModel.autoPickLifeCategory()
+        viewModel.autoPickTaskMode()
+        viewModel.autoPickCognitiveLoad()
+    }
 
     // ---- Project section ----
     SectionLabel("Project")
@@ -136,8 +147,8 @@ internal fun OrganizeTabContent(
     )
     LifeCategorySelector(
         selected = viewModel.lifeCategory,
-        manuallySet = viewModel.lifeCategoryManuallySet,
-        onSelect = { viewModel.onLifeCategoryChange(it) }
+        onSelect = { viewModel.onLifeCategoryChange(it) },
+        onAuto = { viewModel.autoPickLifeCategory(force = true) }
     )
 
     // ---- Task Mode section (Work / Play / Relax — see docs/WORK_PLAY_RELAX.md) ----
@@ -148,8 +159,8 @@ internal fun OrganizeTabContent(
     )
     TaskModeSelector(
         selected = viewModel.taskMode,
-        manuallySet = viewModel.taskModeManuallySet,
-        onSelect = { viewModel.onTaskModeChange(it) }
+        onSelect = { viewModel.onTaskModeChange(it) },
+        onAuto = { viewModel.autoPickTaskMode(force = true) }
     )
 
     // ---- Cognitive Load section (Easy / Medium / Hard — see docs/COGNITIVE_LOAD.md) ----
@@ -160,8 +171,8 @@ internal fun OrganizeTabContent(
     )
     CognitiveLoadSelector(
         selected = viewModel.cognitiveLoad,
-        manuallySet = viewModel.cognitiveLoadManuallySet,
-        onSelect = { viewModel.onCognitiveLoadChange(it) }
+        onSelect = { viewModel.onCognitiveLoadChange(it) },
+        onAuto = { viewModel.autoPickCognitiveLoad(force = true) }
     )
 
     // ---- Blockers section (per-task dependency management — F.5 follow-on) ----
@@ -805,21 +816,15 @@ internal fun ParentTaskIndicator(
 @Composable
 internal fun LifeCategorySelector(
     selected: LifeCategory?,
-    manuallySet: Boolean,
-    onSelect: (LifeCategory?) -> Unit
+    onSelect: (LifeCategory?) -> Unit,
+    onAuto: () -> Unit
 ) {
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        // "Auto" chip — lets the classifier pick.
-        LifeCategoryChip(
-            label = "Auto",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            selected = !manuallySet,
-            onClick = { onSelect(null) }
-        )
+        AutoPickButton(onClick = onAuto)
         LifeCategoryChip(
             label = LifeCategory.label(LifeCategory.WORK),
             color = LifeCategoryColor.WORK,
@@ -855,20 +860,15 @@ internal fun LifeCategorySelector(
 @Composable
 internal fun TaskModeSelector(
     selected: TaskMode?,
-    manuallySet: Boolean,
-    onSelect: (TaskMode?) -> Unit
+    onSelect: (TaskMode?) -> Unit,
+    onAuto: () -> Unit
 ) {
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        LifeCategoryChip(
-            label = "Auto",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            selected = !manuallySet,
-            onClick = { onSelect(null) }
-        )
+        AutoPickButton(onClick = onAuto)
         LifeCategoryChip(
             label = TaskMode.label(TaskMode.WORK),
             color = TaskModeColor.WORK,
@@ -898,20 +898,15 @@ internal fun TaskModeSelector(
 @Composable
 internal fun CognitiveLoadSelector(
     selected: CognitiveLoad?,
-    manuallySet: Boolean,
-    onSelect: (CognitiveLoad?) -> Unit
+    onSelect: (CognitiveLoad?) -> Unit,
+    onAuto: () -> Unit
 ) {
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        LifeCategoryChip(
-            label = "Auto",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            selected = !manuallySet,
-            onClick = { onSelect(null) }
-        )
+        AutoPickButton(onClick = onAuto)
         LifeCategoryChip(
             label = CognitiveLoad.label(CognitiveLoad.EASY),
             color = CognitiveLoadColor.EASY,
@@ -929,6 +924,43 @@ internal fun CognitiveLoadSelector(
             color = CognitiveLoadColor.HARD,
             selected = selected == CognitiveLoad.HARD,
             onClick = { onSelect(CognitiveLoad.HARD) }
+        )
+    }
+}
+
+/**
+ * "Auto" button rendered alongside the classifier-backed chips. Tapping it
+ * forces a re-pick (clears any prior manual selection and re-runs the
+ * keyword classifier on the current title + description).
+ */
+@Composable
+private fun AutoPickButton(onClick: () -> Unit) {
+    val color = MaterialTheme.colorScheme.primary
+    Row(
+        modifier = Modifier
+            .clip(LocalPrismShapes.current.chip)
+            .background(color.copy(alpha = 0.12f))
+            .border(
+                width = 1.5.dp,
+                color = color,
+                shape = RoundedCornerShape(16.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Filled.AutoFixHigh,
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier.size(16.dp)
+        )
+        Text(
+            text = "Auto",
+            style = MaterialTheme.typography.labelLarge,
+            color = color,
+            fontWeight = FontWeight.SemiBold
         )
     }
 }
