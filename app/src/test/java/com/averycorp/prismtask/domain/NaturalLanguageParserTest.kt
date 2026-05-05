@@ -658,4 +658,99 @@ class NaturalLanguageParserTest {
         val result = parser.parse("Buy milk #groceries")
         assertNull(result.cognitiveLoad)
     }
+
+    // ── Start-of-Day-aware "today"/"tomorrow" resolution ───────────────────
+    //
+    // With SoD = 04:00, a user typing "today" at 02:00 still means yesterday's
+    // calendar date — habits/streaks/Today filter all roll over at SoD, so NLP
+    // must agree. Regression cover for the bug where the parser used calendar
+    // midnight to resolve "today" while every other surface used logical day.
+
+    @Test
+    fun test_todayBeforeStartOfDayResolvesToPreviousCalendarDate() {
+        val sodHour = 4
+        val sodMinute = 0
+        // Pin "now" to 02:00 local on the chosen day — before SoD, so the
+        // logical day is the previous calendar date.
+        val pinnedDay = LocalDate.of(2026, 5, 15)
+        val nowAt2am = pinnedDay.atTime(2, 0).atZone(zone).toInstant()
+        val provider = object : com.averycorp.prismtask.data.preferences.StartOfDayProvider {
+            override suspend fun current() =
+                com.averycorp.prismtask.data.preferences.StartOfDay(
+                    hour = sodHour,
+                    minute = sodMinute,
+                    hasBeenSet = true
+                )
+        }
+        val sodParser = NaturalLanguageParser(
+            stubApi,
+            startOfDayProvider = provider,
+            timeProvider = object : TimeProvider {
+                override fun now(): Instant = nowAt2am
+                override fun zone(): ZoneId = zone
+            }
+        )
+
+        val result = sodParser.parse("Buy milk today")
+
+        val expected = LocalDate.of(2026, 5, 14)
+            .atStartOfDay(zone).toInstant().toEpochMilli()
+        assertEquals(expected, result.dueDate)
+    }
+
+    @Test
+    fun test_tomorrowBeforeStartOfDayResolvesToCurrentCalendarDate() {
+        // 02:00 with SoD = 04:00 → logical today = May 14, so "tomorrow" =
+        // May 15 (today's calendar date), not May 16.
+        val pinnedDay = LocalDate.of(2026, 5, 15)
+        val nowAt2am = pinnedDay.atTime(2, 0).atZone(zone).toInstant()
+        val provider = object : com.averycorp.prismtask.data.preferences.StartOfDayProvider {
+            override suspend fun current() =
+                com.averycorp.prismtask.data.preferences.StartOfDay(
+                    hour = 4, minute = 0, hasBeenSet = true
+                )
+        }
+        val sodParser = NaturalLanguageParser(
+            stubApi,
+            startOfDayProvider = provider,
+            timeProvider = object : TimeProvider {
+                override fun now(): Instant = nowAt2am
+                override fun zone(): ZoneId = zone
+            }
+        )
+
+        val result = sodParser.parse("Buy milk tomorrow")
+
+        val expected = LocalDate.of(2026, 5, 15)
+            .atStartOfDay(zone).toInstant().toEpochMilli()
+        assertEquals(expected, result.dueDate)
+    }
+
+    @Test
+    fun test_todayAfterStartOfDayResolvesToCurrentCalendarDate() {
+        // 06:00 with SoD = 04:00 → already past SoD, so logical today =
+        // calendar today. Regression-protects the no-rollover branch.
+        val pinnedDay = LocalDate.of(2026, 5, 15)
+        val nowAt6am = pinnedDay.atTime(6, 0).atZone(zone).toInstant()
+        val provider = object : com.averycorp.prismtask.data.preferences.StartOfDayProvider {
+            override suspend fun current() =
+                com.averycorp.prismtask.data.preferences.StartOfDay(
+                    hour = 4, minute = 0, hasBeenSet = true
+                )
+        }
+        val sodParser = NaturalLanguageParser(
+            stubApi,
+            startOfDayProvider = provider,
+            timeProvider = object : TimeProvider {
+                override fun now(): Instant = nowAt6am
+                override fun zone(): ZoneId = zone
+            }
+        )
+
+        val result = sodParser.parse("Buy milk today")
+
+        val expected = LocalDate.of(2026, 5, 15)
+            .atStartOfDay(zone).toInstant().toEpochMilli()
+        assertEquals(expected, result.dueDate)
+    }
 }

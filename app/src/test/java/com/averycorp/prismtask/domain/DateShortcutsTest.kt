@@ -99,4 +99,79 @@ class DateShortcutsTest {
         assertEquals(0, cal.get(Calendar.SECOND))
         assertEquals(0, cal.get(Calendar.MILLISECOND))
     }
+
+    // ── SoD-aware logical-day shortcuts ─────────────────────────────────────
+    //
+    // These regression-protect the bug where "Move to Tomorrow" / "Plan for
+    // Today" / Quick Add NLP all snapped to calendar midnight, so a tap at
+    // 02:00 with SoD = 04:00 advanced the wrong day.
+
+    private fun atHourOnDay(year: Int, month: Int, day: Int, hour: Int): Long =
+        Calendar.getInstance().apply {
+            clear()
+            set(year, month, day, hour, 0, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+
+    private fun calendarMidnight(year: Int, month: Int, day: Int): Long =
+        Calendar.getInstance().apply {
+            clear()
+            set(year, month, day, 0, 0, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+
+    @Test
+    fun todayLogical_beforeStartOfDay_returnsPreviousCalendarMidnight() {
+        // 02:00 on May 15 with SoD = 04:00 → logical today is May 14
+        val now = atHourOnDay(2026, Calendar.MAY, 15, 2)
+        val expected = calendarMidnight(2026, Calendar.MAY, 14)
+        assertEquals(expected, DateShortcuts.todayLogical(sodHour = 4, now = now))
+    }
+
+    @Test
+    fun todayLogical_afterStartOfDay_returnsCurrentCalendarMidnight() {
+        // 06:00 with SoD = 04:00 → already past SoD, logical today = today
+        val now = atHourOnDay(2026, Calendar.MAY, 15, 6)
+        val expected = calendarMidnight(2026, Calendar.MAY, 15)
+        assertEquals(expected, DateShortcuts.todayLogical(sodHour = 4, now = now))
+    }
+
+    @Test
+    fun tomorrowLogical_beforeStartOfDay_returnsCurrentCalendarMidnight() {
+        // 02:00 on May 15 with SoD = 04:00 → logical today is May 14, so
+        // logical "tomorrow" is May 15. The user thinks of May 15 as today
+        // already; tapping "Move to Tomorrow" must NOT skip to May 16.
+        val now = atHourOnDay(2026, Calendar.MAY, 15, 2)
+        val expected = calendarMidnight(2026, Calendar.MAY, 15)
+        assertEquals(expected, DateShortcuts.tomorrowLogical(sodHour = 4, now = now))
+    }
+
+    @Test
+    fun tomorrowLogical_afterStartOfDay_returnsNextCalendarMidnight() {
+        // 06:00 on May 15 with SoD = 04:00 → logical today = May 15,
+        // so logical "tomorrow" = May 16.
+        val now = atHourOnDay(2026, Calendar.MAY, 15, 6)
+        val expected = calendarMidnight(2026, Calendar.MAY, 16)
+        assertEquals(expected, DateShortcuts.tomorrowLogical(sodHour = 4, now = now))
+    }
+
+    @Test
+    fun todayLogical_withSodZero_matchesCalendarToday() {
+        // SoD = 0 (default for users who never opened the prompt) means the
+        // logical day boundary is calendar midnight, so todayLogical and
+        // today should agree no matter when in the day we sample.
+        val now = atHourOnDay(2026, Calendar.MAY, 15, 2)
+        assertEquals(DateShortcuts.today(now), DateShortcuts.todayLogical(sodHour = 0, now = now))
+    }
+
+    @Test
+    fun todayLogical_honorsMinutePrecision() {
+        // 04:15 with SoD = 04:30 → still before SoD by 15 min → logical
+        // today is yesterday. Catches the case where someone sets SoD with
+        // minute precision (e.g. 04:30) and the matcher only consulted hour.
+        val now = atHourOnDay(2026, Calendar.MAY, 15, 4) +
+            (15L * 60L * 1000L) // 04:15
+        val expected = calendarMidnight(2026, Calendar.MAY, 14)
+        assertEquals(expected, DateShortcuts.todayLogical(sodHour = 4, sodMinute = 30, now = now))
+    }
 }

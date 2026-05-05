@@ -316,6 +316,38 @@ constructor(
         tasks.count { it.dueDate != null && it.dueDate < startOfToday }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
+    /**
+     * Calendar midnight of the user's current *logical* day (SoD-aware).
+     *
+     * Differs from [dayStartFlow] which is the SoD-time on the logical date
+     * (used for overdue comparisons). UI surfaces that need to reschedule a
+     * task to "today" want calendar midnight here so the stored due date
+     * matches the convention used elsewhere (timeless tasks store dueDate
+     * at 00:00 local).
+     */
+    val startOfToday: StateFlow<Long> = localDateFlow
+        .observe(taskBehaviorPreferences.getStartOfDay())
+        .map { it.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli() }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            java.time.LocalDate.now()
+                .atStartOfDay(java.time.ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli()
+        )
+
+    /**
+     * Live Start-of-Day for UI components ([QuickReschedulePopup]) that need
+     * to compute their own logical-day shortcuts.
+     */
+    val startOfDay: StateFlow<com.averycorp.prismtask.data.preferences.StartOfDay> =
+        taskBehaviorPreferences.getStartOfDay().stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            com.averycorp.prismtask.data.preferences.StartOfDay()
+        )
+
     val subtasksMap: StateFlow<Map<Long, List<TaskEntity>>> = allRootTasks
         .flatMapLatest { tasks ->
             val parentIds = tasks.map { it.id }
