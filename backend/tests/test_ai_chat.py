@@ -294,6 +294,59 @@ class TestChatEndpoint:
         assert resp.status_code == 403
 
     @pytest.mark.asyncio
+    async def test_endpoint_accepts_free_user_with_active_beta_pro(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        """Beta-tester unlock codes elevate FREE users to PRO for AI gates.
+
+        Regression for the bug where ``current_user.effective_tier`` (the
+        sync property) skipped the beta-code lookup that ``/auth/me``
+        applies to its response, so beta-pro accounts hit 403 on every
+        AI endpoint despite being told they were Pro.
+        """
+        from datetime import datetime, timedelta, timezone
+        from sqlalchemy import select
+        from app.models import BetaCode, BetaCodeRedemption, User as UserModel
+        from app.routers.ai import chat_rate_limiter
+        from tests.conftest import TestSessionLocal
+
+        chat_rate_limiter._requests.clear()
+
+        async with TestSessionLocal() as session:
+            await session.execute(
+                select(UserModel).where(UserModel.email == "test@example.com")
+            )
+            user_row = (
+                await session.execute(
+                    select(UserModel).where(UserModel.email == "test@example.com")
+                )
+            ).scalar_one()
+            session.add(BetaCode(code="TEST-BETA"))
+            session.add(
+                BetaCodeRedemption(
+                    code="TEST-BETA",
+                    user_id=user_row.id,
+                    grants_pro_until=datetime.now(timezone.utc) + timedelta(days=30),
+                )
+            )
+            await session.commit()
+
+        with patch("app.services.ai_productivity.generate_chat_response") as mock_gen:
+            mock_gen.return_value = {
+                "message": "Sure thing.",
+                "actions": [],
+                "tokens_used": {"input": 1, "output": 1},
+            }
+            resp = await client.post(
+                "/api/v1/ai/chat",
+                json={"message": "hi", "conversation_id": "chat_x"},
+                headers=auth_headers,
+            )
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["message"] == "Sure thing."
+
+    @pytest.mark.asyncio
     async def test_endpoint_451_when_ai_features_disabled(
         self, client: AsyncClient, pro_auth_headers: dict
     ):

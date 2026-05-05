@@ -13,6 +13,7 @@ from app.database import get_db
 from app.middleware.ai_gate import require_ai_features_enabled
 from app.middleware.auth import get_current_user
 from app.models import Goal, GoalStatus, Project, Task, TaskStatus, User
+from app.services.beta_codes import resolve_effective_tier
 from app.schemas.syllabus import (
     SyllabusConfirmRequest,
     SyllabusConfirmResponse,
@@ -126,7 +127,7 @@ async def parse_syllabus(
     db: AsyncSession = Depends(get_db),
 ):
     # Pro gate
-    if current_user.effective_tier != "PRO":
+    if await resolve_effective_tier(current_user, db) != "PRO":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Syllabus parsing requires Pro",
@@ -263,7 +264,7 @@ async def confirm_syllabus(
     db: AsyncSession = Depends(get_db),
 ):
     # Pro gate
-    if current_user.effective_tier != "PRO":
+    if await resolve_effective_tier(current_user, db) != "PRO":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Syllabus import requires Pro",

@@ -541,7 +541,8 @@ class ChatRequest(BaseModel):
     # echo it back inside actions so the client knows which task to act on.
     task_context_id: Optional[int] = None
     # Forwarded from the client for telemetry only — the server uses
-    # ``current_user.effective_tier`` for actual gating.
+    # ``resolve_effective_tier(current_user, db)`` for actual gating
+    # (admin override + stored tier + active beta-code redemption).
     tier: Optional[str] = None
 
 
