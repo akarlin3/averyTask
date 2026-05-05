@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.averycorp.prismtask.data.local.entity.ProjectEntity
 import com.averycorp.prismtask.data.local.entity.TagEntity
+import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.domain.model.CognitiveLoad
 import com.averycorp.prismtask.domain.model.LifeCategory
 import com.averycorp.prismtask.domain.model.TaskMode
@@ -129,6 +130,10 @@ internal fun OrganizeTabContent(
 
     // ---- Life Category section (Work-Life Balance Engine v1.4.0 V1) ----
     SectionLabel("Life Category")
+    OrganizeSectionDescription(
+        "Which area of life this task belongs to. Used by the work-life " +
+            "balance bar and weekly report."
+    )
     LifeCategorySelector(
         selected = viewModel.lifeCategory,
         manuallySet = viewModel.lifeCategoryManuallySet,
@@ -137,6 +142,10 @@ internal fun OrganizeTabContent(
 
     // ---- Task Mode section (Work / Play / Relax — see docs/WORK_PLAY_RELAX.md) ----
     SectionLabel("Task Mode")
+    OrganizeSectionDescription(
+        "Whether this task is heads-down work, something playful, or " +
+            "something restful. Helps mode-aware suggestions and Brain Mode."
+    )
     TaskModeSelector(
         selected = viewModel.taskMode,
         manuallySet = viewModel.taskModeManuallySet,
@@ -145,11 +154,19 @@ internal fun OrganizeTabContent(
 
     // ---- Cognitive Load section (Easy / Medium / Hard — see docs/COGNITIVE_LOAD.md) ----
     SectionLabel("Cognitive Load")
+    OrganizeSectionDescription(
+        "How mentally demanding this task is, regardless of how long it " +
+            "takes. Drives smart-pomodoro pacing and energy-aware planning."
+    )
     CognitiveLoadSelector(
         selected = viewModel.cognitiveLoad,
         manuallySet = viewModel.cognitiveLoadManuallySet,
         onSelect = { viewModel.onCognitiveLoadChange(it) }
     )
+
+    // ---- Blockers section (per-task dependency management — F.5 follow-on) ----
+    SectionLabel("Blockers")
+    BlockersSection(viewModel = viewModel)
 
     // ---- Parent task section ----
     // Future: searchable parent-task picker for nesting subtasks from this tab.
@@ -980,4 +997,200 @@ internal fun ColorDot(
             )
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// Organize tab: Blockers selector
+// ---------------------------------------------------------------------------
+
+@Composable
+internal fun BlockersSection(viewModel: AddEditTaskViewModel) {
+    if (!viewModel.isEditMode) {
+        EmptyBlockersHint(
+            text = "Save the task first to add blockers",
+            primary = false
+        )
+        return
+    }
+    val blockers by viewModel.blockers.collectAsStateWithLifecycle()
+    val allTasks by viewModel.allTasksForPicker.collectAsStateWithLifecycle()
+    var showPicker by remember { mutableStateOf(false) }
+
+    val titlesById = remember(allTasks) { allTasks.associateBy({ it.id }, { it.title }) }
+    val currentId = viewModel.currentEditingTaskId
+    val excludedIds = remember(blockers, currentId) {
+        buildSet {
+            currentId?.let { add(it) }
+            blockers.forEach { add(it.blockerTaskId) }
+        }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (blockers.isEmpty()) {
+            EmptyBlockersHint(
+                text = "No blockers",
+                primary = false
+            )
+        } else {
+            blockers.forEach { edge ->
+                BlockerRow(
+                    title = titlesById[edge.blockerTaskId] ?: "Task #${edge.blockerTaskId}",
+                    onRemove = { viewModel.removeBlocker(edge) }
+                )
+            }
+        }
+        AddBlockerButton(onClick = { showPicker = true })
+    }
+
+    if (showPicker) {
+        BlockerPickerDialog(
+            candidates = allTasks.filter { it.id !in excludedIds },
+            onDismiss = { showPicker = false },
+            onPick = { id ->
+                viewModel.addBlocker(id)
+                showPicker = false
+            }
+        )
+    }
+}
+
+@Composable
+internal fun BlockerRow(title: String, onRemove: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant,
+                shape = RoundedCornerShape(12.dp)
+            ).padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f),
+            fontWeight = FontWeight.Medium
+        )
+        IconButton(onClick = onRemove) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "Remove blocker",
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+internal fun AddBlockerButton(onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.primary,
+                shape = RoundedCornerShape(12.dp)
+            ).clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.Add,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = "Add Blocker",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+@Composable
+internal fun EmptyBlockersHint(text: String, primary: Boolean) {
+    val tint = if (primary) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant,
+                shape = RoundedCornerShape(12.dp)
+            ).padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = tint
+        )
+    }
+}
+
+@Composable
+internal fun BlockerPickerDialog(
+    candidates: List<TaskEntity>,
+    onDismiss: () -> Unit,
+    onPick: (Long) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add Blocker") },
+        text = {
+            if (candidates.isEmpty()) {
+                Text(
+                    text = "No other tasks are available to set as a blocker.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.heightIn(max = 320.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    items(candidates, key = { it.id }) { task ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { onPick(task.id) }
+                                .padding(horizontal = 12.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = task.title,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Done") }
+        }
+    )
+}
+
+@Composable
+private fun OrganizeSectionDescription(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 2.dp, bottom = 4.dp)
+    )
 }
