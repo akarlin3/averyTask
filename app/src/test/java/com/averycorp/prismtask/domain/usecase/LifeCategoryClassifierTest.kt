@@ -81,4 +81,49 @@ class LifeCategoryClassifierTest {
         // "yogawear" should not match "yoga" — word-boundary required.
         assertEquals(LifeCategory.UNCATEGORIZED, classifier.classify("Browse yogawear"))
     }
+
+    // ── Custom-keyword merging ────────────────────────────────────────────
+    //
+    // Regression tests for the wiring bug where every classifier call site
+    // instantiated `LifeCategoryClassifier()` with default keywords and
+    // ignored the user's customizations from Settings → Advanced Tuning.
+
+    @Test
+    fun `custom WORK keyword classifies task that defaults reject`() {
+        // "tournament" is not in DEFAULT_KEYWORDS — without customization
+        // this would be UNCATEGORIZED.
+        assertEquals(LifeCategory.UNCATEGORIZED, classifier.classify("Run a tournament"))
+
+        val custom = com.averycorp.prismtask.data.preferences.LifeCategoryCustomKeywords(
+            work = "tournament"
+        )
+        val customized = LifeCategoryClassifier.withCustomKeywords(custom)
+        assertEquals(LifeCategory.WORK, customized.classify("Run a tournament"))
+    }
+
+    @Test
+    fun `custom keywords merge with defaults instead of replacing`() {
+        // Adding a custom WORK keyword must NOT drop the built-in keywords —
+        // tasks that already classified under defaults should still classify.
+        val custom = com.averycorp.prismtask.data.preferences.LifeCategoryCustomKeywords(
+            work = "tournament"
+        )
+        val customized = LifeCategoryClassifier.withCustomKeywords(custom)
+        // Built-in keyword still works.
+        assertEquals(LifeCategory.WORK, customized.classify("Prepare standup report"))
+        // Custom keyword also works.
+        assertEquals(LifeCategory.WORK, customized.classify("Run a tournament"))
+    }
+
+    @Test
+    fun `custom CSV with multiple keywords splits and trims correctly`() {
+        // The factory accepts comma-separated strings; whitespace trimming
+        // and blank-skipping is on the factory, not the caller.
+        val custom = com.averycorp.prismtask.data.preferences.LifeCategoryCustomKeywords(
+            personal = " hobbies , knitting ,, board-game "
+        )
+        val customized = LifeCategoryClassifier.withCustomKeywords(custom)
+        assertEquals(LifeCategory.PERSONAL, customized.classify("Friday knitting"))
+        assertEquals(LifeCategory.PERSONAL, customized.classify("New hobbies"))
+    }
 }

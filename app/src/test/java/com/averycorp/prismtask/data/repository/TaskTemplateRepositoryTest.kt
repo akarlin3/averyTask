@@ -8,7 +8,11 @@ import com.averycorp.prismtask.data.local.entity.TaskEntity
 import com.averycorp.prismtask.data.local.entity.TaskTagCrossRef
 import com.averycorp.prismtask.data.local.entity.TaskTemplateEntity
 import com.averycorp.prismtask.data.local.entity.TaskWithTags
+import com.averycorp.prismtask.data.preferences.AdvancedTuningPreferences
+import com.averycorp.prismtask.data.preferences.LifeCategoryCustomKeywords
 import com.google.gson.Gson
+import io.mockk.every
+import io.mockk.mockk
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
@@ -28,6 +32,17 @@ import org.junit.Test
  *    the full orchestration — task inserts, subtask inserts, tag cross-ref
  *    inserts, and usage-counter updates — without standing up a real Room db.
  */
+/**
+ * Default-keyword stub for [TaskTemplateRepository]'s
+ * [AdvancedTuningPreferences] dependency. The repository now reads
+ * user-supplied life-category keywords on every classifier build; tests
+ * that don't exercise customization keep behaving like the pre-wiring
+ * world by emitting an empty [LifeCategoryCustomKeywords].
+ */
+private fun fakeAdvancedTuningPreferences(): AdvancedTuningPreferences = mockk {
+    every { getLifeCategoryCustomKeywords() } returns flowOf(LifeCategoryCustomKeywords())
+}
+
 class TaskTemplateRepositoryTest {
     // ---------------------------------------------------------------------
     // Pure helper tests — edge cases that are painful to express in the
@@ -62,7 +77,7 @@ class TaskTemplateRepositoryTest {
         val templateDao = FakeTemplateDao()
         val taskDao = FakeTaskDao()
         val tagDao = FakeTagDao()
-        val repo = TaskTemplateRepository(templateDao, taskDao, tagDao)
+        val repo = TaskTemplateRepository(templateDao, taskDao, tagDao, fakeAdvancedTuningPreferences())
 
         val id = templateDao.insertTemplate(
             sampleTemplate(
@@ -164,7 +179,7 @@ class TaskTemplateRepositoryTest {
         val templateDao = FakeTemplateDao()
         val taskDao = FakeTaskDao()
         val tagDao = FakeTagDao()
-        val repo = TaskTemplateRepository(templateDao, taskDao, tagDao)
+        val repo = TaskTemplateRepository(templateDao, taskDao, tagDao, fakeAdvancedTuningPreferences())
 
         val templateId = templateDao.insertTemplate(
             sampleTemplate(
@@ -194,7 +209,7 @@ class TaskTemplateRepositoryTest {
         val templateDao = FakeTemplateDao()
         val taskDao = FakeTaskDao()
         val tagDao = FakeTagDao()
-        val repo = TaskTemplateRepository(templateDao, taskDao, tagDao)
+        val repo = TaskTemplateRepository(templateDao, taskDao, tagDao, fakeAdvancedTuningPreferences())
 
         val templateId = templateDao.insertTemplate(
             sampleTemplate(
@@ -219,7 +234,7 @@ class TaskTemplateRepositoryTest {
         val templateDao = FakeTemplateDao()
         val taskDao = FakeTaskDao()
         val tagDao = FakeTagDao()
-        val repo = TaskTemplateRepository(templateDao, taskDao, tagDao)
+        val repo = TaskTemplateRepository(templateDao, taskDao, tagDao, fakeAdvancedTuningPreferences())
 
         val templateId = templateDao.insertTemplate(
             sampleTemplate(
@@ -240,7 +255,7 @@ class TaskTemplateRepositoryTest {
         val templateDao = FakeTemplateDao()
         val taskDao = FakeTaskDao()
         val tagDao = FakeTagDao()
-        val repo = TaskTemplateRepository(templateDao, taskDao, tagDao)
+        val repo = TaskTemplateRepository(templateDao, taskDao, tagDao, fakeAdvancedTuningPreferences())
 
         val templateId = templateDao.insertTemplate(
             sampleTemplate(templateTitle = "Standup", usageCount = 4)
@@ -265,7 +280,7 @@ class TaskTemplateRepositoryTest {
         val templateDao = FakeTemplateDao()
         val taskDao = FakeTaskDao()
         val tagDao = FakeTagDao()
-        val repo = TaskTemplateRepository(templateDao, taskDao, tagDao)
+        val repo = TaskTemplateRepository(templateDao, taskDao, tagDao, fakeAdvancedTuningPreferences())
 
         val templateId = templateDao.insertTemplate(
             sampleTemplate(templateTitle = "Quick Task")
@@ -285,7 +300,7 @@ class TaskTemplateRepositoryTest {
         val templateDao = FakeTemplateDao()
         val taskDao = FakeTaskDao()
         val tagDao = FakeTagDao()
-        val repo = TaskTemplateRepository(templateDao, taskDao, tagDao)
+        val repo = TaskTemplateRepository(templateDao, taskDao, tagDao, fakeAdvancedTuningPreferences())
 
         val templateId = templateDao.insertTemplate(
             sampleTemplate(templateTitle = "Editor Task")
@@ -303,7 +318,7 @@ class TaskTemplateRepositoryTest {
         val templateDao = FakeTemplateDao()
         val taskDao = FakeTaskDao()
         val tagDao = FakeTagDao()
-        val repo = TaskTemplateRepository(templateDao, taskDao, tagDao)
+        val repo = TaskTemplateRepository(templateDao, taskDao, tagDao, fakeAdvancedTuningPreferences())
 
         val templateId = templateDao.insertTemplate(
             sampleTemplate(templateTitle = "Scheduled Task")
@@ -326,7 +341,7 @@ class TaskTemplateRepositoryTest {
         val templateDao = FakeTemplateDao()
         val taskDao = FakeTaskDao()
         val tagDao = FakeTagDao()
-        val repo = TaskTemplateRepository(templateDao, taskDao, tagDao)
+        val repo = TaskTemplateRepository(templateDao, taskDao, tagDao, fakeAdvancedTuningPreferences())
 
         // Seed a task + two subtasks + two tag cross-refs.
         val parentId = taskDao.insert(

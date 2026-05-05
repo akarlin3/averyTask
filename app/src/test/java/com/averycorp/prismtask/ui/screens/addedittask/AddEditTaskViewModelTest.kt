@@ -80,6 +80,14 @@ class AddEditTaskViewModelTest {
         advancedTuningPreferences = mockk(relaxed = true)
         coEvery { advancedTuningPreferences.getEditorFieldRows() } returns
             flowOf(com.averycorp.prismtask.data.preferences.EditorFieldRows())
+        // Default-keyword stubs for the auto-classifier wiring. Tests that
+        // exercise customization can override these in their own setup.
+        coEvery { advancedTuningPreferences.getLifeCategoryCustomKeywords() } returns
+            flowOf(com.averycorp.prismtask.data.preferences.LifeCategoryCustomKeywords())
+        coEvery { advancedTuningPreferences.getTaskModeCustomKeywords() } returns
+            flowOf(com.averycorp.prismtask.data.preferences.TaskModeCustomKeywords())
+        coEvery { advancedTuningPreferences.getCognitiveLoadCustomKeywords() } returns
+            flowOf(com.averycorp.prismtask.data.preferences.CognitiveLoadCustomKeywords())
         savedStateHandle = SavedStateHandle()
 
         // Default StateFlow seeds so the VM init doesn't crash on relaxed mocks.

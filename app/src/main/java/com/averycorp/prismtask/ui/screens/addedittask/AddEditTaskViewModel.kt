@@ -160,7 +160,18 @@ constructor(
     var lifeCategoryManuallySet by mutableStateOf(false)
         private set
 
-    private val lifeCategoryClassifier = LifeCategoryClassifier()
+    /**
+     * Live snapshot of the user's custom life-category keywords. The
+     * classifier is rebuilt from this at save time so newly-added keywords
+     * (Settings → Advanced Tuning) take effect on the next task creation
+     * without needing the editor to be re-opened.
+     */
+    private val lifeCategoryCustomKeywords: StateFlow<com.averycorp.prismtask.data.preferences.LifeCategoryCustomKeywords> =
+        advancedTuningPreferences.getLifeCategoryCustomKeywords().stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            com.averycorp.prismtask.data.preferences.LifeCategoryCustomKeywords()
+        )
 
     /**
      * Reward / output mode for this task. `null` means "Auto" — the save
@@ -173,7 +184,12 @@ constructor(
     var taskModeManuallySet by mutableStateOf(false)
         private set
 
-    private val taskModeClassifier = TaskModeClassifier()
+    private val taskModeCustomKeywords: StateFlow<com.averycorp.prismtask.data.preferences.TaskModeCustomKeywords> =
+        advancedTuningPreferences.getTaskModeCustomKeywords().stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            com.averycorp.prismtask.data.preferences.TaskModeCustomKeywords()
+        )
 
     /**
      * Start-friction for this task. `null` means "Auto" — the save path
@@ -187,7 +203,12 @@ constructor(
     var cognitiveLoadManuallySet by mutableStateOf(false)
         private set
 
-    private val cognitiveLoadClassifier = CognitiveLoadClassifier()
+    private val cognitiveLoadCustomKeywords: StateFlow<com.averycorp.prismtask.data.preferences.CognitiveLoadCustomKeywords> =
+        advancedTuningPreferences.getCognitiveLoadCustomKeywords().stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            com.averycorp.prismtask.data.preferences.CognitiveLoadCustomKeywords()
+        )
 
     /**
      * Boundary-rule decision for the task currently being edited. The save
@@ -210,7 +231,7 @@ constructor(
      */
     private suspend fun evaluateBoundaryRules(): Boolean {
         val draftCategory = lifeCategory
-            ?: lifeCategoryClassifier
+            ?: LifeCategoryClassifier.withCustomKeywords(lifeCategoryCustomKeywords.value)
                 .classify(title, description.ifBlank { null })
                 .takeIf { it != LifeCategory.UNCATEGORIZED }
             ?: return true
@@ -622,7 +643,8 @@ constructor(
         if (lifeCategoryManuallySet && lifeCategory != null) {
             return lifeCategory?.name ?: LifeCategory.UNCATEGORIZED.name
         }
-        val guess = lifeCategoryClassifier.classify(title, description.ifBlank { null })
+        val classifier = LifeCategoryClassifier.withCustomKeywords(lifeCategoryCustomKeywords.value)
+        val guess = classifier.classify(title, description.ifBlank { null })
         return guess.name
     }
 
@@ -634,7 +656,8 @@ constructor(
         if (taskModeManuallySet && taskMode != null) {
             return taskMode?.name ?: TaskMode.UNCATEGORIZED.name
         }
-        val guess = taskModeClassifier.classify(title, description.ifBlank { null })
+        val classifier = TaskModeClassifier.withCustomKeywords(taskModeCustomKeywords.value)
+        val guess = classifier.classify(title, description.ifBlank { null })
         return guess.name
     }
 
@@ -647,7 +670,8 @@ constructor(
         if (cognitiveLoadManuallySet && cognitiveLoad != null) {
             return cognitiveLoad?.name ?: CognitiveLoad.UNCATEGORIZED.name
         }
-        val guess = cognitiveLoadClassifier.classify(title, description.ifBlank { null })
+        val classifier = CognitiveLoadClassifier.withCustomKeywords(cognitiveLoadCustomKeywords.value)
+        val guess = classifier.classify(title, description.ifBlank { null })
         return guess.name
     }
 

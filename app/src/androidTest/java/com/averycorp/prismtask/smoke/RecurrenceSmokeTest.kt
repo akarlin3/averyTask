@@ -44,7 +44,12 @@ class RecurrenceSmokeTest : SmokeTestBase() {
         userPreferences = mockk<UserPreferencesDataStore> {
             every { eisenhowerFlow } returns flowOf(EisenhowerPrefs(autoClassifyEnabled = false))
         },
-        automationEventBus = mockk<AutomationEventBus>(relaxed = true)
+        automationEventBus = mockk<AutomationEventBus>(relaxed = true),
+        advancedTuningPreferences = mockk(relaxed = true) {
+            every { getLifeCategoryCustomKeywords() } returns flowOf(
+                com.averycorp.prismtask.data.preferences.LifeCategoryCustomKeywords()
+            )
+        }
     )
 
     @Test

@@ -45,9 +45,22 @@ constructor(
     private val taskCompletionRepository: TaskCompletionRepository,
     private val eisenhowerClassifier: EisenhowerClassifier,
     private val userPreferences: UserPreferencesDataStore,
-    private val automationEventBus: AutomationEventBus
+    private val automationEventBus: AutomationEventBus,
+    private val advancedTuningPreferences: com.averycorp.prismtask.data.preferences.AdvancedTuningPreferences
 ) {
-    private val lifeCategoryClassifier = LifeCategoryClassifier()
+    /**
+     * Latest snapshot of the user's custom life-category keywords, refreshed
+     * by a background collector below. Read synchronously on the insert path
+     * (which is non-suspend) so newly-added keywords (Settings → Advanced
+     * Tuning) start affecting auto-classification on the next task creation.
+     * Defaults to no extra keywords until the first emission.
+     */
+    @Volatile
+    private var latestLifeCategoryCustomKeywords: com.averycorp.prismtask.data.preferences.LifeCategoryCustomKeywords =
+        com.averycorp.prismtask.data.preferences.LifeCategoryCustomKeywords()
+
+    private fun lifeCategoryClassifier(): LifeCategoryClassifier =
+        LifeCategoryClassifier.withCustomKeywords(latestLifeCategoryCustomKeywords)
 
     /**
      * Background scope for fire-and-forget Eisenhower classification. A
@@ -58,6 +71,16 @@ constructor(
      * SupervisorJob so one failed classify doesn't cancel future ones.
      */
     private val classifyScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    init {
+        // Keep [latestLifeCategoryCustomKeywords] warm so the synchronous
+        // insert path picks up Settings changes without blocking on disk.
+        classifyScope.launch {
+            advancedTuningPreferences.getLifeCategoryCustomKeywords().collect {
+                latestLifeCategoryCustomKeywords = it
+            }
+        }
+    }
 
     /**
      * Enqueue an async classification for a newly-created task. Respects the
@@ -104,7 +127,7 @@ constructor(
             )
             return existing
         }
-        val guess = lifeCategoryClassifier.classify(task.title, task.description)
+        val guess = lifeCategoryClassifier().classify(task.title, task.description)
         val source = if (guess == LifeCategory.UNCATEGORIZED) "default" else "classifier"
         android.util.Log.i(
             "PrismSync",

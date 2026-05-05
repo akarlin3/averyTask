@@ -95,6 +95,8 @@ class QuickAddViewModelBatchSubmitGuardTest {
         every { voiceInputManager.rmsLevel } returns MutableStateFlow(0f)
         every { advancedTuningPreferences.getQuickAddRows() } returns
             flowOf(QuickAddRows())
+        every { advancedTuningPreferences.getLifeCategoryCustomKeywords() } returns
+            flowOf(com.averycorp.prismtask.data.preferences.LifeCategoryCustomKeywords())
 
         every { proFeatureGate.hasAccess(ProFeatureGate.AI_BATCH_OPS) } returns true
         every { proFeatureGate.hasAccess(ProFeatureGate.AI_NLP) } returns true
