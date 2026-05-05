@@ -122,7 +122,17 @@ constructor(
             return@withContext ParsedTask(title = query, templateQuery = query)
         }
         try {
-            val response = api.parseTask(ParseRequest(input))
+            // Forward the user's Start-of-Day so the backend resolves
+            // "today"/"tomorrow" against the user's logical day (matching
+            // the offline regex parser).
+            val sod = currentStartOfDay()
+            val response = api.parseTask(
+                ParseRequest(
+                    text = input,
+                    startOfDayHour = sod.hour,
+                    startOfDayMinute = sod.minute
+                )
+            )
             response.toParsedTask(fallbackTitle = input)
         } catch (_: Exception) {
             parse(input)
@@ -275,11 +285,13 @@ constructor(
         }
 
         var text = input
-        // Derive `today` from the injected timeProvider so pinned-clock tests
-        // (and any future hypothetical caller using a non-system zone) get
-        // deterministic results. Production SystemTimeProvider still reads
-        // the real wall clock.
-        val today = timeProvider.now().atZone(zone).toLocalDate()
+        // Derive `today` as the user's *logical* day (Start-of-Day-aware), not
+        // the calendar day. With SoD = 4 AM, a user typing "buy milk today" at
+        // 2 AM still means yesterday's calendar date — habits, streaks, and
+        // the Today filter all already roll over at SoD, so NLP must agree.
+        // The injected timeProvider keeps pinned-clock tests deterministic.
+        val sod = currentStartOfDay()
+        val today = LogicalDayBoundary.logicalDate(timeProvider.now(), sod.hour, sod.minute, zone)
 
         var lifeCategory: String? = null
 

@@ -746,6 +746,25 @@ constructor(
     // Reactive "start of today" exposed for UI (e.g. quick-add plannedDate override).
     val startOfToday: StateFlow<Long> = dayStart
 
+    /**
+     * Calendar midnight of tomorrow (SoD-aware). Tomorrow means the day after
+     * the user's current *logical* day, so a tap at 02:00 with SoD = 04:00
+     * still resolves to the calendar date the user thinks of as today (since
+     * logical "today" is yesterday's calendar date).
+     */
+    val startOfTomorrow: StateFlow<Long> = dayEnd
+
+    /**
+     * Live Start-of-Day for UI components (e.g. [QuickReschedulePopup]) that
+     * need to compute their own logical-day shortcuts.
+     */
+    val startOfDay: StateFlow<com.averycorp.prismtask.data.preferences.StartOfDay> =
+        taskBehaviorPreferences.getStartOfDay().stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            com.averycorp.prismtask.data.preferences.StartOfDay()
+        )
+
     private val _showPlanSheet = MutableStateFlow(false)
     val showPlanSheet: StateFlow<Boolean> = _showPlanSheet
 

@@ -117,6 +117,7 @@ fun TodayScreen(
     val tasksNotInToday by viewModel.tasksNotInToday.collectAsStateWithLifecycle()
     val projects by viewModel.projects.collectAsStateWithLifecycle()
     val startOfToday by viewModel.startOfToday.collectAsStateWithLifecycle()
+    val startOfTomorrow by viewModel.startOfTomorrow.collectAsStateWithLifecycle()
     val todayHabits by viewModel.todayHabits.collectAsStateWithLifecycle()
     val scheduledTodayHabits by viewModel.scheduledTodayHabits.collectAsStateWithLifecycle()
     val overdueBookableHabits by viewModel.overdueBookableHabits.collectAsStateWithLifecycle()
@@ -200,13 +201,11 @@ fun TodayScreen(
     val taskCountByProject by viewModel.taskCountByProject.collectAsStateWithLifecycle()
 
     // Shared "move to tomorrow" builder so overdue/today/planned sections don't
-    // each duplicate the same closure.
+    // each duplicate the same closure. Uses [startOfTomorrow] (SoD-aware) so a
+    // user at 02:00 with SoD = 04:00 — still inside the previous logical day —
+    // moves the task to today's calendar date, not the day after.
     val onMoveTaskToTomorrow: (TaskEntity) -> Unit = { task ->
-        viewModel.onRescheduleTask(
-            task.id,
-            com.averycorp.prismtask.domain.usecase.DateShortcuts
-                .tomorrow(System.currentTimeMillis())
-        )
+        viewModel.onRescheduleTask(task.id, startOfTomorrow)
         viewModel.showSnackbar("Moved to tomorrow", "Undo") {
             viewModel.onRescheduleTask(task.id, task.dueDate)
         }
@@ -824,11 +823,14 @@ fun TodayScreen(
     }
 
     reschedulePopupTask?.let { task ->
+        val sod by viewModel.startOfDay.collectAsStateWithLifecycle()
         QuickReschedulePopup(
             hasDueDate = task.dueDate != null,
             onDismiss = { reschedulePopupTask = null },
             onReschedule = { newDate -> viewModel.onRescheduleTask(task.id, newDate) },
-            onPlanForToday = { viewModel.onPlanTaskForToday(task.id) }
+            onPlanForToday = { viewModel.onPlanTaskForToday(task.id) },
+            sodHour = sod.hour,
+            sodMinute = sod.minute
         )
     }
 

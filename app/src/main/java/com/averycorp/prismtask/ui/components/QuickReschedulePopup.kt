@@ -42,6 +42,11 @@ import java.util.Locale
  * @param hasDueDate controls whether the "Remove Date" row is rendered.
  * @param onReschedule called with the chosen due date (null = remove).
  * @param onPlanForToday pins the task to today without touching dueDate.
+ * @param sodHour user's Start-of-Day hour (0..23). Callers that have SoD
+ *   wired through their ViewModel should pass it so the "Today"/"Tomorrow"
+ *   chips honor the user's logical day boundary; the default of 0 falls
+ *   back to calendar midnight for screens that don't yet collect SoD.
+ * @param sodMinute matching SoD minute (0..59). Defaults to 0.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,13 +55,19 @@ fun QuickReschedulePopup(
     onDismiss: () -> Unit,
     onReschedule: (Long?) -> Unit,
     onPlanForToday: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    sodHour: Int = 0,
+    sodMinute: Int = 0
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
     val now = remember { System.currentTimeMillis() }
 
-    val today = remember(now) { DateShortcuts.today(now) }
-    val tomorrow = remember(now) { DateShortcuts.tomorrow(now) }
+    val today = remember(now, sodHour, sodMinute) {
+        DateShortcuts.todayLogical(sodHour, sodMinute, now)
+    }
+    val tomorrow = remember(now, sodHour, sodMinute) {
+        DateShortcuts.tomorrowLogical(sodHour, sodMinute, now)
+    }
     val nextMonday = remember(now) { DateShortcuts.nextMonday(now) }
     val nextWeek = remember(now) { DateShortcuts.nextWeek(now) }
 

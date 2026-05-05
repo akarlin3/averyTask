@@ -145,6 +145,7 @@ fun TaskListScreen(
     val currentSort by viewModel.currentSort.collectAsStateWithLifecycle()
     val viewMode by viewModel.viewMode.collectAsStateWithLifecycle()
     val overdueCount by viewModel.overdueCount.collectAsStateWithLifecycle()
+    val startOfToday by viewModel.startOfToday.collectAsStateWithLifecycle()
     val currentFilter by viewModel.currentFilter.collectAsStateWithLifecycle()
     val allTags by viewModel.allTags.collectAsStateWithLifecycle()
     val isMultiSelectMode by viewModel.isMultiSelectMode.collectAsStateWithLifecycle()
@@ -409,6 +410,7 @@ fun TaskListScreen(
     // Bulk reschedule popup for multi-select — reuses the same
     // QuickReschedulePopup component as the single-task overflow menu flow.
     if (showBatchReschedulePopup) {
+        val sod by viewModel.startOfDay.collectAsStateWithLifecycle()
         QuickReschedulePopup(
             hasDueDate = true,
             onDismiss = { showBatchReschedulePopup = false },
@@ -419,11 +421,14 @@ fun TaskListScreen(
             onPlanForToday = {
                 // Plan-for-today doesn't map to a bulk operation; treat
                 // it as rescheduling to today to keep the popup signature.
-                val today = com.averycorp.prismtask.domain.usecase.DateShortcuts
-                    .today(System.currentTimeMillis())
-                viewModel.onBulkReschedule(today)
+                // Uses the SoD-aware [startOfToday] so a tap before SoD —
+                // still inside the previous logical day — schedules tasks
+                // to the calendar date the user thinks of as today.
+                viewModel.onBulkReschedule(startOfToday)
                 showBatchReschedulePopup = false
-            }
+            },
+            sodHour = sod.hour,
+            sodMinute = sod.minute
         )
     }
 
@@ -1014,6 +1019,7 @@ fun TaskListScreen(
     }
 
     reschedulePopupTask?.let { task ->
+        val sod by viewModel.startOfDay.collectAsStateWithLifecycle()
         QuickReschedulePopup(
             hasDueDate = task.dueDate != null,
             onDismiss = { reschedulePopupTask = null },
@@ -1022,7 +1028,9 @@ fun TaskListScreen(
             },
             onPlanForToday = {
                 viewModel.onPlanForToday(task.id)
-            }
+            },
+            sodHour = sod.hour,
+            sodMinute = sod.minute
         )
     }
 
