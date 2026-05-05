@@ -414,7 +414,11 @@ class AddEditTaskViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         val errors = mutableListOf<String>()
-        backgroundScope.launch { vm.errorMessages.collect { errors.add(it) } }
+        // Collect on testDispatcher so the subscriber and the VM's emitter share
+        // the same TestScheduler — backgroundScope on runTest's TestScope uses a
+        // different scheduler, so testDispatcher.scheduler.advanceUntilIdle()
+        // would not start the collector before the SharedFlow (no replay) emit.
+        val collectJob = launch(testDispatcher) { vm.errorMessages.collect { errors.add(it) } }
         testDispatcher.scheduler.advanceUntilIdle()
 
         vm.addBlocker(blockerTaskId = 99L)
@@ -424,6 +428,7 @@ class AddEditTaskViewModelTest {
             "cycle rejection should surface as a user-facing error",
             errors.any { it.contains("cycle", ignoreCase = true) }
         )
+        collectJob.cancel()
     }
 
     @Test
