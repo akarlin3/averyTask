@@ -217,3 +217,81 @@ two of three would leave a confusing inconsistent editor.
   is broken. Wait for `title.isNotBlank()`.
 - **Don't gate the auto-press on Pro / paid tier.** The classifier was
   always free; nothing in the operator framing suggests changing that.
+
+---
+
+## Phase 3 — Bundle summary
+
+| # | Item | PR | Status | Notes |
+| - | ---- | -- | ------ | ----- |
+| 1 | Replace "Auto" chip with auto-pressed Auto button across Life Category / Task Mode / Cognitive Load | (this branch — PR opened post-commit) | shipped | Single PR off `claude/auto-button-auto-pick-vJlNl`. ViewModel + composable + 6 unit tests, no DB / migration / sync churn. |
+
+Wall-clock — single ~230 LOC PR (136 ViewModel, 94 OrganizeTab, 86 tests).
+Re-baseline N/A (single-item audit).
+
+Memory entry candidates:
+- None — the design choice (LaunchedEffect keyed on title+description for
+  auto-press, displayed value as source of truth at save time) is local
+  to this editor and unlikely to come up again as a generalizable
+  pattern.
+
+Schedule for next audit: none planned — this was operator-driven and
+fully covered by one PR.
+
+---
+
+## Phase 4 — Claude Chat handoff
+
+```markdown
+## PrismTask — Auto-Pick Button on Task Editor Organize Tab
+
+**Scope.** Convert the "Auto" affordance on the task editor's Organize
+tab (Life Category / Task Mode / Cognitive Load) from a meta-selection
+chip ("leave it to the classifier at save time") into an
+auto-pressed-button UX where the user always sees a real chip selected
+and the classifier runs on demand.
+
+**Verdicts**
+
+| Item | Verdict | One-liner |
+| ---- | ------- | --------- |
+| "Auto" chip on three selectors | GREEN, PROCEED | Confirmed at OrganizeTab.kt:806-934 (now refactored). Classifier deferred to save via resolveXxxForSave at AddEditTaskViewModel.kt:644-678. |
+| Trigger design — when does Auto auto-press? | GREEN, PROCEED | Locked to LaunchedEffect keyed on title + description, no debounce (classifier is keyword-only and cheap). |
+| Test surface | GREEN, PROCEED | No prior tests asserted the chip's "Auto" state — added 6 new tests in AddEditTaskViewModelTest. |
+
+**Shipped (PR pending merge — this branch)**
+
+- `feat(editor): convert "Auto" chip to auto-pressed button on Organize
+  tab` — branch `claude/auto-button-auto-pick-vJlNl`. ViewModel gains
+  three `autoPickXxx(force: Boolean = false)` helpers and the save-time
+  resolver now persists the displayed value rather than re-running the
+  classifier. OrganizeTab drops the "Auto" chip in favor of an
+  AutoPickButton (Icons.Filled.AutoFixHigh + label). A LaunchedEffect
+  drives the auto-press on Organize-tab open and on every title /
+  description edit.
+
+**Deferred / stopped** — none.
+
+**Non-obvious findings**
+
+- The boundary-suggestion path (AddEditTaskViewModel.kt:248-253) writes
+  through `lifeCategory` *only when `!lifeCategoryManuallySet`*. The
+  auto-press deliberately leaves `manuallySet = false` after auto-picking
+  so boundary suggestions still override correctly. Manual user taps on
+  real chips set it to `true`; the on-screen Auto button forces it back
+  to `false`.
+- `resolveXxxForSave` originally re-ran the classifier whenever
+  `manuallySet == false`. New shape: displayed value wins regardless of
+  manuallySet, classifier only fires when chip is still empty (e.g.
+  editor saved without visiting Organize tab). Keeps the user-visible
+  pick and the persisted value in sync if classifier keywords change
+  mid-session.
+- `LifeCategoryChip(label = "Auto", …)` was the old chip-as-selection.
+  The composable was deleted (per CLAUDE.md "no // removed comments")
+  rather than left as dead code.
+
+**Open questions** — none. The "should there be a separate Reset button?"
+question raised during the audit was resolved in-design: the Auto
+button doubles as the reset, since tapping it forces a re-pick.
+```
+
