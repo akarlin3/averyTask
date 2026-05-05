@@ -149,14 +149,20 @@ constructor(
         private set
 
     /**
-     * Work-Life Balance category for this task. `null` means "Auto" —
-     * the save path will run [LifeCategoryClassifier] to guess one before
-     * persisting (see [saveTask]).
+     * Work-Life Balance category currently displayed on the Organize tab.
+     * `null` means no chip is selected — either because the title is still
+     * blank (the auto-press hasn't picked yet) or the classifier returned
+     * UNCATEGORIZED. Save path falls back to a last-chance classifier run if
+     * still `null` at save time.
      */
     var lifeCategory by mutableStateOf<LifeCategory?>(null)
         private set
 
-    /** True if the user has explicitly picked a category via the Organize tab chips. */
+    /**
+     * True iff the user explicitly tapped a real chip. The auto-press
+     * respects this (won't overwrite a manual pick); tapping the on-screen
+     * "Auto" button forces it back to `false` and re-runs the classifier.
+     */
     var lifeCategoryManuallySet by mutableStateOf(false)
         private set
 
@@ -175,9 +181,9 @@ constructor(
         )
 
     /**
-     * Reward / output mode for this task. `null` means "Auto" — the save
-     * path will run [TaskModeClassifier] to guess one before persisting.
-     * Orthogonal to [lifeCategory] (see `docs/WORK_PLAY_RELAX.md`).
+     * Reward / output mode for this task. `null` means no chip is shown —
+     * see [lifeCategory] for the auto-press semantic. Orthogonal to
+     * [lifeCategory] (see `docs/WORK_PLAY_RELAX.md`).
      */
     var taskMode by mutableStateOf<TaskMode?>(null)
         private set
@@ -193,10 +199,9 @@ constructor(
         )
 
     /**
-     * Start-friction for this task. `null` means "Auto" — the save path
-     * runs [CognitiveLoadClassifier] to guess one before persisting.
-     * Orthogonal to [lifeCategory] / [taskMode] (see
-     * `docs/COGNITIVE_LOAD.md`).
+     * Start-friction for this task. `null` means no chip is shown — see
+     * [lifeCategory] for the auto-press semantic. Orthogonal to
+     * [lifeCategory] / [taskMode] (see `docs/COGNITIVE_LOAD.md`).
      */
     var cognitiveLoad by mutableStateOf<CognitiveLoad?>(null)
         private set
@@ -608,73 +613,106 @@ constructor(
     }
 
     /**
-     * Set the [LifeCategory] chip. Passing `null` switches back to "Auto"
-     * mode — the classifier will run at save time to guess one.
+     * Set the [LifeCategory] chip from a manual user tap. The user's pick
+     * is sticky — auto-press will not overwrite it until [autoPickLifeCategory]
+     * is invoked with `force = true` (the on-screen "Auto" button).
      */
     fun onLifeCategoryChange(value: LifeCategory?) {
         lifeCategory = value
         lifeCategoryManuallySet = value != null
     }
 
-    /**
-     * Set the [TaskMode] chip. Passing `null` switches back to "Auto" mode
-     * — the classifier will run at save time to guess one.
-     */
+    /** Manual user pick on the Task Mode chip — see [onLifeCategoryChange]. */
     fun onTaskModeChange(value: TaskMode?) {
         taskMode = value
         taskModeManuallySet = value != null
     }
 
-    /**
-     * Set the [CognitiveLoad] chip. Passing `null` switches back to "Auto"
-     * — the classifier will run at save time to guess one.
-     */
+    /** Manual user pick on the Cognitive Load chip — see [onLifeCategoryChange]. */
     fun onCognitiveLoadChange(value: CognitiveLoad?) {
         cognitiveLoad = value
         cognitiveLoadManuallySet = value != null
     }
 
     /**
-     * Resolve the final life_category value to persist:
-     *  - If the user picked one, use it.
-     *  - Otherwise run the keyword classifier on title + description.
-     *  - No keyword match maps to UNCATEGORIZED.name (explicit "tried and
-     *    didn't match") rather than null (which now means "never classified").
+     * Run the keyword classifier on the current title/description and pick
+     * a real [LifeCategory] chip for the user. Driven by the Organize tab's
+     * `LaunchedEffect` (auto-press) and by the on-screen "Auto" button
+     * (manual press, with `force = true`).
+     *
+     * - Skips when the user has already manually picked a chip, unless
+     *   [force] is set (i.e. the operator explicitly tapped Auto to reset).
+     * - Empty title or no-keyword-match leaves the chip unselected so the
+     *   next title/description edit gets another chance to pick.
+     * - Never flips [lifeCategoryManuallySet] to `true` — that's reserved for
+     *   real user taps so the boundary-suggestion gate at the top of this
+     *   class can still override an auto-picked value.
+     */
+    fun autoPickLifeCategory(force: Boolean = false) {
+        if (lifeCategoryManuallySet && !force) return
+        if (force) lifeCategoryManuallySet = false
+        val guess = if (title.isBlank()) {
+            LifeCategory.UNCATEGORIZED
+        } else {
+            LifeCategoryClassifier
+                .withCustomKeywords(lifeCategoryCustomKeywords.value)
+                .classify(title, description.ifBlank { null })
+        }
+        lifeCategory = guess.takeIf { it != LifeCategory.UNCATEGORIZED }
+    }
+
+    /** Auto-press the Task Mode chip — see [autoPickLifeCategory]. */
+    fun autoPickTaskMode(force: Boolean = false) {
+        if (taskModeManuallySet && !force) return
+        if (force) taskModeManuallySet = false
+        val guess = if (title.isBlank()) {
+            TaskMode.UNCATEGORIZED
+        } else {
+            TaskModeClassifier
+                .withCustomKeywords(taskModeCustomKeywords.value)
+                .classify(title, description.ifBlank { null })
+        }
+        taskMode = guess.takeIf { it != TaskMode.UNCATEGORIZED }
+    }
+
+    /** Auto-press the Cognitive Load chip — see [autoPickLifeCategory]. */
+    fun autoPickCognitiveLoad(force: Boolean = false) {
+        if (cognitiveLoadManuallySet && !force) return
+        if (force) cognitiveLoadManuallySet = false
+        val guess = if (title.isBlank()) {
+            CognitiveLoad.UNCATEGORIZED
+        } else {
+            CognitiveLoadClassifier
+                .withCustomKeywords(cognitiveLoadCustomKeywords.value)
+                .classify(title, description.ifBlank { null })
+        }
+        cognitiveLoad = guess.takeIf { it != CognitiveLoad.UNCATEGORIZED }
+    }
+
+    /**
+     * Resolve the final life_category value to persist. The displayed value
+     * is the source of truth — if a chip is showing (auto-picked or manual),
+     * we persist that. Falls back to a last-chance classifier run only when
+     * the editor never reached the Organize tab and the chip is empty.
      */
     internal fun resolveLifeCategoryForSave(): String {
-        if (lifeCategoryManuallySet && lifeCategory != null) {
-            return lifeCategory?.name ?: LifeCategory.UNCATEGORIZED.name
-        }
+        lifeCategory?.let { return it.name }
         val classifier = LifeCategoryClassifier.withCustomKeywords(lifeCategoryCustomKeywords.value)
-        val guess = classifier.classify(title, description.ifBlank { null })
-        return guess.name
+        return classifier.classify(title, description.ifBlank { null }).name
     }
 
-    /**
-     * Resolve the final task_mode value to persist. Same shape as
-     * [resolveLifeCategoryForSave] but for the orthogonal mode dimension.
-     */
+    /** Save-path resolver for task_mode — see [resolveLifeCategoryForSave]. */
     internal fun resolveTaskModeForSave(): String {
-        if (taskModeManuallySet && taskMode != null) {
-            return taskMode?.name ?: TaskMode.UNCATEGORIZED.name
-        }
+        taskMode?.let { return it.name }
         val classifier = TaskModeClassifier.withCustomKeywords(taskModeCustomKeywords.value)
-        val guess = classifier.classify(title, description.ifBlank { null })
-        return guess.name
+        return classifier.classify(title, description.ifBlank { null }).name
     }
 
-    /**
-     * Resolve the final cognitive_load value to persist. Same shape as
-     * [resolveLifeCategoryForSave] but for the orthogonal start-friction
-     * dimension. See `docs/COGNITIVE_LOAD.md`.
-     */
+    /** Save-path resolver for cognitive_load — see [resolveLifeCategoryForSave]. */
     internal fun resolveCognitiveLoadForSave(): String {
-        if (cognitiveLoadManuallySet && cognitiveLoad != null) {
-            return cognitiveLoad?.name ?: CognitiveLoad.UNCATEGORIZED.name
-        }
+        cognitiveLoad?.let { return it.name }
         val classifier = CognitiveLoadClassifier.withCustomKeywords(cognitiveLoadCustomKeywords.value)
-        val guess = classifier.classify(title, description.ifBlank { null })
-        return guess.name
+        return classifier.classify(title, description.ifBlank { null }).name
     }
 
     /**
