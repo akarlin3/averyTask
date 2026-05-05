@@ -264,8 +264,11 @@ constructor(
         }
         if (hasActivePurchase) {
             updateTierStatus(
-                matchedTier, matchedPeriod, SubscriptionState.SUBSCRIBED,
-                purchaseToken = matchedToken, productId = matchedProductId
+                matchedTier,
+                matchedPeriod,
+                SubscriptionState.SUBSCRIBED,
+                purchaseToken = matchedToken,
+                productId = matchedProductId
             )
         } else {
             updateTierStatus(UserTier.FREE, BillingPeriod.NONE, SubscriptionState.EXPIRED)
